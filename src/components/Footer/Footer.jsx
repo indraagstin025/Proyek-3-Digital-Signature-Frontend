@@ -1,7 +1,7 @@
 import React from "react";
 import { FaInstagram, FaEnvelope, FaLinkedin, FaGithub } from "react-icons/fa";
 
-// Import logo (light & dark mode)
+
 import logoLight from "../../assets/images/LogoLightMode.jpg";
 import logoDark from "../../assets/images/LogoDarkMode.jpg";
 
