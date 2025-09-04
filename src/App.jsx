@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 
-// Import komponen
 import Header from './components/Header/Header.jsx';
 import MainLayout from './components/MainLayout/MainLayout.jsx';
 import HomePage from './pages/HomePage/HomePage.jsx';
@@ -34,7 +33,10 @@ function App() {
 
   return (
     <Router>
-      <div className="bg-white text-gray-800 dark:bg-gray-950 dark:text-gray-300 min-h-screen">
+      {/* Jangan pakai dark:bg disini, styling global pindah ke index.css */}
+      <div className="min-h-screen">
+        <div className="aurora-bg"></div> 
+
         <Toaster
           position="top-center"
           reverseOrder={false}
@@ -72,6 +74,7 @@ function App() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
           </Route>
+          
           <Route path="/dashboard" element={<DashboardPage />} />
         </Routes>
       </div>
