@@ -1,6 +1,7 @@
 import React from 'react';
+import { HiSun, HiMoon } from 'react-icons/hi';
 
-const DashboardHeader = ({ activePage, onToggleSidebar }) => {
+const DashboardHeader = ({ activePage, onToggleSidebar, theme, toggleTheme }) => {
   const getTitle = () => {
     switch (activePage) {
       case 'overview':
@@ -16,38 +17,42 @@ const DashboardHeader = ({ activePage, onToggleSidebar }) => {
     }
   };
 
+  // Komponen tombol tema dengan gaya dinamis
+  const ThemeToggleButton = () => (
+    <button
+      onClick={toggleTheme}
+      // DIUBAH: Menambahkan gaya untuk light & dark mode
+      className="p-2 rounded-full transition-all
+                 bg-gray-200/70 text-gray-800 hover:bg-gray-300/70
+                 dark:bg-gray-700/70 dark:text-gray-200 dark:hover:bg-gray-600/70"
+    >
+      {theme === 'light' ? <HiMoon className="w-5 h-5" /> : <HiSun className="w-5 h-5" />}
+    </button>
+  );
+
   return (
-    <header className="bg-gray-900/80 backdrop-blur-sm p-4 sm:p-6 lg:p-8 flex items-center justify-between shadow-sm sticky top-0 z-40">
+    // DIUBAH: Latar belakang header sekarang dinamis
+    <header className="sticky top-0 z-40 flex items-center justify-between p-4 shadow-sm backdrop-blur-sm sm:p-6 lg:p-8
+                       bg-white/80 border-b border-gray-200/80
+                       dark:bg-gray-900/80 dark:border-b dark:border-white/10">
+      
       {/* Left section */}
       <div className="flex items-center gap-4">
-        {/* Toggle Sidebar */}
-        <button onClick={onToggleSidebar} className="text-gray-300 hover:text-white">
-          <svg
-            className="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M4 6h16M4 12h16M4 18h16"
-            ></path>
+        {/* DIUBAH: Warna ikon hamburger sekarang dinamis */}
+        <button onClick={onToggleSidebar} className="text-gray-600 hover:text-black dark:text-gray-300 dark:hover:text-white">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
           </svg>
         </button>
-
-        {/* Dynamic title */}
-        <h2 className="text-2xl font-bold text-white">{getTitle()}</h2>
+        {/* DIUBAH: Warna judul sekarang dinamis */}
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{getTitle()}</h2>
       </div>
 
       {/* Right section */}
       <div className="flex items-center gap-4">
-        {activePage === 'documents' && (
-          <button className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
-            + Dokumen Baru
-          </button>
-        )}
+
+        
+        <ThemeToggleButton />
       </div>
     </header>
   );
