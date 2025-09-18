@@ -44,7 +44,7 @@ Ikuti langkah-langkah ini untuk menjalankan frontend di lingkungan lokal Anda.
 
 1.  **Clone Repository Frontend**
     ```bash
-    git clone [URL_FRONTEND_REPO_ANDA]
+    git clone https://github.com/indraagstin025/Proyek-3-Digital-Signature-Frontend.git
     cd nama-folder-frontend
     ```
 
@@ -54,23 +54,6 @@ Ikuti langkah-langkah ini untuk menjalankan frontend di lingkungan lokal Anda.
     npm install
     ```
 
-3.  **Konfigurasi Environment Variable**
-    Frontend membutuhkan beberapa kunci untuk terhubung ke backend dan Supabase.
-
-    * Salin file contoh `.env.example` menjadi `.env`:
-        ```bash
-        cp .env.example .env
-        ```
-    * Buka file `.env` dan isi nilainya:
-        ```env
-        # URL server backend Anda.
-        # Jika backend berjalan di port 3000, URL-nya akan seperti ini:
-        VITE_API_BASE_URL="http://localhost:3000/api"
-
-        # Kunci dari proyek Supabase Anda (sama seperti di backend)
-        VITE_SUPABASE_URL="URL_PROYEK_SUPABASE_ANDA"
-        VITE_SUPABASE_ANON_KEY="KUNCI_ANON_SUPABASE_ANDA"
-        ```
 
 ### 🏃 Menjalankan Aplikasi
 
