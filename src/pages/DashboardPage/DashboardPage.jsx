@@ -30,6 +30,11 @@ const DashboardPage = ({ theme, toggleTheme }) => {
     fetchUserData();
   }, []);
 
+  // 👇 1. Buat fungsi untuk menerima data baru dari komponen anak
+  const handleProfileUpdate = (updatedUser) => {
+    setUserData(updatedUser);
+  };
+
   const getActivePageFromPath = (pathname) => {
       const pathParts = pathname.split('/').filter(p => p);
       if (pathParts.length < 2) return 'overview';
@@ -37,9 +42,6 @@ const DashboardPage = ({ theme, toggleTheme }) => {
   }
   
   const activePage = getActivePageFromPath(location.pathname);
-
-  // --- PERUBAHAN DI SINI ---
-  // Buat judul yang lebih rapi (huruf kapital di awal) untuk ditampilkan di header
   const pageTitle = activePage.charAt(0).toUpperCase() + activePage.slice(1);
 
   return (
@@ -49,7 +51,7 @@ const DashboardPage = ({ theme, toggleTheme }) => {
         userEmail={userData?.email}
         userAvatar={userData?.profilePictureUrl}
         isOpen={isSidebarOpen}
-        activePage={activePage} // Kirim ID asli (lowercase) ke Sidebar untuk penyorotan menu
+        activePage={activePage}
         onClose={() => setIsSidebarOpen(false)}
         theme={theme}
       />
@@ -60,7 +62,7 @@ const DashboardPage = ({ theme, toggleTheme }) => {
         }`}
       >
         <DashboardHeader
-          activePage={pageTitle} // Kirim judul yang sudah dikapitalisasi ke Header
+          activePage={pageTitle}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           theme={theme}
           toggleTheme={toggleTheme}
@@ -69,7 +71,8 @@ const DashboardPage = ({ theme, toggleTheme }) => {
         <main className="flex-1 p-6 overflow-y-auto">
             {userError 
               ? <div className="text-red-500 text-center font-medium">{userError}</div> 
-              : <Outlet />
+              // 👇 2. Kirim state dan fungsi update ke komponen anak melalui 'context'
+              : <Outlet context={{ user: userData, onProfileUpdate: handleProfileUpdate }} />
             }
         </main>
       </div>
@@ -78,4 +81,3 @@ const DashboardPage = ({ theme, toggleTheme }) => {
 };
 
 export default DashboardPage;
-

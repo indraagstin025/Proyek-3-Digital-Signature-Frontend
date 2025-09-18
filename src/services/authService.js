@@ -1,3 +1,4 @@
+// src/services/authService.js
 import apiClient from "./apiClient";
 
 const login = async (email, password) => {
@@ -8,7 +9,8 @@ const login = async (email, password) => {
     }
     return response.data;
   } catch (err) {
-    throw err.response?.data || new Error("Terjadi kesalahan saat login");
+    // Sekarang cukup throw error.message (sudah diproses interceptor)
+    throw new Error(err.message || "Terjadi kesalahan saat login");
   }
 };
 
@@ -17,7 +19,7 @@ const register = async (name, email, password) => {
     const response = await apiClient.post("/auth/register", { name, email, password });
     return response.data;
   } catch (err) {
-    throw err.response?.data || new Error("Terjadi kesalahan saat registrasi");
+    throw new Error(err.message || "Terjadi kesalahan saat registrasi");
   }
 };
 
@@ -25,7 +27,7 @@ const logout = async () => {
   try {
     await apiClient.post("/auth/logout");
   } catch (err) {
-    console.error("Gagal logout di server:", err.response?.data?.message || err.message);
+    console.error("Gagal logout di server:", err.message);
   } finally {
     localStorage.removeItem("authToken");
     console.log("Token di localStorage berhasil dihapus");
@@ -37,7 +39,7 @@ const forgotPassword = async (email) => {
     const response = await apiClient.post("/auth/forgot-password", { email });
     return response.data;
   } catch (err) {
-    throw err.response?.data || new Error("Terjadi kesalahan saat meminta reset password");
+    throw new Error(err.message || "Terjadi kesalahan saat meminta reset password");
   }
 };
 
@@ -47,7 +49,6 @@ const resetPassword = async (token, newPassword) => {
   }
 
   try {
-    // kirim token & password di body
     const response = await apiClient.post("/auth/reset-password", {
       token,
       newPassword,
@@ -55,11 +56,10 @@ const resetPassword = async (token, newPassword) => {
 
     return response.data;
   } catch (err) {
-    console.error("❌ Error resetPassword (frontend):", err.response?.data || err.message);
-    throw err.response?.data || new Error("Terjadi kesalahan saat reset password");
+    console.error("❌ Error resetPassword (frontend):", err.message);
+    throw new Error(err.message || "Terjadi kesalahan saat reset password");
   }
 };
-
 
 const getTokenFromUrl = () => {
   const hash = window.location.hash;

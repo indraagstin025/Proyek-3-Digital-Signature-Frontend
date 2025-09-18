@@ -17,14 +17,18 @@ const LoginPage = () => {
   const [isCardVisible, setIsCardVisible] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const token = authService.getTokenFromUrl();
-    if (token) {
-      navigate("/dashboard");
-    }
-    const timer = setTimeout(() => setIsCardVisible(true), 100);
-    return () => clearTimeout(timer);
-  }, [navigate]);
+useEffect(() => {
+  const token = authService.getTokenFromUrl();
+  if (token) {
+    toast.success("Email Anda berhasil diverifikasi, silakan login.");
+    // opsional: bisa hapus token dari URL supaya lebih bersih
+    window.history.replaceState({}, document.title, "/login");
+  }
+
+  const timer = setTimeout(() => setIsCardVisible(true), 100);
+  return () => clearTimeout(timer);
+}, [navigate]);
+
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -34,14 +38,22 @@ const LoginPage = () => {
     try {
       await authService.login(email, password);
       loginSuccess = true;
-    } catch (err) {
-      if (err.message?.includes("Email not confirmed")) {
-        toast.error("Akun Anda belum terverifikasi.");
-      } else if (err.message?.includes("Invalid login credentials")) {
-        toast.error("Email atau password salah.");
-      } else {
-        toast.error(err.message || "Login gagal.");
-      }
+ } catch (err) {
+  const errorMessage =
+    err.response?.data?.message || err.message || "Login gagal.";
+
+  if (errorMessage.includes("Email belum terverifikasi")) {
+    toast.error("Akun Anda belum terverifikasi.");
+  } else if (
+    errorMessage.includes("Email atau password salah.") ||
+    errorMessage.includes("Invalid login credentials")
+  ) {
+    toast.error("Email atau password salah.");
+  } else {
+    toast.error(errorMessage);
+  }
+
+
     } finally {
       const elapsedTime = Date.now() - startTime;
       const remainingTime = 3000 - elapsedTime;

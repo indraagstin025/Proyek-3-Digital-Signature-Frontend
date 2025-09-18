@@ -1,14 +1,6 @@
-// Import ikon-ikon baru yang akan kita gunakan
-import {
-  FaUser,
-  FaSpinner,
-  FaBriefcase,
-  FaPhone,
-  FaMapMarkerAlt,
-  FaSave,
-  FaCamera,
-} from "react-icons/fa";
+import { FaUser, FaSpinner, FaBriefcase, FaPhone, FaMapMarkerAlt, FaSave, FaCamera } from "react-icons/fa";
 import React, { useState, useEffect } from "react";
+import { useOutletContext } from "react-router-dom";
 import { userService } from "../../services/userService";
 import ProfilePictureModal from "./ProfilePictureModal";
 import toast from "react-hot-toast";
@@ -21,7 +13,8 @@ const InputField = ({ id, name, label, type = "text", value, onChange, ...props 
     value,
     onChange,
     ...props,
-    className: "block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-slate-800 dark:border-slate-600 dark:text-gray-200"
+    className:
+      "block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-slate-800 dark:border-slate-600 dark:text-gray-200",
   };
 
   return (
@@ -29,57 +22,59 @@ const InputField = ({ id, name, label, type = "text", value, onChange, ...props 
       <label htmlFor={id} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
         {label}
       </label>
-      {type === 'textarea' ? (
-        <textarea {...commonProps} rows={4}></textarea>
-      ) : (
-        <input {...commonProps} />
-      )}
+      {type === "textarea" ? <textarea {...commonProps} rows={4}></textarea> : <input {...commonProps} />}
     </div>
   );
 };
 
 const ProfilePage = () => {
-  const [user, setUser] = useState(null);
+  const { user, onProfileUpdate } = useOutletContext();
+
   const [formData, setFormData] = useState({
     name: "",
     phoneNumber: "",
     title: "",
     address: "",
   });
-
   const [profilePictures, setProfilePictures] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // --- (Semua logika useEffect dan handler functions tetap sama) ---
-  useEffect(() => {
-    let toastId;
-    const fetchProfile = async () => {
-      toastId = toast.loading("Memuat profil...");
-      try {
-        const userData = await userService.getMyProfile();
-        setUser(userData);
-        setFormData({
-          name: userData.name || "",
-          phoneNumber: userData.phoneNumber || "",
-          title: userData.title || "",
-          address: userData.address || "",
-        });
-        const pictures = await userService.getProfilePictures();
-        setProfilePictures(pictures);
-        toast.dismiss(toastId);
-      } catch (err) {
-        toast.error(err.message || "Gagal memuat profil", { id: toastId });
-      } finally {
-        setLoading(false);
+  const cleanupPayload = (data) => {
+    const cleanedData = {};
+    for (const key in data) {
+      if (data[key] !== "" && data[key] !== null && data[key] !== undefined) {
+        cleanedData[key] = data[key];
       }
-    };
-    fetchProfile();
-    return () => {
-      if (toastId) toast.dismiss(toastId);
-    };
-  }, []);
+    }
+    return cleanedData;
+  };
+
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name || "",
+        phoneNumber: user.phoneNumber || "",
+        title: user.title || "",
+        address: user.address || "",
+      });
+
+      userService
+        .getProfilePictures()
+        .then((pictures) => {
+          setProfilePictures(pictures);
+        })
+        .catch((err) => {
+          toast.error(err.message || "Gagal memuat daftar foto.");
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    } else {
+      setLoading(false);
+    }
+  }, [user]);
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -90,24 +85,26 @@ const ProfilePage = () => {
     setUpdating(true);
     const toastId = toast.loading("Menyimpan perubahan...");
     try {
-      const response = await userService.updateMyProfile(formData);
+      const payload = cleanupPayload(formData);
+      const response = await userService.updateMyProfile(payload);
+
+      onProfileUpdate(response.data);
+
       toast.success(response.message || "Profil berhasil diperbarui!", { id: toastId });
-      const updatedUserData = await userService.getMyProfile();
-      setUser(updatedUserData);
     } catch (err) {
-      toast.error(err.message || "Gagal memperbarui profil", { id: toastId });
+      toast.error(err.response?.data?.message || "Gagal memperbarui profil", { id: toastId });
     } finally {
       setUpdating(false);
     }
   };
 
-  // ... (Fungsi handleUploadNew, handleUseOldPicture, handleDeletePicture tetap sama, tidak perlu diubah)
   const handleUploadNew = async (file) => {
     const toastId = toast.loading("Mengunggah foto...");
     try {
-      await userService.updateMyProfile(formData, file);
-      const updatedUserData = await userService.getMyProfile();
-      setUser(updatedUserData);
+      const payload = cleanupPayload(formData);
+      const response = await userService.updateMyProfile(payload, file);
+
+      onProfileUpdate(response.data);
 
       const pictures = await userService.getProfilePictures();
       setProfilePictures(pictures);
@@ -115,36 +112,41 @@ const ProfilePage = () => {
       toast.success("Foto profil berhasil diunggah!", { id: toastId });
       setShowModal(false);
     } catch (err) {
-      toast.error(err.message || "Gagal upload foto", { id: toastId });
+      toast.error(err.response?.data?.message || "Gagal upload foto", { id: toastId });
     }
   };
 
   const handleUseOldPicture = async (pictureId) => {
     const toastId = toast.loading("Mengganti foto...");
     try {
-      await userService.useOldProfilePicture(pictureId);
-      const updatedUserData = await userService.getMyProfile();
-      setUser(updatedUserData);
+      const response = await userService.useOldProfilePicture(pictureId);
+
+      onProfileUpdate(response.data);
 
       toast.success("Foto lama berhasil dipakai!", { id: toastId });
       setShowModal(false);
     } catch (err) {
-      toast.error(err.message || "Gagal mengganti foto lama", { id: toastId });
+      toast.error(err.response?.data?.message || "Gagal mengganti foto lama", { id: toastId });
     }
   };
 
   const handleDeletePicture = async (pictureId) => {
     const toastId = toast.loading("Menghapus foto...");
     try {
-      await userService.deleteProfilePicture(pictureId);
+      const response = await userService.deleteProfilePicture(pictureId);
+
+      console.log("Respons dari API Delete:", response.data);
+
       setProfilePictures(profilePictures.filter((pic) => pic.id !== pictureId));
 
-      toast.success("Foto berhasil dihapus!", { id: toastId });
+      onProfileUpdate(response.data.data);
+
+      toast.success(response.data.message || "Foto berhasil dihapus!", { id: toastId });
     } catch (err) {
-      toast.error(err.message || "Gagal menghapus foto", { id: toastId });
+      console.error("Error di handleDeletePicture:", err);
+      toast.error(err.response?.data?.message || "Gagal menghapus foto", { id: toastId });
     }
   };
-
 
   if (loading) {
     return (
@@ -157,75 +159,29 @@ const ProfilePage = () => {
   return (
     <div className="bg-white dark:bg-slate-900 min-h-screen">
       <div className="max-w-2xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-        
         {/* --- Header --- */}
         <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-white">
-            Profil Anda
-          </h1>
-          <p className="mt-3 text-lg text-gray-500 dark:text-gray-400">
-            Jaga agar data diri Anda tetap terbaru.
-          </p>
+          <h1 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-white">Profil Anda</h1>
+          <p className="mt-3 text-lg text-gray-500 dark:text-gray-400">Jaga agar data diri Anda tetap terbaru.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* --- Foto Profil --- */}
           <div className="flex flex-col items-center space-y-4">
             <div className="w-32 h-32 rounded-full bg-gray-200 dark:bg-slate-700 overflow-hidden flex items-center justify-center">
-              {user?.profilePictureUrl ? (
-                <img
-                  src={user.profilePictureUrl}
-                  alt="Profil"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <FaUser className="text-6xl text-gray-400 dark:text-slate-500" />
-              )}
+              {user?.profilePictureUrl ? <img src={user.profilePictureUrl} alt="Profil" className="w-full h-full object-cover" /> : <FaUser className="text-6xl text-gray-400 dark:text-slate-500" />}
             </div>
-            <button
-              type="button"
-              onClick={() => setShowModal(true)}
-              className="text-sm font-semibold text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition-colors focus:outline-none"
-            >
+            <button type="button" onClick={() => setShowModal(true)} className="text-sm font-semibold text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition-colors focus:outline-none">
               Ubah Foto Profil
             </button>
           </div>
 
           {/* --- Form Fields --- */}
           <div className="bg-gray-50 dark:bg-slate-800/50 p-6 sm:p-8 rounded-xl shadow-sm space-y-6">
-             <InputField
-                id="name"
-                name="name"
-                label="Nama Lengkap"
-                value={formData.name}
-                onChange={handleInputChange}
-                placeholder="Masukkan nama lengkap Anda"
-              />
-              <InputField
-                id="title"
-                name="title"
-                label="Jabatan"
-                value={formData.title}
-                onChange={handleInputChange}
-                placeholder="Contoh: Software Engineer"
-              />
-              <InputField
-                id="phoneNumber"
-                name="phoneNumber"
-                label="Nomor Telepon"
-                value={formData.phoneNumber}
-                onChange={handleInputChange}
-                placeholder="Nomor telepon aktif"
-              />
-              <InputField
-                id="address"
-                name="address"
-                label="Alamat"
-                type="textarea"
-                value={formData.address}
-                onChange={handleInputChange}
-                placeholder="Alamat tempat tinggal Anda"
-              />
+            <InputField id="name" name="name" label="Nama Lengkap" value={formData.name} onChange={handleInputChange} placeholder="Masukkan nama lengkap Anda" />
+            <InputField id="title" name="title" label="Jabatan" value={formData.title} onChange={handleInputChange} placeholder="Contoh: Software Engineer" />
+            <InputField id="phoneNumber" name="phoneNumber" label="Nomor Telepon" value={formData.phoneNumber} onChange={handleInputChange} placeholder="Nomor telepon aktif" />
+            <InputField id="address" name="address" label="Alamat" type="textarea" value={formData.address} onChange={handleInputChange} placeholder="Alamat tempat tinggal Anda" />
           </div>
 
           {/* --- Tombol Simpan --- */}
@@ -248,14 +204,7 @@ const ProfilePage = () => {
         </form>
       </div>
 
-      <ProfilePictureModal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        profilePictures={profilePictures}
-        onUploadNew={handleUploadNew}
-        onUseOld={handleUseOldPicture}
-        onDelete={handleDeletePicture}
-      />
+      <ProfilePictureModal isOpen={showModal} onClose={() => setShowModal(false)} profilePictures={profilePictures} onUploadNew={handleUploadNew} onUseOld={handleUseOldPicture} onDelete={handleDeletePicture} />
     </div>
   );
 };
