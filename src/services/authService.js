@@ -1,64 +1,41 @@
-// src/services/authService.js
 import apiClient from "./apiClient";
 
 const login = async (email, password) => {
-  try {
-    const response = await apiClient.post("/auth/login", { email, password });
-    if (response.data.session?.access_token) {
-      localStorage.setItem("authToken", response.data.session.access_token);
-    }
-    return response.data;
-  } catch (err) {
-    // Sekarang cukup throw error.message (sudah diproses interceptor)
-    throw new Error(err.message || "Terjadi kesalahan saat login");
+  // Tidak perlu try...catch. Jika gagal, error akan otomatis dilempar.
+  const response = await apiClient.post("/auth/login", { email, password });
+  if (response.data.session?.access_token) {
+    localStorage.setItem("authToken", response.data.session.access_token);
   }
+  return response.data;
 };
 
 const register = async (name, email, password) => {
-  try {
-    const response = await apiClient.post("/auth/register", { name, email, password });
-    return response.data;
-  } catch (err) {
-    throw new Error(err.message || "Terjadi kesalahan saat registrasi");
-  }
+  const response = await apiClient.post("/auth/register", { name, email, password });
+  return response.data;
 };
 
 const logout = async () => {
   try {
+    // try...catch di sini DIPERLUKAN karena kita tidak ingin melempar error ke UI.
     await apiClient.post("/auth/logout");
   } catch (err) {
-    console.error("Gagal logout di server:", err.message);
+    console.error("Gagal logout di server:", err);
   } finally {
     localStorage.removeItem("authToken");
-    console.log("Token di localStorage berhasil dihapus");
   }
 };
 
 const forgotPassword = async (email) => {
-  try {
-    const response = await apiClient.post("/auth/forgot-password", { email });
-    return response.data;
-  } catch (err) {
-    throw new Error(err.message || "Terjadi kesalahan saat meminta reset password");
-  }
+  const response = await apiClient.post("/auth/forgot-password", { email });
+  return response.data;
 };
 
 const resetPassword = async (token, newPassword) => {
-  if (!token || !newPassword) {
-    throw new Error("Token dan password baru harus diberikan.");
-  }
-
-  try {
-    const response = await apiClient.post("/auth/reset-password", {
-      token,
-      newPassword,
-    });
-
-    return response.data;
-  } catch (err) {
-    console.error("❌ Error resetPassword (frontend):", err.message);
-    throw new Error(err.message || "Terjadi kesalahan saat reset password");
-  }
+  const response = await apiClient.post("/auth/reset-password", {
+    token,
+    newPassword,
+  });
+  return response.data;
 };
 
 const getTokenFromUrl = () => {

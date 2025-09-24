@@ -25,13 +25,13 @@ const DashboardWorkspaces = ({ theme }) => {
                 <h3 className="text-xl font-bold text-slate-800 dark:text-white">Workspace Anda</h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400">Berkolaborasi dengan tim dalam grup kerja.</p>
             </div>
-            <button 
+<button 
   onClick={() => setIsModalOpen(true)} 
-  className="flex items-center gap-2 bg-blue-600 text-white font-semibold py-2 px-4 rounded-full hover:bg-blue-700 transition-colors w-full sm:w-auto"
+  className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-teal-400 text-white font-semibold py-2 px-4 rounded-full hover:opacity-90 transition-opacity transform hover:scale-[1.02] duration-300 w-full sm:w-auto"
 >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
-                <span>Buat Grup Baru</span>
-            </button>
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
+  <span>Buat Grup Baru</span>
+</button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

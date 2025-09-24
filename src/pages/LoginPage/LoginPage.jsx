@@ -8,69 +8,72 @@ import { ImSpinner9 } from "react-icons/im";
 
 import nameLogo from "../../assets/images/name.png";
 
-
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isCardVisible, setIsCardVisible] = useState(false);
+  
+  // 1. State untuk menyimpan pesan error
+  const [error, setError] = useState(null);
+  
   const navigate = useNavigate();
 
-useEffect(() => {
-  const token = authService.getTokenFromUrl();
-  if (token) {
-    toast.success("Email Anda berhasil diverifikasi, silakan login.");
-    // opsional: bisa hapus token dari URL supaya lebih bersih
-    window.history.replaceState({}, document.title, "/login");
-  }
-
-  const timer = setTimeout(() => setIsCardVisible(true), 100);
-  return () => clearTimeout(timer);
-}, [navigate]);
-
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    const startTime = Date.now();
-    let loginSuccess = false;
-    try {
-      await authService.login(email, password);
-      loginSuccess = true;
- } catch (err) {
-  const errorMessage =
-    err.response?.data?.message || err.message || "Login gagal.";
-
-  if (errorMessage.includes("Email belum terverifikasi")) {
-    toast.error("Akun Anda belum terverifikasi.");
-  } else if (
-    errorMessage.includes("Email atau password salah.") ||
-    errorMessage.includes("Invalid login credentials")
-  ) {
-    toast.error("Email atau password salah.");
-  } else {
-    toast.error(errorMessage);
-  }
-
-
-    } finally {
-      const elapsedTime = Date.now() - startTime;
-      const remainingTime = 3000 - elapsedTime;
-      if (remainingTime > 0) {
-        await new Promise((resolve) => setTimeout(resolve, remainingTime));
-      }
-      setLoading(false);
-      if (loginSuccess) {
-        toast.success("Login berhasil! Mengalihkan...");
-        navigate("/dashboard");
-      }
+  useEffect(() => {
+    // Logika untuk verifikasi email dari URL (biarkan seperti semula)
+    const token = authService.getTokenFromUrl();
+    if (token) {
+      toast.success("Email Anda berhasil diverifikasi, silakan login.", {
+        duration: 4000,
+        position: "top-center",
+      });
+      window.history.replaceState({}, document.title, "/login");
     }
-  };
+
+    // 2. Membersihkan state error saat komponen pertama kali dimuat
+    // Ini memperbaiki masalah "validasi tidak muncul setelah logout"
+    setError(null);
+
+    // Animasi card (biarkan seperti semula)
+    const timer = setTimeout(() => setIsCardVisible(true), 100);
+    return () => clearTimeout(timer);
+  }, []); // Dependensi kosong `[]` memastikan ini hanya berjalan sekali saat mount
+
+const handleLogin = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setError(null);
+
+  try {
+    await authService.login(email, password);
+    toast.success("Login berhasil! Mengalihkan...");
+    navigate("/dashboard");
+  } catch (err) {
+    let errorMessage;
+
+    // 1. Cek untuk error dari server (misal: email/password salah)
+    if (err.response && err.response.data && err.response.data.message) {
+      errorMessage = err.response.data.message;
+    }
+    // 2. Jika tidak ada respons server, cek untuk error jaringan (offline)
+    else if (err.message) {
+      errorMessage = err.message;
+    }
+    // 3. Pesan cadangan jika tidak ada info error sama sekali
+    else {
+      errorMessage = "Terjadi kesalahan yang tidak diketahui.";
+    }
+
+    setError(errorMessage);
+    toast.error(errorMessage);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
-<section className="relative w-full flex items-center justify-center px-4 py-12">
-
+    <section className="relative w-full flex items-center justify-center px-4 py-12">
       {/* Aurora khusus untuk LoginPage */}
       <div className="absolute inset-0">
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-green-400/30 rounded-full blur-3xl animate-pulse"></div>
@@ -84,31 +87,26 @@ useEffect(() => {
                     transition-all duration-700 ease-out
                     ${isCardVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
       >
-<div className="text-center mb-8">
-  <Link to="/" className="inline-flex items-center justify-center">
-    <img
-      src={nameLogo}
-      alt="Logo DigiSign"
-      className="h-10 md:h-12 w-auto dark:invert"
-    />
-  </Link>
-  <h1 className="text-2xl font-bold text-slate-900 dark:text-white mt-4">
-    Selamat Datang Kembali
-  </h1>
-  <p className="text-slate-600 dark:text-gray-400">
-    Silakan masuk untuk melanjutkan.
-  </p>
-</div>
-
-
+        <div className="text-center mb-8">
+          <Link to="/" className="inline-flex items-center justify-center">
+            <img src={nameLogo} alt="Logo DigiSign" className="h-10 md:h-12 w-auto dark:invert" />
+          </Link>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mt-4">Selamat Datang Kembali</h1>
+          <p className="text-slate-600 dark:text-gray-400">Silakan masuk untuk melanjutkan.</p>
+        </div>
 
         {/* Form Login */}
         <form onSubmit={handleLogin} className="space-y-5">
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1"
+           {error && (
+            <div 
+              className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md text-center text-sm" 
+              role="alert"
             >
+              <p>{error}</p>
+            </div>
+          )}
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">
               Alamat Email
             </label>
             <div className="relative">
@@ -129,16 +127,10 @@ useEffect(() => {
           </div>
           <div>
             <div className="flex justify-between items-center mb-1">
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-slate-700 dark:text-gray-300"
-              >
+              <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-gray-300">
                 Password
               </label>
-              <Link
-                to="/forgot-password"
-                className="text-sm text-blue-500 dark:text-blue-400 hover:underline"
-              >
+              <Link to="/forgot-password" className="text-sm text-blue-500 dark:text-blue-400 hover:underline">
                 Lupa password?
               </Link>
             </div>
@@ -156,16 +148,8 @@ useEffect(() => {
                            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all
                            dark:text-white dark:bg-white/5 dark:border-white/20 dark:placeholder-gray-500"
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
-              >
-                {showPassword ? (
-                  <AiOutlineEyeInvisible className="w-5 h-5 text-gray-400 hover:text-black dark:hover:text-white" />
-                ) : (
-                  <AiOutlineEye className="w-5 h-5 text-gray-400 hover:text-black dark:hover:text-white" />
-                )}
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer">
+                {showPassword ? <AiOutlineEyeInvisible className="w-5 h-5 text-gray-400 hover:text-black dark:hover:text-white" /> : <AiOutlineEye className="w-5 h-5 text-gray-400 hover:text-black dark:hover:text-white" />}
               </button>
             </div>
           </div>
@@ -189,9 +173,7 @@ useEffect(() => {
 
         <div className="my-6 flex items-center">
           <div className="flex-grow border-t border-slate-300 dark:border-white/10"></div>
-          <span className="mx-4 text-xs text-slate-500 dark:text-gray-400 font-medium">
-            ATAU
-          </span>
+          <span className="mx-4 text-xs text-slate-500 dark:text-gray-400 font-medium">ATAU</span>
           <div className="flex-grow border-t border-slate-300 dark:border-white/10"></div>
         </div>
 
@@ -207,18 +189,9 @@ useEffect(() => {
                 fill="#FFC107"
                 d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"
               ></path>
-              <path
-                fill="#FF3D00"
-                d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"
-              ></path>
-              <path
-                fill="#4CAF50"
-                d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.22,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"
-              ></path>
-              <path
-                fill="#1976D2"
-                d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571l6.19,5.238C41.38,36.783,44,30.886,44,24C44,22.659,43.862,21.35,43.611,20.083z"
-              ></path>
+              <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path>
+              <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.22,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path>
+              <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571l6.19,5.238C41.38,36.783,44,30.886,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path>
             </svg>
             <span>Lanjutkan dengan Google</span>
           </button>
@@ -227,10 +200,7 @@ useEffect(() => {
         <div className="mt-8 text-center">
           <p className="text-sm text-slate-600 dark:text-gray-400">
             Belum punya akun?
-            <Link
-              to="/register"
-              className="font-semibold text-blue-500 dark:text-blue-400 hover:underline ml-1"
-            >
+            <Link to="/register" className="font-semibold text-blue-500 dark:text-blue-400 hover:underline ml-1">
               Daftar di sini
             </Link>
           </p>

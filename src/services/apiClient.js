@@ -1,4 +1,3 @@
-// src/services/apiClient.js
 import axios from "axios";
 
 const API_BASE_URL = "http://localhost:3000/api";
@@ -8,7 +7,6 @@ const apiClient = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-// Interceptor untuk menambahkan Authorization header otomatis
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("authToken");
@@ -20,21 +18,28 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Interceptor untuk menangani error global
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.code === "ERR_NETWORK") {
-      // Kasus jaringan mati / tidak ada internet
-      return Promise.reject({ message: "Tidak ada koneksi internet. Periksa jaringan Anda." });
-    }
-
     if (error.response) {
-      // Error dari server (401, 403, 500, dll.)
-      return Promise.reject(error.response.data);
-    }
+      const status = error.response.status;
+      const data = error.response.data || {};
+      const code = data.code || "";
 
-    return Promise.reject({ message: "Terjadi kesalahan tak terduga." });
+      if (status === 401 && (code === "TOKEN_EXPIRED" || code === "INVALID_TOKEN")) {
+        localStorage.removeItem("authToken");
+        window.dispatchEvent(new CustomEvent("sessionExpired"));
+        return new Promise(() => {});
+      }
+
+      return Promise.reject(error); 
+    } else if (error.request) {
+      return Promise.reject({
+        message: "Tidak dapat terhubung ke server. Periksa koneksi Internet Anda.",
+      });
+    } else {
+      return Promise.reject({ message: "Terjadi kesalahan tak terduga." });
+    }
   }
 );
 

@@ -74,7 +74,7 @@ const ProfilePage = () => {
     } else {
       setLoading(false);
     }
-  }, [user]);
+  }, []);
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -189,7 +189,7 @@ const ProfilePage = () => {
             <button
               type="submit"
               disabled={updating}
-              className="w-full sm:w-auto px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+              className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-blue-500 to-teal-400 text-white font-semibold rounded-lg shadow-md hover:opacity-90 transition-opacity transform hover:scale-[1.02] duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-60 disabled:scale-100 disabled:cursor-not-allowed"
             >
               {updating ? (
                 <span className="flex items-center justify-center">

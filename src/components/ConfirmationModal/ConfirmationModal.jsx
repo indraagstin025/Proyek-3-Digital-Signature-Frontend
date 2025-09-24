@@ -20,17 +20,17 @@ const ConfirmationModal = ({
     >
       {/* Konten Modal */}
       <div 
-        className="bg-gray-900 w-full max-w-sm p-6 rounded-xl shadow-lg border border-white/10"
+        className="bg-white dark:bg-gray-900 w-full max-w-sm p-6 rounded-xl shadow-lg border border-gray-200 dark:border-white/10"
         onClick={e => e.stopPropagation()} // Mencegah klik di dalam modal ikut menutup
       >
-        <h3 className="text-xl font-bold text-white mb-2">{title}</h3>
-        <p className="text-gray-400 mb-6">{message}</p>
+        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{title}</h3>
+        <p className="text-gray-600 dark:text-gray-400 mb-6">{message}</p>
         
         {/* Tombol Aksi */}
         <div className="flex justify-end gap-4">
           <button 
             onClick={onClose}
-            className="px-4 py-2 rounded-lg font-semibold bg-gray-700 text-white hover:bg-gray-600 transition-colors"
+            className="px-4 py-2 rounded-lg font-semibold bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 transition-colors"
           >
             {cancelText}
           </button>
