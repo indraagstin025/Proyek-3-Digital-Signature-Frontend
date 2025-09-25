@@ -68,21 +68,16 @@ const DashboardDocuments = () => {
         fetchDocuments();
     };
 
-    const handleViewDocument = (document) => {
-        let urlToView = null;
-        if (document.status === 'completed' && document.signedFileUrl) {
-            urlToView = document.signedFileUrl;
-        } else if (document.currentVersion && document.currentVersion.url) {
-            urlToView = document.currentVersion.url;
-        }
-
-        if (urlToView) {
-            setSelectedDocumentUrl(urlToView);
-            setViewModalOpen(true);
-        } else {
-            toast.error("URL dokumen tidak dapat ditemukan.");
-        }
-    };
+ const handleViewDocument = (document) => {
+    // LOGIKA BARU: URL file, baik yang sudah atau belum ditandatangani,
+    // sekarang SELALU ada di dalam 'currentVersion'.
+    if (document.currentVersion && document.currentVersion.url) {
+        setSelectedDocumentUrl(document.currentVersion.url);
+        setViewModalOpen(true);
+    } else {
+        toast.error("URL untuk versi aktif dokumen ini tidak dapat ditemukan.");
+    }
+};
 
     const handleDeleteDocument = (documentId) => {
         setDocumentToDelete(documentId);
