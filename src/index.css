@@ -124,3 +124,9 @@ html.dark body {
   pointer-events: none; /* Agar tidak mengganggu event drop */
   box-shadow: 0 10px 20px rgba(0,0,0,0.2);
 }
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}

@@ -107,19 +107,51 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
       </div>
     );
   }
+return (
+  <div className="flex flex-col h-screen m-0 p-0 bg-gray-100 dark:bg-gray-800">
+    {/* Header selalu fixed/sticky */}
+    <SigningHeader
+      documentTitle={documentTitle}
+      theme={theme}
+      toggleTheme={toggleTheme}
+    />
 
-  return (
-    <div className="flex flex-col h-screen bg-gray-100 dark:bg-gray-800">
-      <SigningHeader documentTitle={documentTitle} theme={theme} toggleTheme={toggleTheme} />
-      <div className="flex flex-1 overflow-hidden">
-        <main className="flex-1 flex justify-center overflow-auto">
-          {pdfFile && <PDFViewer fileUrl={pdfFile} signatures={signatures} onAddSignature={handleAddSignature} onUpdateSignature={handleUpdateSignature} onDeleteSignature={handleDeleteSignature} savedSignatureUrl={savedSignatureUrl} />}
-        </main>
-        <SignatureSidebar savedSignatureUrl={savedSignatureUrl} onOpenSignatureModal={() => setIsSignatureModalOpen(true)} onSave={handleFinalSave} isLoading={isLoading} />
-      </div>
-      {isSignatureModalOpen && <SignatureModal onSave={handleSaveSignature} onClose={() => setIsSignatureModalOpen(false)} />}
+    {/* Konten utama */}
+    <div className="flex flex-1 overflow-hidden pt-16">
+      {/* PDF Viewer area, kasih margin-right agar tidak ketimpa sidebar */}
+      <main className="flex-1 flex justify-center overflow-auto mr-80">
+        {pdfFile && (
+          <PDFViewer
+            fileUrl={pdfFile}
+            signatures={signatures}
+            onAddSignature={handleAddSignature}
+            onUpdateSignature={handleUpdateSignature}
+            onDeleteSignature={handleDeleteSignature}
+            savedSignatureUrl={savedSignatureUrl}
+          />
+        )}
+      </main>
+
+      {/* Sidebar fixed */}
+      <SignatureSidebar
+        savedSignatureUrl={savedSignatureUrl}
+        onOpenSignatureModal={() => setIsSignatureModalOpen(true)}
+        onSave={handleFinalSave}
+        isLoading={isLoading}
+      />
     </div>
-  );
+
+    {/* Modal */}
+    {isSignatureModalOpen && (
+      <SignatureModal
+        onSave={handleSaveSignature}
+        onClose={() => setIsSignatureModalOpen(false)}
+      />
+    )}
+  </div>
+);
+
+
 };
 
 export default SignDocumentPage;

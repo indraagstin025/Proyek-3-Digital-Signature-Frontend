@@ -7,10 +7,11 @@ import nameLogo from "../../assets/images/name.png"; // Pastikan path logo benar
 
 const SigningHeader = ({ documentTitle, theme, toggleTheme }) => {
   return (
-    // Mengadopsi gaya dari DashboardHeader (sticky, backdrop-blur, warna dinamis)
-    <header className="sticky top-0 z-40 flex items-center justify-between p-4 shadow-sm backdrop-blur-sm
-                       bg-white/80 border-b border-gray-200/80
-                       dark:bg-gray-900/80 dark:border-b dark:border-white/10"
+    <header
+      className="fixed top-0 left-0 w-full z-40 flex items-center justify-between h-20 px-4
+                 shadow-sm backdrop-blur-sm sm:px-6 lg:px-8
+                 bg-gradient-to-l from-white/95 to-gray-50/95 border-b border-gray-200/80
+                 dark:bg-gradient-to-l dark:from-slate-900 dark:to-slate-800 dark:border-white/10"
     >
       {/* Bagian Kiri */}
       <div className="flex items-center gap-4">
@@ -22,7 +23,7 @@ const SigningHeader = ({ documentTitle, theme, toggleTheme }) => {
           {documentTitle}
         </h1>
       </div>
-      
+
       {/* Bagian Kanan */}
       <div className="flex items-center gap-4">
         <button
@@ -33,7 +34,6 @@ const SigningHeader = ({ documentTitle, theme, toggleTheme }) => {
         >
           {theme === "light" ? <HiMoon size={20} /> : <HiSun size={20} />}
         </button>
-        {/* Tombol Tanda Tangani sudah dihapus dari sini */}
       </div>
     </header>
   );
