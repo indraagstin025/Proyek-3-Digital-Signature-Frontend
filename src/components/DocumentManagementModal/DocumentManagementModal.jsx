@@ -98,8 +98,6 @@ const DocumentManagementModal = ({ mode, document, onClose, onSuccess, onViewReq
   };
 
   const handlePreviewClick = (version) => {
-    // LOGIKA BARU: Setiap versi memiliki URL-nya sendiri.
-    // Langsung gunakan URL dari versi yang diklik.
     onViewRequest(version.url);
   };
 
@@ -194,8 +192,6 @@ const DocumentManagementModal = ({ mode, document, onClose, onSuccess, onViewReq
                             <FaEye />
                           </button>
                           <a
-                            // LOGIKA BARU: Hapus pengecekan 'isCompleted'.
-                            // Langsung gunakan URL dari versi yang bersangkutan.
                             href={version.url}
                             target="_blank"
                             rel="noopener noreferrer"

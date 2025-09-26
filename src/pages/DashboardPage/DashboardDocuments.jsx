@@ -90,9 +90,9 @@ const DashboardDocuments = () => {
     };
 
     const handleViewRequestFromModal = (url) => {
-    setSelectedDocumentUrl(url);
-    setViewModalOpen(true);
-};
+        setSelectedDocumentUrl(url);
+        setViewModalOpen(true);
+    };
 
     const confirmDelete = async () => {
         if (!documentToDelete) return;
@@ -128,6 +128,21 @@ const DashboardDocuments = () => {
         }
     };
 
+    // --- FUNGSI BARU UNTUK MEMPERBAIKI STATUS ---
+    const getDerivedStatus = (doc) => {
+        // Cek apakah versi yang sedang aktif memiliki tanda tangan
+        const isCurrentVersionSigned = doc.currentVersion?.signaturesPersonal?.length > 0;
+        
+        // Jika status dari backend "completed" TAPI versi aktifnya TIDAK ditandatangani,
+        // maka anggap statusnya "draft" untuk ditampilkan di UI.
+        if (doc.status === 'completed' && !isCurrentVersionSigned) {
+            return 'draft';
+        }
+
+        // Jika tidak, gunakan status asli dari backend.
+        return doc.status;
+    };
+
     return (
         <div id="tab-documents">
             <Toaster position="top-center" />
@@ -155,47 +170,54 @@ const DashboardDocuments = () => {
 
             {!isLoading && !error && (
                 <div className="space-y-4">
-                    {documents.map((doc) => (
-                        <div key={doc.id} className="bg-white dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                            <div className="flex-grow">
-                                <p className="font-semibold text-slate-800 dark:text-white">{doc.title}</p>
-                                <p className="text-sm text-slate-500 dark:text-slate-400">Diperbarui: {formatDate(doc.updatedAt)}</p>
-                            </div>
-                            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                                <span className={`text-xs font-semibold capitalize px-2.5 py-1 rounded-full ${getStatusClass(doc.status)}`}>{doc.status}</span>
-                                <button
-                                    onClick={() => handleViewDocument(doc)}
-                                    className="p-2 text-slate-600 hover:text-blue-600 dark:text-slate-300 dark:hover:text-blue-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700"
-                                    title={doc.status === 'completed' ? "Lihat Hasil TTD" : "Lihat Versi Aktif"}
-                                >
-                                    {doc.status === 'completed' ? <FaFileSignature /> : <FaEye />}
-                                </button>
-                                <button
-                                    onClick={() => openManagementModal("update", doc)}
-                                    className="p-2 text-slate-600 hover:text-blue-600 dark:text-slate-300 dark:hover:text-blue-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700"
-                                    title="Kelola & Riwayat"
-                                >
-                                    <FaCog />
-                                </button>
-                                {doc.status !== 'completed' && (
+                    {documents.map((doc) => {
+                        // --- GUNAKAN FUNGSI BARU DI SINI ---
+                        const displayedStatus = getDerivedStatus(doc);
+
+                        return (
+                            <div key={doc.id} className="bg-white dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                <div className="flex-grow">
+                                    <p className="font-semibold text-slate-800 dark:text-white">{doc.title}</p>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">Diperbarui: {formatDate(doc.updatedAt)}</p>
+                                </div>
+                                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                                    {/* --- GUNAKAN STATUS YANG SUDAH DIPERBAIKI --- */}
+                                    <span className={`text-xs font-semibold capitalize px-2.5 py-1 rounded-full ${getStatusClass(displayedStatus)}`}>{displayedStatus}</span>
                                     <button
-                                        onClick={() => navigate(`/documents/${doc.id}/sign`)}
-                                        className="p-2 text-slate-600 hover:text-green-600 dark:text-slate-300 dark:hover:text-green-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700"
-                                        title="Tanda Tangani Dokumen"
+                                        onClick={() => handleViewDocument(doc)}
+                                        className="p-2 text-slate-600 hover:text-blue-600 dark:text-slate-300 dark:hover:text-blue-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700"
+                                        title={displayedStatus === 'completed' ? "Lihat Hasil TTD" : "Lihat Versi Aktif"}
                                     >
-                                        <FaPenSquare />
+                                        {displayedStatus === 'completed' ? <FaFileSignature /> : <FaEye />}
                                     </button>
-                                )}
-                                <button
-                                    onClick={() => handleDeleteDocument(doc.id)}
-                                    className="p-2 text-slate-600 hover:text-red-600 dark:text-slate-300 dark:hover:text-red-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700"
-                                    title="Hapus Dokumen"
-                                >
-                                    <FaTrashAlt />
-                                </button>
+                                    <button
+                                        onClick={() => openManagementModal("update", doc)}
+                                        className="p-2 text-slate-600 hover:text-blue-600 dark:text-slate-300 dark:hover:text-blue-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700"
+                                        title="Kelola & Riwayat"
+                                    >
+                                        <FaCog />
+                                    </button>
+                                    {/* --- KONDISI JUGA MENGGUNAKAN STATUS BARU --- */}
+                                    {displayedStatus !== 'completed' && (
+                                        <button
+                                            onClick={() => navigate(`/documents/${doc.id}/sign`)}
+                                            className="p-2 text-slate-600 hover:text-green-600 dark:text-slate-300 dark:hover:text-green-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700"
+                                            title="Tanda Tangani Dokumen"
+                                        >
+                                            <FaPenSquare />
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => handleDeleteDocument(doc.id)}
+                                        className="p-2 text-slate-600 hover:text-red-600 dark:text-slate-300 dark:hover:text-red-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700"
+                                        title="Hapus Dokumen"
+                                    >
+                                        <FaTrashAlt />
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        )
+                    })}
                 </div>
             )}
 

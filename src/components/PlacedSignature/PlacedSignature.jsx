@@ -9,6 +9,7 @@ const PlacedSignature = ({ signature, onUpdate, onDelete }) => {
     const element = ref.current;
     if (!element) return;
 
+
     interact(element)
       .draggable({
         listeners: {
@@ -81,7 +82,8 @@ const PlacedSignature = ({ signature, onUpdate, onDelete }) => {
   return (
     <div
       ref={ref}
-      className="placed-field group absolute border-2 border-dashed border-transparent hover:border-green-500 hover:bg-green-500/10 touch-none box-border flex items-center justify-center p-1 z-10"
+       className="placed-field group absolute border-2 border-dashed border-transparent hover:border-green-500 hover:bg-green-500/10 touch-none box-border flex items-center justify-center p-1 z-10"
+
       style={{
         left: 0,
         top: 0,
