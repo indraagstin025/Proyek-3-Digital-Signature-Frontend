@@ -1,12 +1,20 @@
 import React, { useEffect } from "react";
 import interact from "interactjs";
-import { FaPenNib, FaEdit } from "react-icons/fa";
+import { FaPenNib, FaQrcode } from "react-icons/fa";
 
-const SignatureSidebar = ({ savedSignatureUrl, onOpenSignatureModal, onSave, isLoading }) => {
+// 1. Terima props baru: includeQrCode dan setIncludeQrCode
+const SignatureSidebar = ({
+  savedSignatureUrl,
+  onOpenSignatureModal,
+  onSave,
+  isLoading,
+  includeQrCode,
+  setIncludeQrCode,
+}) => {
+  // useEffect untuk drag-and-drop tidak perlu diubah
   useEffect(() => {
     if (!savedSignatureUrl) return;
     let clone = null;
-
     interact(".draggable-signature").draggable({
       inertia: true,
       autoScroll: true,
@@ -14,17 +22,14 @@ const SignatureSidebar = ({ savedSignatureUrl, onOpenSignatureModal, onSave, isL
         start(event) {
           const original = event.target;
           clone = original.cloneNode(true);
-
           clone.classList.add("dragging-clone", "draggable-signature");
-
           clone.style.width = `${original.offsetWidth}px`;
           clone.style.height = `${original.offsetHeight}px`;
           document.body.appendChild(clone);
-
           const originalRect = original.getBoundingClientRect();
           clone.style.left = `${originalRect.left}px`;
           clone.style.top = `${originalRect.top}px`;
-          original.style.opacity = "0.5";
+          original.style.opacity = "0.4";
         },
         move(event) {
           if (!clone) return;
@@ -43,70 +48,145 @@ const SignatureSidebar = ({ savedSignatureUrl, onOpenSignatureModal, onSave, isL
         },
       },
     });
-
     return () => interact(".draggable-signature").unset();
   }, [savedSignatureUrl]);
 
-return (
-<aside
-  className="w-80 h-[calc(100vh-80px)]  
-             bg-white dark:bg-gray-900 flex flex-col flex-shrink-0 
-             border-l border-gray-200 dark:border-gray-700
-             fixed top-20 right-0 z-30"
->
-
+  return (
+    <aside
+      className="w-96 h-full bg-slate-50 dark:bg-slate-900/70 backdrop-blur-sm
+                 flex flex-col flex-shrink-0 border-l border-slate-200/80
+                 dark:border-slate-700/50 shadow-2xl"
+    >
       {/* Bagian Header Sidebar */}
-      <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-        <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">
-          Pilihan tanda tangan
+      <div className="p-6 border-b border-slate-200/80 dark:border-slate-700/50">
+        <h2 className="text-xl font-bold text-slate-800 dark:text-white">
+          Tanda Tangan Anda
         </h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Buat atau gunakan tanda tangan yang sudah ada.
+        </p>
       </div>
 
-      {/* Bagian Konten Scrollable */}
-      <div className="flex-1 p-6 overflow-y-auto">
-        <div>
-          <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">
-            Kotak isian wajib diisi
+      {/* Konten Utama */}
+      <div className="flex-1 p-6 space-y-6 overflow-y-auto">
+        {/* Kartu Tanda Tangan */}
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-md border border-slate-200/80 dark:border-slate-700">
+          <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-3">
+            Metode Gambar Langsung
           </p>
           {savedSignatureUrl ? (
-            <div className="draggable-signature p-4 border border-gray-300 rounded-lg bg-white dark:bg-gray-800 shadow-sm flex justify-between items-center cursor-grab touch-none">
-              <img
-                src={savedSignatureUrl}
-                alt="Tanda Tangan"
-                className="h-10 object-contain pointer-events-none"
-              />
+            <div className="group relative">
+              <div className="draggable-signature p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700/50 flex justify-center items-center cursor-grab touch-none ring-2 ring-transparent group-hover:ring-blue-500 transition-all">
+                <img
+                  src={savedSignatureUrl}
+                  alt="Tanda Tangan"
+                  className="h-12 object-contain pointer-events-none"
+                />
+              </div>
               <button
                 onClick={onOpenSignatureModal}
-                className="p-2 text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+                className="absolute top-2 right-2 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm py-1 px-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
               >
-                <FaEdit size={18} />
+                Ubah
               </button>
             </div>
           ) : (
             <button
               onClick={onOpenSignatureModal}
-              className="w-full p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex flex-col items-center justify-center text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800"
+              className="w-full py-6 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg flex flex-col items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:border-blue-500 transition-colors duration-300"
             >
-              <FaPenNib size={24} className="mb-2" />
-              <span className="text-sm font-semibold">Klik untuk membuat</span>
+              <FaPenNib size={20} className="mb-2 text-slate-400" />
+              <span className="text-sm font-semibold">Buat Tanda Tangan</span>
             </button>
           )}
         </div>
+
+        {/* Persiapan Fitur QR Lain */}
+        <div className="relative text-center">
+          <div
+            className="absolute inset-0 flex items-center"
+            aria-hidden="true"
+          >
+            <div className="w-full border-t border-slate-300 dark:border-slate-700" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-slate-50 dark:bg-slate-900/70 text-slate-500">
+              atau
+            </span>
+          </div>
+        </div>
+        <button className="w-full flex items-center justify-center gap-3 text-slate-500 dark:text-slate-400 font-semibold p-3 rounded-lg bg-white dark:bg-slate-800 shadow-md border border-slate-200/80 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors opacity-60 cursor-not-allowed">
+          <FaQrcode />
+          <span>Tanda Tangan dengan QR</span>
+        </button>
       </div>
 
-      {/* Bagian Footer Sidebar */}
-      <div className="p-6 border-t border-gray-200 dark:border-gray-700 mt-auto">
+      {/* Bagian Aksi Final (Footer) */}
+      <div className="p-6 border-t border-slate-200/80 dark:border-slate-700/50 mt-auto">
+        {/* 2. Tambahkan UI untuk Toggle Switch di sini */}
+        <div className="flex items-center justify-between mb-4">
+          <label
+            htmlFor="qr-toggle"
+            className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer"
+          >
+            Sertakan QR Code Verifikasi
+          </label>
+          <button
+            id="qr-toggle"
+            role="switch"
+            aria-checked={includeQrCode}
+            onClick={() => setIncludeQrCode(!includeQrCode)}
+            className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-slate-900
+              ${
+                includeQrCode
+                  ? "bg-blue-600"
+                  : "bg-slate-300 dark:bg-slate-600"
+              }`}
+          >
+            <span
+              className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform duration-200
+                ${includeQrCode ? "translate-x-6" : "translate-x-1"}`}
+            />
+          </button>
+        </div>
+
+        {/* Tombol Aksi Utama */}
         <button
           onClick={onSave}
-          disabled={isLoading}
-          className="w-full bg-red-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-wait"
+          disabled={isLoading || !savedSignatureUrl}
+          className="w-full flex justify-center items-center text-white font-bold py-3 px-4 rounded-full bg-gradient-to-r from-blue-500 to-teal-400 hover:opacity-90 transition-all transform hover:scale-[1.02] duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-slate-900 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed"
         >
-          {isLoading ? "Menyimpan..." : "Tanda tangani"}
+          {isLoading ? (
+            <>
+              <svg
+                className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              Menyimpan...
+            </>
+          ) : (
+            "Terapkan Tanda Tangan"
+          )}
         </button>
       </div>
     </aside>
   );
-
 };
 
 export default SignatureSidebar;

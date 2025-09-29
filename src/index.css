@@ -1,5 +1,6 @@
 /* 1. Impor Font dan Tailwind v4 (Sesuai Konfigurasi Anda) */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Caveat&family=Dancing+Script&family=Sacramento&display=swap');
 
 @import "tailwindcss";
 
@@ -15,6 +16,18 @@ body {
 
 body::-webkit-scrollbar {
   display: none;
+}
+
+.font-dancing-script {
+    font-family: 'Dancing Script', cursive;
+}
+
+.font-caveat {
+    font-family: 'Caveat', cursive;
+}
+
+.font-sacramento {
+    font-family: 'Sacramento', cursive;
 }
 
 /* Dark Mode Global */

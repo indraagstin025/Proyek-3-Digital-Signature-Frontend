@@ -8,8 +8,6 @@ const PlacedSignature = ({ signature, onUpdate, onDelete }) => {
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
-
-
     interact(element)
       .draggable({
         listeners: {

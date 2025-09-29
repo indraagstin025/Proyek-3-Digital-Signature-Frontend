@@ -1,16 +1,5 @@
 import apiClient from "./apiClient";
 
-const handleError = (error, defaultMessage) => {
-    if (error.response?.data?.message) {
-        throw new Error(error.response.data.message);
-    }
-
-    if (error.message) {
-        throw new Error(error.message);
-    }
-
-    throw new Error(defaultMessage);
-};
 
 export const signatureService = {
   /**
@@ -25,11 +14,20 @@ export const signatureService = {
    * @returns {Promise<object>} Data dokumen yang sudah di-update oleh backend.
    */
   addPersonalSignature: async (payload) => {
-    try{
-        const response = await apiClient.post('signatures/personal', payload);
-        return response.data;
+    try {
+      const response = await apiClient.post("signatures/personal", payload);
+      return response.data;
     } catch (error) {
-        handleError(error, "Gagal menambahkan tanda tangan");
+      // Log biar mudah debug
+      console.error("❌ Error addPersonalSignature:", error);
+
+      // Ambil pesan dari backend kalau ada
+      const message =
+        error.response?.data?.message ||
+        "Gagal menandatangani dokumen. Silakan coba lagi.";
+
+      // Lempar error dengan pesan yang lebih bersih
+      throw new Error(message);
     }
   },
 
@@ -39,11 +37,17 @@ export const signatureService = {
    * @returns {Promise<object} Detail data untuk halaman verifikasi.
    */
   getVerificationDetails: async (signatureId) => {
-    try{
-        const response = await apiClient.get(`signatures/verify/${signatureId}`);
-        return response.data;
+    try {
+      const response = await apiClient.get(`signatures/verify/${signatureId}`);
+      return response.data;
     } catch (error) {
-        handleError(error, "Gagal mengambil detail verifikasi.")
+      console.error("❌ Error getVerificationDetails:", error);
+
+      const message =
+        error.response?.data?.message ||
+        "Gagal mengambil detail verifikasi tanda tangan.";
+
+      throw new Error(message);
     }
   },
 };

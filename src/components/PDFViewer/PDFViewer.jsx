@@ -3,10 +3,8 @@ import { Document, Page, pdfjs } from "react-pdf";
 import interact from "interactjs";
 import PlacedSignature from "../PlacedSignature/PlacedSignature";
 
-// Konfigurasi worker
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.js";
 
-// Fungsi helper debounce
 function debounce(func, delay) {
   let timeout;
   return function (...args) {
@@ -15,7 +13,7 @@ function debounce(func, delay) {
   };
 }
 
-const PDFViewer = ({ fileUrl, signatures, onAddSignature, onUpdateSignature, onDeleteSignature, savedSignatureUrl }) => {
+const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdateSignature, onDeleteSignature, savedSignatureUrl }) => {
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -112,85 +110,89 @@ const PDFViewer = ({ fileUrl, signatures, onAddSignature, onUpdateSignature, onD
     return () => interact(".dropzone-overlay").unset();
   }, [savedSignatureUrl, onAddSignature]);
 
-  return (
-    <div className="w-full h-full flex flex-col bg-gray-100 dark:bg-gray-900/50 rounded-lg">
-      {/* Header Info Halaman */}
-      <div className="flex justify-between items-center p-3 border-b border-gray-300 dark:border-gray-700 flex-shrink-0">
-        <p className="font-semibold text-sm text-gray-700 dark:text-gray-200">
-          Halaman {pageNumber} dari {numPages || "--"}
-        </p>
-      </div>
+      return (
+        <div className="w-full h-full relative bg-white dark:bg-slate-800/50 shadow-lg rounded-xl">
+            {/* Header Internal dibuat 'absolute' dengan tinggi pasti (h-16) */}
+            <div className="absolute top-0 left-0 right-0 h-16 flex justify-between items-center p-4 border-b border-slate-200/80 dark:border-slate-700/50 z-10 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-t-xl">
+                <div className="flex items-baseline gap-3">
+                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                        Nama Dokumen:
+                    </span>
+                    <h2 className="font-bold text-lg text-slate-800 dark:text-white truncate">
+                        {documentTitle}
+                    </h2>
+                </div>
+                <p className="font-semibold text-sm text-slate-500 dark:text-slate-400 flex-shrink-0 ml-4">
+                    Halaman {pageNumber} dari {numPages || "--"}
+                </p>
+            </div>
 
-      {/* Konten Utama dengan Sidebar Thumbnail */}
-      <div className="flex flex-grow overflow-hidden">
-        {/* Sidebar Thumbnail */}
-        <div className="w-48 overflow-y-auto bg-gray-200/50 dark:bg-gray-900/50 border-r border-gray-300 dark:border-gray-700 p-2">
-          <Document file={fileUrl} loading="">
-            {Array.from(new Array(numPages || 0), (el, index) => (
-              <div
-                key={`thumb_${index + 1}`}
-                className={`mb-2 cursor-pointer rounded-md overflow-hidden border-2 ${
-                  pageNumber === index + 1 ? "border-blue-500" : "border-transparent hover:border-gray-500"
-                }`}
-                onClick={() => {
-                  const pageElement = pageRefs.current.get(index + 1);
-                  if (pageElement) {
-                    pageElement.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }
-                }}
-              >
-                <Page pageNumber={index + 1} width={150} renderAnnotationLayer={false} renderTextLayer={false} />
-              </div>
-            ))}
-          </Document>
+            {/* Konten Utama (thumbnail + pdf) diberi padding-top (pt-16) agar tidak tertimpa header */}
+            <div className="absolute inset-0 pt-16 flex overflow-hidden">
+                {/* Sidebar Thumbnail */}
+                <div className="w-48 overflow-y-auto bg-slate-100/50 dark:bg-slate-900/50 border-r border-slate-200/80 dark:border-slate-700 p-2">
+                    <Document file={fileUrl} loading="">
+                        {Array.from(new Array(numPages || 0), (el, index) => (
+                            <div
+                                key={`thumb_${index + 1}`}
+                                className={`mb-2 cursor-pointer rounded-md overflow-hidden border-2 ${
+                                    pageNumber === index + 1 ? "border-blue-500" : "border-transparent hover:border-gray-500"
+                                }`}
+                                onClick={() => {
+                                    const pageElement = pageRefs.current.get(index + 1);
+                                    if (pageElement) {
+                                        pageElement.scrollIntoView({ behavior: "smooth", block: "start" });
+                                    }
+                                }}
+                            >
+                                <Page pageNumber={index + 1} width={150} renderAnnotationLayer={false} renderTextLayer={false} />
+                            </div>
+                        ))}
+                    </Document>
+                </div>
+
+                {/* Area PDF Utama */}
+                <div ref={containerRef} className="flex-grow overflow-auto p-4">
+                    <Document
+                        file={fileUrl}
+                        onLoadSuccess={onDocumentLoadSuccess}
+                        loading={<p className="text-center">Memuat dokumen...</p>}
+                        error={<p className="text-center text-red-500">Gagal memuat dokumen.</p>}
+                    >
+                        {Array.from(new Array(numPages || 0), (el, index) => (
+                            <div
+                                key={`page_${index + 1}`}
+                                ref={(node) => pageRefs.current.set(index + 1, node)}
+                                data-page-number={index + 1}
+                                className="mb-4 flex justify-center relative"
+                            >
+                                <Page
+                                    pageNumber={index + 1}
+                                    width={containerWidth > 0 ? containerWidth : undefined}
+                                    renderTextLayer={false}
+                                    renderAnnotationLayer={false}
+                                />
+                                <div
+                                    className="dropzone-overlay absolute top-0 left-0 w-full h-full z-10"
+                                    data-page-number={index + 1}
+                                />
+                                {signatures
+                                    .filter((sig) => sig.pageNumber === index + 1)
+                                    .map((sig) => (
+                                        <PlacedSignature
+                                            key={sig.id}
+                                            signature={sig}
+                                            onUpdate={onUpdateSignature}
+                                            onDelete={onDeleteSignature}
+                                        />
+                                    ))}
+                            </div>
+                        ))}
+                    </Document>
+                </div>
+            </div>
         </div>
-
-        {/* Area PDF Utama */}
-        <div ref={containerRef} className="flex-grow overflow-auto p-4">
-          <Document
-            file={fileUrl}
-            onLoadSuccess={onDocumentLoadSuccess}
-            loading={<p className="text-center">Memuat dokumen...</p>}
-            error={<p className="text-center text-red-500">Gagal memuat dokumen.</p>}
-          >
-            {Array.from(new Array(numPages || 0), (el, index) => (
-              <div
-                key={`page_${index + 1}`}
-                ref={(node) => {
-                  if (node) pageRefs.current.set(index + 1, node);
-                  else pageRefs.current.delete(index + 1);
-                }}
-                data-page-number={index + 1}
-                className="mb-4 flex justify-center relative"
-              >
-                <Page
-                  pageNumber={index + 1}
-                  width={containerWidth > 0 ? containerWidth : undefined}
-                  renderTextLayer={false}
-                  renderAnnotationLayer={false}
-                />
-                <div
-                  className="dropzone-overlay absolute top-0 left-0 w-full h-full z-0 pointer-events-none"
-                  data-page-number={index + 1}
-                />
-
-                {signatures
-                  .filter((sig) => sig.pageNumber === index + 1)
-                  .map((sig) => (
-                    <PlacedSignature
-                      key={sig.id}
-                      signature={sig}
-                      onUpdate={onUpdateSignature}
-                      onDelete={onDeleteSignature}
-                    />
-                  ))}
-              </div>
-            ))}
-          </Document>
-        </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 export default PDFViewer;
