@@ -23,82 +23,44 @@ const DashboardPage = ({ theme, toggleTheme }) => {
         const data = await userService.getMyProfile();
         setUserData(data);
       } catch (error) {
-        console.error("Gagal mengambil data profil:", error);
-        setUserError(error.message || "Tidak dapat memuat data pengguna.");
+        if (error.response?.status !== 401) {
+          setUserError(error.message || "Tidak dapat memuat data pengguna.");
+        }
       }
     };
     fetchUserData();
   }, []);
 
-  // Fungsi untuk update data user (dipakai di ProfilePage dsb.)
   const handleProfileUpdate = (updatedUser) => {
     setUserData(updatedUser);
   };
 
-  // 🔹 Fix: Normalisasi path agar sesuai dengan id di Sidebar
   const getActivePageFromPath = (pathname) => {
     const pathParts = pathname.split("/").filter((p) => p);
 
-    // /dashboard -> "overview"
     if (pathParts.length === 1 && pathParts[0] === "dashboard") {
       return "overview";
     }
-
-    // /dashboard/documents -> "documents", dst.
     if (pathParts[0] === "dashboard" && pathParts.length > 1) {
       return pathParts[1];
     }
-
-    return "overview"; // fallback
+    return "overview";
   };
 
   const activePage = getActivePageFromPath(location.pathname);
 
   return (
-    <div
-      className={`flex h-screen ${
-        theme === "dark"
-          ? "bg-gray-950 text-gray-200"
-          : "bg-gray-100 text-gray-900"
-      }`}
-    >
+    <div className={`flex h-screen ${theme === "dark" ? "bg-gray-950 text-gray-200" : "bg-gray-100 text-gray-900"}`}>
       {/* Sidebar */}
-      <Sidebar
-        userName={userData?.name}
-        userEmail={userData?.email}
-        userAvatar={userData?.profilePictureUrl}
-        isOpen={isSidebarOpen}
-        activePage={activePage}
-        onClose={() => setIsSidebarOpen(false)}
-        theme={theme}
-      />
+      <Sidebar userName={userData?.name} userEmail={userData?.email} userAvatar={userData?.profilePictureUrl} isOpen={isSidebarOpen} activePage={activePage} onClose={() => setIsSidebarOpen(false)} theme={theme} />
 
-      {/* Konten utama */}
-      <div
-        className={`flex-1 flex flex-col transition-all duration-300 ${
-          isSidebarOpen ? "ml-0 lg:ml-64" : "ml-0"
-        }`}
-      >
-        <DashboardHeader
-          activePage={activePage}
-          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-          isSidebarOpen={isSidebarOpen}
-          theme={theme}
-          toggleTheme={toggleTheme}
-        />
+      {/* Main Content */}
+      <div className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarOpen ? "ml-0 lg:ml-64" : "ml-0"}`}>
+        {/* Header */}
+        <DashboardHeader activePage={activePage} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} isSidebarOpen={isSidebarOpen} theme={theme} toggleTheme={toggleTheme} user={userData} onProfileUpdate={handleProfileUpdate} />
 
-        {/* 👇 Tambahkan pt-20 biar tidak ketimpa header (tinggi header = h-20) */}
-        <main className="flex-1 p-6 overflow-y-auto pt-20">
-          {userError ? (
-            <div className="text-red-500 text-center font-medium">
-              {userError}
-            </div>
-          ) : (
-            <Outlet
-              context={{ user: userData, onProfileUpdate: handleProfileUpdate }}
-            />
-          )}
-        </main>
+        {/* Konten halaman */}
+        <main className="flex-1 p-6 overflow-y-auto pt-20">{userError ? <div className="text-red-500 text-center font-medium">{userError}</div> : <Outlet context={{ user: userData, onProfileUpdate: handleProfileUpdate }} />}</main>
       </div>
     </div>
   );

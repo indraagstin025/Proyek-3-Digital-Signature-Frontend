@@ -22,22 +22,26 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response) {
+
       const status = error.response.status;
       const data = error.response.data || {};
       const code = data.code || "";
 
-      if (status === 401 && (code === "TOKEN_EXPIRED" || code === "INVALID_TOKEN")) {
+      if (
+        status === 401 &&
+        (code === "TOKEN_EXPIRED" || code === "INVALID_TOKEN" || !code)
+      ) {
         localStorage.removeItem("authToken");
         window.dispatchEvent(new CustomEvent("sessionExpired"));
-        return new Promise(() => {});
       }
 
-      return Promise.reject(error); 
-    } else if (error.request) {
+      return Promise.reject(error);
+    } else if (error.request) {      
       return Promise.reject({
         message: "Tidak dapat terhubung ke server. Periksa koneksi Internet Anda.",
       });
     } else {
+
       return Promise.reject({ message: "Terjadi kesalahan tak terduga." });
     }
   }

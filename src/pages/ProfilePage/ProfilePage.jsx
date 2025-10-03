@@ -1,4 +1,4 @@
-import { FaUser, FaSpinner, FaBriefcase, FaPhone, FaMapMarkerAlt, FaSave, FaCamera } from "react-icons/fa";
+import { FaUser, FaSpinner, FaBriefcase, FaPhone, FaMapMarkerAlt, FaSave } from "react-icons/fa";
 import React, { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import { userService } from "../../services/userService";
@@ -30,125 +30,124 @@ const InputField = ({ id, name, label, type = "text", value, onChange, ...props 
 const ProfilePage = () => {
   const { user, onProfileUpdate } = useOutletContext();
 
-  const [formData, setFormData] = useState({
-    name: "",
-    phoneNumber: "",
-    title: "",
-    address: "",
-  });
+  const [formData, setFormData] = useState({ name: "", phoneNumber: "", title: "", address: "" });
   const [profilePictures, setProfilePictures] = useState([]);
-  const [updating, setUpdating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [loading, setLoading] = useState(true);
-
+  const [isLoading, setIsLoading] = useState(true);
+  
   const cleanupPayload = (data) => {
-    const cleanedData = {};
-    for (const key in data) {
-      if (data[key] !== "" && data[key] !== null && data[key] !== undefined) {
-        cleanedData[key] = data[key];
+    return Object.entries(data).reduce((acc, [key, value]) => {
+      if (value !== "" && value !== null && value !== undefined) {
+        acc[key] = value;
       }
-    }
-    return cleanedData;
+      return acc;
+    }, {});
   };
 
   useEffect(() => {
-    if (user) {
-      setFormData({
-        name: user.name || "",
-        phoneNumber: user.phoneNumber || "",
-        title: user.title || "",
-        address: user.address || "",
-      });
-
-      userService
-        .getProfilePictures()
-        .then((pictures) => {
-          setProfilePictures(pictures);
-        })
-        .catch((err) => {
-          toast.error(err.message || "Gagal memuat daftar foto.");
-        })
-        .finally(() => {
-          setLoading(false);
+    (async () => {
+      if (user) {
+        setFormData({
+          name: user.name || "",
+          phoneNumber: user.phoneNumber || "",
+          title: user.title || "",
+          address: user.address || "",
         });
-    } else {
-      setLoading(false);
-    }
-  }, []);
+        try {
+          const pictures = await userService.getProfilePictures();
+          setProfilePictures(pictures);
+        } catch (err) {
+          toast.error(err.response?.data?.message || "Gagal memuat daftar foto.");
+        }
+      }
+      setIsLoading(false);
+    })();
+  }, [user]);
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setUpdating(true);
-    const toastId = toast.loading("Menyimpan perubahan...");
+  
+  /**
+   * Fungsi terpusat untuk menangani semua jenis pembaruan profil.
+   */
+  const handleProfileUpdate = async ({ updateData, newPicture = null, oldPictureId = null }) => {
+    setIsUpdating(true);
+    const toastId = toast.loading("Memperbarui profil...");
     try {
-      const payload = cleanupPayload(formData);
-      const response = await userService.updateMyProfile(payload);
+      const response = await userService.updateMyProfile(updateData, newPicture, oldPictureId);
 
-      onProfileUpdate(response.data);
-
+      onProfileUpdate(response.data); // Update global state
+      
+      if (newPicture || oldPictureId) {
+        const pictures = await userService.getProfilePictures();
+        setProfilePictures(pictures);
+      }
+      
       toast.success(response.message || "Profil berhasil diperbarui!", { id: toastId });
+      setShowModal(false);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Gagal memperbarui profil", { id: toastId });
+      toast.error(err.response?.data?.message || "Gagal memperbarui profil.", { id: toastId });
     } finally {
-      setUpdating(false);
+      setIsUpdating(false);
     }
   };
+  
+  // Handler untuk form utama (hanya update data teks)
+const handleSubmit = (e) => {
+    e.preventDefault();
 
-  const handleUploadNew = async (file) => {
-    const toastId = toast.loading("Mengunggah foto...");
-    try {
-      const payload = cleanupPayload(formData);
-      const response = await userService.updateMyProfile(payload, file);
+    // VALIDASI BARU: Cek apakah semua nilai dalam formData adalah string kosong.
+    const isAllFieldsEmpty = Object.values(formData).every(
+      (value) => typeof value === "string" && value.trim() === ""
+    );
 
-      onProfileUpdate(response.data);
-
-      const pictures = await userService.getProfilePictures();
-      setProfilePictures(pictures);
-
-      toast.success("Foto profil berhasil diunggah!", { id: toastId });
-      setShowModal(false);
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Gagal upload foto", { id: toastId });
+    if (isAllFieldsEmpty) {
+      // Jika semua kosong, tampilkan error dan hentikan proses.
+      toast.error("Minimal harus ada satu kolom yang diisi untuk memperbarui profil.");
+      return; 
     }
+
+    // Lanjutkan dengan logika yang sudah ada jika setidaknya ada satu field terisi.
+    const payload = cleanupPayload(formData);
+    
+    // Cek lagi setelah cleanup, mungkin user hanya mengisi spasi.
+    if (Object.keys(payload).length === 0) {
+      toast("Tidak ada perubahan untuk disimpan."); // Pesan netral, bukan sukses.
+      return;
+    }
+    
+    handleProfileUpdate({ updateData: payload });
+  };
+  
+  // Handler untuk modal: upload foto baru
+  const handleUploadNew = (file) => {
+    const payload = cleanupPayload(formData);
+    handleProfileUpdate({ updateData: payload, newPicture: file });
   };
 
-  const handleUseOldPicture = async (pictureId) => {
-    const toastId = toast.loading("Mengganti foto...");
-    try {
-      const response = await userService.useOldProfilePicture(pictureId);
-
-      onProfileUpdate(response.data);
-
-      toast.success("Foto lama berhasil dipakai!", { id: toastId });
-      setShowModal(false);
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Gagal mengganti foto lama", { id: toastId });
-    }
+  // Handler untuk modal: pakai foto lama
+  const handleUseOld = (pictureId) => {
+    const payload = cleanupPayload(formData);
+    handleProfileUpdate({ updateData: payload, oldPictureId: pictureId });
   };
 
   const handleDeletePicture = async (pictureId) => {
     const toastId = toast.loading("Menghapus foto...");
     try {
       const response = await userService.deleteProfilePicture(pictureId);
-
-      console.log("Respons dari API Delete:", response.data);
-
+      
       setProfilePictures(profilePictures.filter((pic) => pic.id !== pictureId));
-
-      onProfileUpdate(response.data.data);
-
-      toast.success(response.data.message || "Foto berhasil dihapus!", { id: toastId });
+      onProfileUpdate(response.data); // Update global state
+      
+      toast.success(response.message || "Foto berhasil dihapus!", { id: toastId });
     } catch (err) {
-      console.error("Error di handleDeletePicture:", err);
-      toast.error(err.response?.data?.message || "Gagal menghapus foto", { id: toastId });
+      toast.error(err.response?.data?.message || "Gagal menghapus foto.", { id: toastId });
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen bg-gray-100 dark:bg-slate-900">
         <FaSpinner className="animate-spin text-4xl text-blue-500" />
@@ -159,14 +158,12 @@ const ProfilePage = () => {
   return (
     <div className="bg-white dark:bg-slate-900 min-h-screen">
       <div className="max-w-2xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-        {/* --- Header --- */}
         <div className="text-center mb-10">
           <h1 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-white">Profil Anda</h1>
           <p className="mt-3 text-lg text-gray-500 dark:text-gray-400">Jaga agar data diri Anda tetap terbaru.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
-          {/* --- Foto Profil --- */}
           <div className="flex flex-col items-center space-y-4">
             <div className="w-32 h-32 rounded-full bg-gray-200 dark:bg-slate-700 overflow-hidden flex items-center justify-center">
               {user?.profilePictureUrl ? <img src={user.profilePictureUrl} alt="Profil" className="w-full h-full object-cover" /> : <FaUser className="text-6xl text-gray-400 dark:text-slate-500" />}
@@ -176,7 +173,6 @@ const ProfilePage = () => {
             </button>
           </div>
 
-          {/* --- Form Fields --- */}
           <div className="bg-gray-50 dark:bg-slate-800/50 p-6 sm:p-8 rounded-xl shadow-sm space-y-6">
             <InputField id="name" name="name" label="Nama Lengkap" value={formData.name} onChange={handleInputChange} placeholder="Masukkan nama lengkap Anda" />
             <InputField id="title" name="title" label="Jabatan" value={formData.title} onChange={handleInputChange} placeholder="Contoh: Software Engineer" />
@@ -184,14 +180,13 @@ const ProfilePage = () => {
             <InputField id="address" name="address" label="Alamat" type="textarea" value={formData.address} onChange={handleInputChange} placeholder="Alamat tempat tinggal Anda" />
           </div>
 
-          {/* --- Tombol Simpan --- */}
           <div className="pt-2 flex justify-end">
             <button
               type="submit"
-              disabled={updating}
+              disabled={isUpdating}
               className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-blue-500 to-teal-400 text-white font-semibold rounded-lg shadow-md hover:opacity-90 transition-opacity transform hover:scale-[1.02] duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-60 disabled:scale-100 disabled:cursor-not-allowed"
             >
-              {updating ? (
+              {isUpdating ? (
                 <span className="flex items-center justify-center">
                   <FaSpinner className="animate-spin -ml-1 mr-3 h-5 w-5" />
                   Menyimpan...
@@ -204,7 +199,14 @@ const ProfilePage = () => {
         </form>
       </div>
 
-      <ProfilePictureModal isOpen={showModal} onClose={() => setShowModal(false)} profilePictures={profilePictures} onUploadNew={handleUploadNew} onUseOld={handleUseOldPicture} onDelete={handleDeletePicture} />
+      <ProfilePictureModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        profilePictures={profilePictures}
+        onUploadNew={handleUploadNew}
+        onUseOld={handleUseOld}
+        onDelete={handleDeletePicture}
+      />
     </div>
   );
 };

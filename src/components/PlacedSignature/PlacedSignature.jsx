@@ -1,13 +1,26 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import interact from "interactjs";
 import { FaTrash, FaArrowsAlt } from "react-icons/fa";
 
 const PlacedSignature = ({ signature, onUpdate, onDelete }) => {
   const ref = useRef(null);
+  const [isActive, setIsActive] = useState(false);
+
+  // Klik luar -> matikan aktif
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setIsActive(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
+
     interact(element)
       .draggable({
         listeners: {
@@ -34,6 +47,7 @@ const PlacedSignature = ({ signature, onUpdate, onDelete }) => {
           },
         },
         inertia: true,
+        modifiers: [interact.modifiers.restrictRect({ restriction: "parent" })],
       })
       .resizable({
         edges: { left: true, right: true, bottom: true, top: true },
@@ -70,44 +84,57 @@ const PlacedSignature = ({ signature, onUpdate, onDelete }) => {
             });
           },
         },
-        modifiers: [interact.modifiers.aspectRatio({ ratio: "preserve" })],
+        modifiers: [
+          interact.modifiers.aspectRatio({ ratio: "preserve" }),
+          interact.modifiers.restrictSize({ min: { width: 50, height: 30 } }),
+        ],
         inertia: true,
       });
 
     return () => interact(element).unset();
   }, [signature, onUpdate]);
 
-  return (
+return (
+  <div
+    ref={ref}
+    className="placed-field absolute z-10 select-none"
+    style={{
+      left: 0,
+      top: 0,
+      transform: `translate(${signature.x_display}px, ${signature.y_display}px)`,
+      display: "inline-block",
+      width: signature.width_display ? `${signature.width_display}px` : "auto",   // ✅ set width langsung
+      height: signature.height_display ? `${signature.height_display}px` : "auto", // ✅ set height langsung
+    }}
+    data-x={signature.x_display}
+    data-y={signature.y_display}
+    onClick={() => setIsActive(true)}
+  >
     <div
-      ref={ref}
-       className="placed-field group absolute border-2 border-dashed border-transparent hover:border-green-500 hover:bg-green-500/10 touch-none box-border flex items-center justify-center p-1 z-10"
-
+      className={`relative bg-white/90 shadow-sm p-2 select-none 
+      ${isActive ? "border-2 border-blue-500 rounded-lg" : ""}`}
       style={{
-        left: 0,
-        top: 0,
-        width: `${signature.width_display}px`,
-        height: `${signature.height_display}px`,
-        transform: `translate(${signature.x_display}px, ${signature.y_display}px)`,
+        width: "100%",  // ✅ biar ikut parent div di atas
+        height: "100%",
       }}
-      data-x={signature.x_display}
-      data-y={signature.y_display}
     >
       <img
         src={signature.signatureImageUrl}
         alt="Tanda Tangan"
-        className="object-contain pointer-events-none"
-        style={{ width: "100%", height: "100%" }}
+        className="object-contain pointer-events-none w-full h-full select-none"
         onLoad={(e) => {
           const parentRect = ref.current?.parentElement?.getBoundingClientRect();
           if (!parentRect) return;
+
+          // kalau sudah ada ukuran, jangan override
+          if (signature.width_display && signature.height_display) return;
 
           const naturalWidth = e.target.naturalWidth;
           const naturalHeight = e.target.naturalHeight;
           const aspectRatio = naturalWidth / naturalHeight;
 
-          // Batasi max width biar tidak melar ke samping
-          const maxWidth = parentRect.width * 0.3;
-          const displayWidth = Math.min(naturalWidth, maxWidth);
+          const defaultWidth = parentRect.width * 0.2;
+          const displayWidth = Math.min(naturalWidth, defaultWidth);
           const displayHeight = displayWidth / aspectRatio;
 
           onUpdate({
@@ -120,23 +147,36 @@ const PlacedSignature = ({ signature, onUpdate, onDelete }) => {
         }}
       />
 
-      <div className="field-toolbar absolute top-[-30px] right-0 hidden group-hover:flex gap-1 bg-gray-800 rounded p-1">
-        <button
-          className="p-1 text-white hover:bg-gray-700 rounded cursor-move"
-          title="Geser"
-        >
-          <FaArrowsAlt />
-        </button>
-        <button
-          onClick={() => onDelete(signature.id)}
-          className="p-1 text-red-500 hover:bg-gray-700 rounded"
-          title="Hapus"
-        >
-          <FaTrash />
-        </button>
-      </div>
+      {isActive && (
+        <>
+          <span className="absolute w-3 h-3 bg-white border border-gray-400 rounded-full -top-1 -left-1"></span>
+          <span className="absolute w-3 h-3 bg-white border border-gray-400 rounded-full -top-1 -right-1"></span>
+          <span className="absolute w-3 h-3 bg-white border border-gray-400 rounded-full -bottom-1 -left-1"></span>
+          <span className="absolute w-3 h-3 bg-white border border-gray-400 rounded-full -bottom-1 -right-1"></span>
+        </>
+      )}
+
+      {isActive && (
+        <div className="field-toolbar absolute -top-3 right-0 flex items-center gap-1 bg-slate-800 rounded-md p-1 shadow-md">
+          <button
+            className="p-1 text-white hover:bg-slate-700 rounded cursor-move"
+            title="Geser"
+          >
+            <FaArrowsAlt size={12} />
+          </button>
+          <button
+            onClick={() => onDelete(signature.id)}
+            className="p-1 text-white bg-red-600 hover:bg-red-700 rounded"
+            title="Hapus"
+          >
+            <FaTrash size={12} />
+          </button>
+        </div>
+      )}
     </div>
-  );
+  </div>
+);
+
 };
 
 export default PlacedSignature;

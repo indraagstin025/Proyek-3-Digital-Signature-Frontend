@@ -1,8 +1,10 @@
+// file: src/components/SignatureSidebar/SignatureSidebar.jsx
+
 import React, { useEffect } from "react";
 import interact from "interactjs";
-import { FaPenNib, FaQrcode } from "react-icons/fa";
+import { FaPenNib, FaQrcode, FaTimes } from "react-icons/fa"; // Pastikan FaTimes di-import
 
-// 1. Terima props baru: includeQrCode dan setIncludeQrCode
+// Komponen menerima props baru: isOpen dan onClose untuk kontrol di mobile
 const SignatureSidebar = ({
   savedSignatureUrl,
   onOpenSignatureModal,
@@ -10,25 +12,41 @@ const SignatureSidebar = ({
   isLoading,
   includeQrCode,
   setIncludeQrCode,
+  isOpen,
+  onClose,
 }) => {
-  // useEffect untuk drag-and-drop tidak perlu diubah
+    
+
   useEffect(() => {
     if (!savedSignatureUrl) return;
+    
     let clone = null;
+    
     interact(".draggable-signature").draggable({
       inertia: true,
       autoScroll: true,
       listeners: {
         start(event) {
+          // Mencegah teks ter-highlight saat drag dimulai
+          document.body.classList.add('dragging-active'); 
+          
           const original = event.target;
           clone = original.cloneNode(true);
           clone.classList.add("dragging-clone", "draggable-signature");
+          clone.style.position = 'absolute';
+          clone.style.zIndex = '1000';
           clone.style.width = `${original.offsetWidth}px`;
           clone.style.height = `${original.offsetHeight}px`;
           document.body.appendChild(clone);
+          
           const originalRect = original.getBoundingClientRect();
           clone.style.left = `${originalRect.left}px`;
           clone.style.top = `${originalRect.top}px`;
+          
+          // Set posisi awal untuk clone agar pergerakan mulus
+          clone.setAttribute("data-x", 0);
+          clone.setAttribute("data-y", 0);
+
           original.style.opacity = "0.4";
         },
         move(event) {
@@ -40,31 +58,45 @@ const SignatureSidebar = ({
           clone.setAttribute("data-y", y);
         },
         end(event) {
+          // Menghapus class setelah drag selesai
+          document.body.classList.remove('dragging-active');
+          
           if (clone) clone.remove();
           event.target.style.opacity = "1";
-          event.target.style.transform = "translate(0px, 0px)";
-          event.target.removeAttribute("data-x");
-          event.target.removeAttribute("data-y");
         },
       },
     });
+    
     return () => interact(".draggable-signature").unset();
   }, [savedSignatureUrl]);
 
   return (
     <aside
-      className="w-96 h-full bg-slate-50 dark:bg-slate-900/70 backdrop-blur-sm
-                 flex flex-col flex-shrink-0 border-l border-slate-200/80
-                 dark:border-slate-700/50 shadow-2xl"
+      // ClassName diubah untuk mendukung perilaku responsif (slide-in/out)
+      className={`
+        w-96 max-w-full bg-slate-50 dark:bg-slate-900/70 backdrop-blur-sm
+        flex flex-col flex-shrink-0 border-l border-slate-200/80
+        dark:border-slate-700/50 shadow-2xl
+        
+        fixed top-0 right-0 z-40 h-screen transition-transform duration-300 ease-in-out
+        md:relative md:h-full md:translate-x-0 
+        ${isOpen ? "translate-x-0" : "translate-x-full"}
+      `}
     >
       {/* Bagian Header Sidebar */}
-      <div className="p-6 border-b border-slate-200/80 dark:border-slate-700/50">
-        <h2 className="text-xl font-bold text-slate-800 dark:text-white">
-          Tanda Tangan Anda
-        </h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Buat atau gunakan tanda tangan yang sudah ada.
-        </p>
+      <div className="p-6 border-b border-slate-200/80 dark:border-slate-700/50 flex justify-between items-center">
+        <div>
+            <h2 className="text-xl font-bold text-slate-800 dark:text-white">
+            Tanda Tangan Anda
+            </h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+            Gunakan atau buat tanda tangan.
+            </p>
+        </div>
+        {/* Tombol Close hanya untuk mobile, memanggil fungsi onClose */}
+        <button onClick={onClose} className="p-2 text-slate-500 hover:text-slate-800 dark:hover:text-white md:hidden">
+            <FaTimes size={20} />
+        </button>
       </div>
 
       {/* Konten Utama */}
@@ -103,10 +135,7 @@ const SignatureSidebar = ({
 
         {/* Persiapan Fitur QR Lain */}
         <div className="relative text-center">
-          <div
-            className="absolute inset-0 flex items-center"
-            aria-hidden="true"
-          >
+          <div className="absolute inset-0 flex items-center" aria-hidden="true">
             <div className="w-full border-t border-slate-300 dark:border-slate-700" />
           </div>
           <div className="relative flex justify-center text-sm">
@@ -123,7 +152,6 @@ const SignatureSidebar = ({
 
       {/* Bagian Aksi Final (Footer) */}
       <div className="p-6 border-t border-slate-200/80 dark:border-slate-700/50 mt-auto">
-        {/* 2. Tambahkan UI untuk Toggle Switch di sini */}
         <div className="flex items-center justify-between mb-4">
           <label
             htmlFor="qr-toggle"
@@ -158,25 +186,9 @@ const SignatureSidebar = ({
         >
           {isLoading ? (
             <>
-              <svg
-                className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                ></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
               Menyimpan...
             </>

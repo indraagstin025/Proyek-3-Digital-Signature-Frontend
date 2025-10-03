@@ -31,19 +31,19 @@ const AppWrapper = () => {
 const handleRedirectToLogin = () => {
   setSessionModalOpen(false);
   setRouteKey(prev => prev + 1);
-  // Langsung panggil navigasi tanpa setTimeout
-  navigate("/login", { replace: true }); 
+  navigate("/login", { replace: true });
 };
 
-  useEffect(() => {
-    const showSessionExpiredModal = () => {
-      setSessionModalOpen(true);
-    };
-    window.addEventListener("sessionExpired", showSessionExpiredModal);
-    return () => {
-      window.removeEventListener("sessionExpired", showSessionExpiredModal);
-    };
-  }, [navigate]);
+useEffect(() => {
+  const showSessionExpiredModal = () => {
+    setSessionModalOpen(true);
+  };
+  window.addEventListener("sessionExpired", showSessionExpiredModal);
+  return () => {
+    window.removeEventListener("sessionExpired", showSessionExpiredModal);
+  };
+}, [navigate]);
+
 
   useEffect(() => {
     const root = document.documentElement;
@@ -115,9 +115,9 @@ const handleRedirectToLogin = () => {
       </Routes>
 
       <ConfirmationModal
-        isOpen={isSessionModalOpen}
-        onClose={handleRedirectToLogin}
-        onConfirm={handleRedirectToLogin}
+ isOpen={isSessionModalOpen}
+  onClose={() => setSessionModalOpen(false)} // ❌ jangan auto-redirect, cukup close
+  onConfirm={handleRedirectToLogin}
         title="Sesi Berakhir"
         message="Sesi Anda telah berakhir. Silakan login kembali untuk melanjutkan."
         confirmText="Login"

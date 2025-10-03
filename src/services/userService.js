@@ -4,94 +4,64 @@ import apiClient from "./apiClient";
  * Ambil Profile user yang sedang login.
  */
 const getMyProfile = async () => {
-  try {
-    const response = await apiClient.get("/users/me");
-    return response.data.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || "Gagal mengambil profile pengguna");
-  }
+  const response = await apiClient.get("/users/me");
+  return response.data.data;
 };
 
 /**
- * Perbarui profile user
- * Bisa 3 Kondisi :
- * 1. Update data biasa
- * 2. Update + upload foto baru
- * 3. Update + pakai foto lama (profilePictureId)
- * @param {object} updateData - Data update (name, phoneNumber, title, address, dll)
- * @param {File|null} profilePicture - File foto baru (opsional).
- * @param {string|null} profilePictureId - ID foto lama dari history (opsional).
+ * Perbarui profile user. Fungsi ini menangani semua skenario:
+ * 1. Update data teks saja.
+ * 2. Update data teks + upload foto baru.
+ * 3. Update data teks + pakai foto lama dari history.
+ * @param {object} updateData - Data update (name, phoneNumber, dll).
+ * @param {File|null} [newProfilePicture=null] - File foto baru.
+ * @param {string|null} [oldProfilePictureId=null] - ID foto lama dari history.
  */
-const updateMyProfile = async (updateData = {}, profilePicture = null, profilePictureId = null) => {
+const updateMyProfile = async (updateData = {}, newProfilePicture = null, oldProfilePictureId = null) => {
   let payload;
   let headers;
 
-  if (profilePicture) {
+  if (newProfilePicture) {
     payload = new FormData();
     Object.keys(updateData).forEach((key) => {
-      if (updateData[key]) {
+      if (updateData[key] !== undefined && updateData[key] !== null) {
         payload.append(key, updateData[key]);
       }
     });
-    payload.append("profilePicture", profilePicture);
+    payload.append("profilePicture", newProfilePicture);
+
     headers = { "Content-Type": "multipart/form-data" };
   } else {
     payload = { ...updateData };
-    if (profilePictureId) {
-      payload.profilePictureId = profilePictureId;
+    if (oldProfilePictureId) {
+      payload.profilePictureId = oldProfilePictureId;
     }
     headers = { "Content-Type": "application/json" };
   }
 
-  try {
-    const response = await apiClient.put("/users/me", payload, { headers });
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || "Gagal memperbaharui profile.");
-  }
+  const response = await apiClient.put("/users/me", payload, { headers });
+  return response.data;
 };
 
 /**
- * Ambil semua history foto profil
+ * Ambil semua history foto profil.
  */
 const getProfilePictures = async () => {
-  try {
-    const response = await apiClient.get("/users/me/profile-pictures");
-    return response.data.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || "Gagal mengambil history profile.");
-  }
+  const response = await apiClient.get("/users/me/profile-pictures");
+  return response.data.data;
 };
 
 /**
- * Pakai foto lama dari history
- */
-const useOldProfilePicture = async (pictureId) => {
-  try {
-    const response = await apiClient.post(`/users/me/profile-pictures/${pictureId}/use`);
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || "Gagal mengganti ke foto lama.");
-  }
-};
-
-/**
- * Hapus foto dari history
+ * Hapus foto dari history.
  */
 const deleteProfilePicture = async (pictureId) => {
-  try {
-    const response = await apiClient.delete(`/users/me/profile-pictures/${pictureId}`);
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || "Gagal menghapus foto profil.");
-
-  }
-}
+  const response = await apiClient.delete(`/users/me/profile-pictures/${pictureId}`);
+  return response.data;
+};
 
 export const userService = {
   getMyProfile,
   updateMyProfile,
   getProfilePictures,
-  useOldProfilePicture,
   deleteProfilePicture,
 };

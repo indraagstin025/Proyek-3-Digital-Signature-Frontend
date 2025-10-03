@@ -23,6 +23,7 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
     const [signatures, setSignatures] = useState([]);
     const [savedSignatureUrl, setSavedSignatureUrl] = useState(null);
     const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     // 1. State baru untuk mengontrol opsi QR code
     const [includeQrCode, setIncludeQrCode] = useState(true);
@@ -122,37 +123,55 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
         );
     }
 
-    return (
-        <div className="h-screen w-screen overflow-hidden bg-slate-200 dark:bg-slate-900">
+      return (
+        <div className="h-screen w-screen overflow-hidden bg-slate-200 dark:bg-slate-900 flex flex-col">
+            {/* Header tetap di atas */}
             <header className="fixed top-0 left-0 right-0 h-16 z-50">
-                <SigningHeader theme={theme} toggleTheme={toggleTheme} />
+                <SigningHeader
+                    theme={theme}
+                    toggleTheme={toggleTheme}
+                    // Tambahkan tombol hamburger untuk mobile
+                    onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                />
             </header>
 
-            <aside className="fixed top-16 right-0 h-[calc(100vh-4rem)] w-96 z-40">
+            <div className="flex-1 pt-16 flex">
+                {/* PDF Viewer akan mengambil sisa ruang */}
+                <main className="flex-1 overflow-hidden">
+                    {pdfFile && (
+                        <PDFViewer
+                            documentTitle={documentTitle}
+                            fileUrl={pdfFile}
+                            signatures={signatures}
+                            onAddSignature={handleAddSignature}
+                            onUpdateSignature={handleUpdateSignature}
+                            onDeleteSignature={handleDeleteSignature}
+                            savedSignatureUrl={savedSignatureUrl}
+                        />
+                    )}
+                </main>
+
+                {/* Sidebar akan menjadi overlay di mobile atau di samping di desktop */}
                 <SignatureSidebar
                     savedSignatureUrl={savedSignatureUrl}
                     onOpenSignatureModal={() => setIsSignatureModalOpen(true)}
                     onSave={handleFinalSave}
                     isLoading={isLoading}
-                    // 4. Teruskan state dan setter-nya sebagai props ke Sidebar
                     includeQrCode={includeQrCode}
                     setIncludeQrCode={setIncludeQrCode}
+                    // Prop baru untuk kontrol dari mobile
+                    isOpen={isSidebarOpen}
+                    onClose={() => setIsSidebarOpen(false)}
                 />
-            </aside>
-
-            <main className="h-full pt-16 pr-96">
-                {pdfFile && (
-                    <PDFViewer
-                        documentTitle={documentTitle}
-                        fileUrl={pdfFile}
-                        signatures={signatures}
-                        onAddSignature={handleAddSignature}
-                        onUpdateSignature={handleUpdateSignature}
-                        onDeleteSignature={handleDeleteSignature}
-                        savedSignatureUrl={savedSignatureUrl}
-                    />
-                )}
-            </main>
+            </div>
+            
+            {/* Overlay untuk menutup sidebar saat diklik di luar area (hanya mobile) */}
+            {isSidebarOpen && (
+                <div 
+                    onClick={() => setIsSidebarOpen(false)}
+                    className="fixed inset-0 bg-black/50 z-30 md:hidden"
+                ></div>
+            )}
 
             {isSignatureModalOpen && <SignatureModal onSave={handleSaveSignature} onClose={() => setIsSignatureModalOpen(false)} />}
         </div>
