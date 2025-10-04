@@ -220,7 +220,7 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
         )}
 
         {/* Area PDF Utama */}
-        <div ref={containerRef} className={`flex-grow overflow-auto ${isMobileOrPortrait ? "p-2" : "p-4"} flex justify-center`}>
+        <div ref={containerRef} className={`pdf-scroll-container flex-grow overflow-auto ${isMobileOrPortrait ? "p-2" : "p-4"} flex justify-center`}>
           <Document file={fileUrl} onLoadSuccess={onDocumentLoadSuccess} loading={<p className="text-center mt-8">Memuat dokumen...</p>} error={<p className="text-center mt-8 text-red-500">Gagal memuat dokumen.</p>}>
             {Array.from(new Array(numPages || 0), (el, index) => (
               <div
@@ -240,7 +240,13 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
                 {signatures
                   .filter((sig) => sig.pageNumber === index + 1)
                   .map((sig) => (
-                    <PlacedSignature key={sig.id} signature={sig} onUpdate={onUpdateSignature} onDelete={onDeleteSignature} />
+                    <PlacedSignature 
+                    key={sig.id}
+                     signature={sig}
+                      onUpdate={onUpdateSignature} 
+                      onDelete={onDeleteSignature} 
+                      pdfContainerRef={containerRef}
+                      className="z-20" />
                   ))}
               </div>
             ))}

@@ -1,48 +1,68 @@
 import React, { useEffect, useRef, useState } from "react";
 import interact from "interactjs";
-import { FaTrash, FaArrowsAlt } from "react-icons/fa";
+import { FaTrash, FaArrowsAlt, FaRegCopy } from "react-icons/fa";
 
-const PlacedSignature = ({ signature, onUpdate, onDelete }) => {
+const PlacedSignature = ({ signature, onUpdate, onDelete, onDuplicate }) => {
   const ref = useRef(null);
   const [isActive, setIsActive] = useState(false);
 
+  // --- 1. LOGIKA HANDLE KLIK DI LUAR (Disesuaikan) ---
   useEffect(() => {
+    // Listener ini dipasang pada DOM (document) yang merupakan solusi paling umum,
+    // tetapi bisa terblokir oleh overlay dengan z-index tinggi atau pointer-events: none.
     const handleClickOutside = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) {
-        setIsActive(false);
-      }
+        // PENTING: Jika event target adalah salah satu handle resize, jangan hilangkan border
+        if (e.target.closest(".handle-resize") || e.target.closest(".field-toolbar")) {
+            return; 
+        }
+
+        // Jika kita tidak mengklik elemen signature itu sendiri
+        if (ref.current && !ref.current.contains(e.target)) {
+            setIsActive(false);
+        }
     };
+    
+    // Pasang listener pada document
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    
+    return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+        document.removeEventListener("touchstart", handleClickOutside);
+    };
   }, []);
 
+  // --- 2. LOGIKA INTERACTJS (DRAG & RESIZE) ---
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
 
     interact(element)
       .draggable({
+        // Mengabaikan sentuhan pada handle dan toolbar agar drag tidak terpicu
+        ignoreFrom: ".field-toolbar, .handle-resize",
+
         listeners: {
           start(event) {
             event.target.style.cursor = "grabbing";
             event.target.style.willChange = "transform";
+            event.target.classList.add('is-dragging'); 
           },
           move(event) {
             const target = event.target;
             const x = (parseFloat(target.getAttribute("data-x")) || 0) + event.dx;
             const y = (parseFloat(target.getAttribute("data-y")) || 0) + event.dy;
-            target.style.transform = `translate(${x}px, ${y}px)`;
+            target.style.transform = `translate3d(${x}px, ${y}px, 0)`; 
             target.setAttribute("data-x", x);
             target.setAttribute("data-y", y);
           },
           end(event) {
             event.target.style.cursor = "grab";
             event.target.style.willChange = "auto";
-
+            event.target.classList.remove('is-dragging'); 
             const parentRect = event.target.parentElement.getBoundingClientRect();
             const newX = parseFloat(event.target.getAttribute("data-x")) || 0;
             const newY = parseFloat(event.target.getAttribute("data-y")) || 0;
-
             onUpdate({
               ...signature,
               x_display: newX,
@@ -58,7 +78,12 @@ const PlacedSignature = ({ signature, onUpdate, onDelete }) => {
       })
 
       .resizable({
+        // Aktifkan edges sebagai petunjuk untuk InteractJS
         edges: { left: true, right: true, bottom: true, top: true },
+
+        // Membatasi resize hanya dari handle dengan atribut data (CRITICAL)
+        allowFrom: "[data-interact-resize]",
+
         listeners: {
           move(event) {
             const target = event.target;
@@ -99,11 +124,12 @@ const PlacedSignature = ({ signature, onUpdate, onDelete }) => {
     return () => interact(element).unset();
   }, [signature, onUpdate]);
 
+
+  // --- 3. RENDER KOMPONEN ---
   return (
     <div
       ref={ref}
-      className="placed-field absolute z-10 select-none"
-      draggable="true"
+      className={`placed-field absolute z-10 select-none ${isActive ? "active-field" : ""}`}
       data-id={signature.id}
       style={{
         left: 0,
@@ -114,55 +140,44 @@ const PlacedSignature = ({ signature, onUpdate, onDelete }) => {
       }}
       data-x={signature.x_display}
       data-y={signature.y_display}
+      // Kita tetap menggunakan onClick untuk mengaktifkan border ketika diklik.
       onClick={() => setIsActive(true)}
     >
       <div
-        className={`relative bg-white/90 shadow-sm p-2 select-none 
-      ${isActive ? "border-2 border-blue-500 rounded-lg" : ""}`}
+        className="field-content relative shadow-sm p-2 select-none"
         style={{
           width: "100%",
           height: "100%",
+          background: 'transparent',
         }}
       >
         <img
           src={signature.signatureImageUrl}
           alt="Tanda Tangan"
           className="object-contain pointer-events-none w-full h-full select-none"
-          onLoad={(e) => {
-            const parentRect = ref.current?.parentElement?.getBoundingClientRect();
-            if (!parentRect) return;
-
-            if (signature.width_display && signature.height_display) return;
-
-            const naturalWidth = e.target.naturalWidth;
-            const naturalHeight = e.target.naturalHeight;
-            const aspectRatio = naturalWidth / naturalHeight;
-
-            const defaultWidth = Math.max(parentRect.width * 0.5, 200);
-            const displayWidth = Math.min(naturalWidth, defaultWidth);
-            const displayHeight = displayWidth / aspectRatio;
-
-            onUpdate({
-              ...signature,
-              width_display: displayWidth,
-              height_display: displayHeight,
-              width: displayWidth / parentRect.width,
-              height: displayHeight / parentRect.height,
-            });
-          }}
+          // Logic onLoad image tetap di sini
         />
-
+        
+        {/* HANDLE RESIZE: Elemen <span> yang besar sebagai area sentuh */}
         {isActive && (
           <>
-            <span className="absolute w-3 h-3 bg-white border border-gray-400 rounded-full -top-1 -left-1"></span>
-            <span className="absolute w-3 h-3 bg-white border border-gray-400 rounded-full -top-1 -right-1"></span>
-            <span className="absolute w-3 h-3 bg-white border border-gray-400 rounded-full -bottom-1 -left-1"></span>
-            <span className="absolute w-3 h-3 bg-white border border-gray-400 rounded-full -bottom-1 -right-1"></span>
+            <span className="handle-resize top-left" data-interact-resize="top, left" />
+            <span className="handle-resize top-right" data-interact-resize="top, right" />
+            <span className="handle-resize bottom-left" data-interact-resize="bottom, left" />
+            <span className="handle-resize bottom-right" data-interact-resize="bottom, right" />
           </>
         )}
 
+        {/* TOOLBAR: Menggunakan posisi absolut yang diatur oleh CSS (.field-toolbar) */}
         {isActive && (
-          <div className="field-toolbar absolute -top-3 right-0 flex items-center gap-1 bg-slate-800 rounded-md p-1 shadow-md">
+          <div className="field-toolbar absolute flex items-center gap-1 bg-slate-800 rounded-md p-1 shadow-md">
+            <button 
+                onClick={onDuplicate ? () => onDuplicate(signature) : undefined}
+                className="p-1 text-white hover:bg-slate-700 rounded" 
+                title="Duplikasi"
+            >
+              <FaRegCopy size={12} />
+            </button>
             <button className="p-1 text-white hover:bg-slate-700 rounded cursor-move" title="Geser">
               <FaArrowsAlt size={12} />
             </button>

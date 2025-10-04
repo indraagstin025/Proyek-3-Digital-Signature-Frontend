@@ -191,8 +191,8 @@ const DashboardDocuments = () => {
                         <div className="flex-shrink-0 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                           <FaFileAlt className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                         </div>
-                        <div className="min-w-0 flex-grow">
-                          <p className="font-bold text-lg text-slate-800 dark:text-white truncate" title={doc.title}>
+                        <div className="flex-grow max-w-full overflow-hidden">
+                          <p className="font-bold text-lg text-slate-800 dark:text-white break-all whitespace-normal w-full leading-snug" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }} title={doc.title}>
                             {doc.title}
                           </p>
 
