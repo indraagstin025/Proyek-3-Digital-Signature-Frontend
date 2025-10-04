@@ -6,7 +6,6 @@ const PlacedSignature = ({ signature, onUpdate, onDelete }) => {
   const ref = useRef(null);
   const [isActive, setIsActive] = useState(false);
 
-  // Klik luar -> matikan aktif
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (ref.current && !ref.current.contains(e.target)) {
@@ -24,6 +23,10 @@ const PlacedSignature = ({ signature, onUpdate, onDelete }) => {
     interact(element)
       .draggable({
         listeners: {
+          start(event) {
+            event.target.style.cursor = "grabbing";
+            event.target.style.willChange = "transform";
+          },
           move(event) {
             const target = event.target;
             const x = (parseFloat(target.getAttribute("data-x")) || 0) + event.dx;
@@ -33,6 +36,9 @@ const PlacedSignature = ({ signature, onUpdate, onDelete }) => {
             target.setAttribute("data-y", y);
           },
           end(event) {
+            event.target.style.cursor = "grab";
+            event.target.style.willChange = "auto";
+
             const parentRect = event.target.parentElement.getBoundingClientRect();
             const newX = parseFloat(event.target.getAttribute("data-x")) || 0;
             const newY = parseFloat(event.target.getAttribute("data-y")) || 0;
@@ -47,8 +53,10 @@ const PlacedSignature = ({ signature, onUpdate, onDelete }) => {
           },
         },
         inertia: true,
+        autoScroll: true,
         modifiers: [interact.modifiers.restrictRect({ restriction: "parent" })],
       })
+
       .resizable({
         edges: { left: true, right: true, bottom: true, top: true },
         listeners: {
@@ -84,99 +92,88 @@ const PlacedSignature = ({ signature, onUpdate, onDelete }) => {
             });
           },
         },
-        modifiers: [
-          interact.modifiers.aspectRatio({ ratio: "preserve" }),
-          interact.modifiers.restrictSize({ min: { width: 50, height: 30 } }),
-        ],
+        modifiers: [interact.modifiers.aspectRatio({ ratio: "preserve" }), interact.modifiers.restrictSize({ min: { width: 50, height: 30 } })],
         inertia: true,
       });
 
     return () => interact(element).unset();
   }, [signature, onUpdate]);
 
-return (
-  <div
-    ref={ref}
-    className="placed-field absolute z-10 select-none"
-    style={{
-      left: 0,
-      top: 0,
-      transform: `translate(${signature.x_display}px, ${signature.y_display}px)`,
-      display: "inline-block",
-      width: signature.width_display ? `${signature.width_display}px` : "auto",   // ✅ set width langsung
-      height: signature.height_display ? `${signature.height_display}px` : "auto", // ✅ set height langsung
-    }}
-    data-x={signature.x_display}
-    data-y={signature.y_display}
-    onClick={() => setIsActive(true)}
-  >
+  return (
     <div
-      className={`relative bg-white/90 shadow-sm p-2 select-none 
-      ${isActive ? "border-2 border-blue-500 rounded-lg" : ""}`}
+      ref={ref}
+      className="placed-field absolute z-10 select-none"
+      draggable="true"
+      data-id={signature.id}
       style={{
-        width: "100%",  // ✅ biar ikut parent div di atas
-        height: "100%",
+        left: 0,
+        top: 0,
+        transform: `translate(${signature.x_display}px, ${signature.y_display}px)`,
+        width: signature.width_display ? `${signature.width_display}px` : "auto",
+        height: signature.height_display ? `${signature.height_display}px` : "auto",
       }}
+      data-x={signature.x_display}
+      data-y={signature.y_display}
+      onClick={() => setIsActive(true)}
     >
-      <img
-        src={signature.signatureImageUrl}
-        alt="Tanda Tangan"
-        className="object-contain pointer-events-none w-full h-full select-none"
-        onLoad={(e) => {
-          const parentRect = ref.current?.parentElement?.getBoundingClientRect();
-          if (!parentRect) return;
-
-          // kalau sudah ada ukuran, jangan override
-          if (signature.width_display && signature.height_display) return;
-
-          const naturalWidth = e.target.naturalWidth;
-          const naturalHeight = e.target.naturalHeight;
-          const aspectRatio = naturalWidth / naturalHeight;
-
-          const defaultWidth = parentRect.width * 0.2;
-          const displayWidth = Math.min(naturalWidth, defaultWidth);
-          const displayHeight = displayWidth / aspectRatio;
-
-          onUpdate({
-            ...signature,
-            width_display: displayWidth,
-            height_display: displayHeight,
-            width: displayWidth / parentRect.width,
-            height: displayHeight / parentRect.height,
-          });
+      <div
+        className={`relative bg-white/90 shadow-sm p-2 select-none 
+      ${isActive ? "border-2 border-blue-500 rounded-lg" : ""}`}
+        style={{
+          width: "100%",
+          height: "100%",
         }}
-      />
+      >
+        <img
+          src={signature.signatureImageUrl}
+          alt="Tanda Tangan"
+          className="object-contain pointer-events-none w-full h-full select-none"
+          onLoad={(e) => {
+            const parentRect = ref.current?.parentElement?.getBoundingClientRect();
+            if (!parentRect) return;
 
-      {isActive && (
-        <>
-          <span className="absolute w-3 h-3 bg-white border border-gray-400 rounded-full -top-1 -left-1"></span>
-          <span className="absolute w-3 h-3 bg-white border border-gray-400 rounded-full -top-1 -right-1"></span>
-          <span className="absolute w-3 h-3 bg-white border border-gray-400 rounded-full -bottom-1 -left-1"></span>
-          <span className="absolute w-3 h-3 bg-white border border-gray-400 rounded-full -bottom-1 -right-1"></span>
-        </>
-      )}
+            if (signature.width_display && signature.height_display) return;
 
-      {isActive && (
-        <div className="field-toolbar absolute -top-3 right-0 flex items-center gap-1 bg-slate-800 rounded-md p-1 shadow-md">
-          <button
-            className="p-1 text-white hover:bg-slate-700 rounded cursor-move"
-            title="Geser"
-          >
-            <FaArrowsAlt size={12} />
-          </button>
-          <button
-            onClick={() => onDelete(signature.id)}
-            className="p-1 text-white bg-red-600 hover:bg-red-700 rounded"
-            title="Hapus"
-          >
-            <FaTrash size={12} />
-          </button>
-        </div>
-      )}
+            const naturalWidth = e.target.naturalWidth;
+            const naturalHeight = e.target.naturalHeight;
+            const aspectRatio = naturalWidth / naturalHeight;
+
+            const defaultWidth = Math.max(parentRect.width * 0.5, 200);
+            const displayWidth = Math.min(naturalWidth, defaultWidth);
+            const displayHeight = displayWidth / aspectRatio;
+
+            onUpdate({
+              ...signature,
+              width_display: displayWidth,
+              height_display: displayHeight,
+              width: displayWidth / parentRect.width,
+              height: displayHeight / parentRect.height,
+            });
+          }}
+        />
+
+        {isActive && (
+          <>
+            <span className="absolute w-3 h-3 bg-white border border-gray-400 rounded-full -top-1 -left-1"></span>
+            <span className="absolute w-3 h-3 bg-white border border-gray-400 rounded-full -top-1 -right-1"></span>
+            <span className="absolute w-3 h-3 bg-white border border-gray-400 rounded-full -bottom-1 -left-1"></span>
+            <span className="absolute w-3 h-3 bg-white border border-gray-400 rounded-full -bottom-1 -right-1"></span>
+          </>
+        )}
+
+        {isActive && (
+          <div className="field-toolbar absolute -top-3 right-0 flex items-center gap-1 bg-slate-800 rounded-md p-1 shadow-md">
+            <button className="p-1 text-white hover:bg-slate-700 rounded cursor-move" title="Geser">
+              <FaArrowsAlt size={12} />
+            </button>
+            <button onClick={() => onDelete(signature.id)} className="p-1 text-white bg-red-600 hover:bg-red-700 rounded" title="Hapus">
+              <FaTrash size={12} />
+            </button>
+          </div>
+        )}
+      </div>
     </div>
-  </div>
-);
-
+  );
 };
 
 export default PlacedSignature;

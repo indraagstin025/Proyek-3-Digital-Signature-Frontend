@@ -7,6 +7,17 @@
 /* 2. Tambahkan Custom Variant untuk Dark Mode */
 @custom-variant dark (&:where(.dark, .dark *));
 
+html, 
+body, 
+#root {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 100% !important; /* Tambahkan !important pada height juga */
+    width: 100% !important;
+    /* Opsional, untuk mencegah bug scroll horizontal dari luar */
+    overflow-x: hidden; 
+}
+
 /* 3. Gaya Global */
 body {
     @apply font-sans bg-gray-100 text-gray-900; /* default light mode */
@@ -14,9 +25,12 @@ body {
     overflow-x: hidden;
 }
 
-body::-webkit-scrollbar {
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+#root::-webkit-scrollbar {
   display: none;
 }
+
 
 .font-dancing-script {
     font-family: 'Dancing Script', cursive;
@@ -161,3 +175,4 @@ body.dragging-active * {
 .placed-field {
   touch-action: none; /* cegah gesture scroll/pinch bawaan supaya drag di mobile jalan mulus */
 }
+

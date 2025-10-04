@@ -1,4 +1,5 @@
 /* eslint-disable no-irregular-whitespace */
+import "./index.css";
 import React, { useState, useEffect, useMemo } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
@@ -28,22 +29,21 @@ const AppWrapper = () => {
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
   const [isSessionModalOpen, setSessionModalOpen] = useState(false);
 
-const handleRedirectToLogin = () => {
-  setSessionModalOpen(false);
-  setRouteKey(prev => prev + 1);
-  navigate("/login", { replace: true });
-};
-
-useEffect(() => {
-  const showSessionExpiredModal = () => {
-    setSessionModalOpen(true);
+  const handleRedirectToLogin = () => {
+    setSessionModalOpen(false);
+    setRouteKey((prev) => prev + 1);
+    navigate("/login", { replace: true });
   };
-  window.addEventListener("sessionExpired", showSessionExpiredModal);
-  return () => {
-    window.removeEventListener("sessionExpired", showSessionExpiredModal);
-  };
-}, [navigate]);
 
+  useEffect(() => {
+    const showSessionExpiredModal = () => {
+      setSessionModalOpen(true);
+    };
+    window.addEventListener("sessionExpired", showSessionExpiredModal);
+    return () => {
+      window.removeEventListener("sessionExpired", showSessionExpiredModal);
+    };
+  }, [navigate]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -62,33 +62,27 @@ useEffect(() => {
   const isDashboard = location.pathname.startsWith("/dashboard");
 
   // ✅ Stabilkan objek toastOptions dengan useMemo
-  const toastOptions = useMemo(() => ({
-    style: {
-      background: theme === "dark" ? "#1F2937" : "#FFFFFF",
-      color: theme === "dark" ? "#D1D5DB" : "#111827",
-      border: theme === "dark" ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid #E5E7EB",
-    },
-    error: {
-      iconTheme: { primary: "#F87171", secondary: theme === "dark" ? "#1F2937" : "#FFFFFF" },
-    },
-    success: {
-      iconTheme: { primary: "#34D399", secondary: theme === "dark" ? "#1F2937" : "#FFFFFF" },
-    },
-  }), [theme]); // Dependensi: objek hanya dibuat ulang jika 'theme' berubah
+  const toastOptions = useMemo(
+    () => ({
+      style: {
+        background: theme === "dark" ? "#1F2937" : "#FFFFFF",
+        color: theme === "dark" ? "#D1D5DB" : "#111827",
+        border: theme === "dark" ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid #E5E7EB",
+      },
+      error: {
+        iconTheme: { primary: "#F87171", secondary: theme === "dark" ? "#1F2937" : "#FFFFFF" },
+      },
+      success: {
+        iconTheme: { primary: "#34D399", secondary: theme === "dark" ? "#1F2937" : "#FFFFFF" },
+      },
+    }),
+    [theme]
+  ); // Dependensi: objek hanya dibuat ulang jika 'theme' berubah
 
   return (
-    <div className="min-h-screen">
+      <div className="flex-1 overflow-auto"> 
       {/* ✅ Gunakan objek toastOptions yang sudah stabil */}
-      <Toaster
-        position="top-center"
-        reverseOrder={false}
-        toastOptions={toastOptions}
-      />
-
-            {!isDashboard && !location.pathname.includes('/sign') && (
-        <Header theme={theme} toggleTheme={toggleTheme} />
-      )}
-
+      <Toaster position="top-center" reverseOrder={false} toastOptions={toastOptions} />      {!isDashboard && !location.pathname.includes("/sign") && <Header theme={theme} toggleTheme={toggleTheme} />}
       <Routes>
         {/* Rute untuk Halaman Publik */}
         <Route element={<MainLayout />}>
@@ -99,10 +93,7 @@ useEffect(() => {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
         </Route>
 
-      <Route 
-  path="/documents/:documentId/sign" 
-  element={<SignDocumentPage theme={theme} toggleTheme={toggleTheme} />} 
-/>
+        <Route path="/documents/:documentId/sign" element={<SignDocumentPage theme={theme} toggleTheme={toggleTheme} />} />
 
         {/* Rute untuk Dashboard */}
         <Route path="/dashboard" element={<DashboardPage theme={theme} toggleTheme={toggleTheme} />}>
@@ -113,11 +104,10 @@ useEffect(() => {
           <Route path="history" element={<DashboardHistory theme={theme} />} />
         </Route>
       </Routes>
-
       <ConfirmationModal
- isOpen={isSessionModalOpen}
-  onClose={() => setSessionModalOpen(false)} // ❌ jangan auto-redirect, cukup close
-  onConfirm={handleRedirectToLogin}
+        isOpen={isSessionModalOpen}
+        onClose={() => setSessionModalOpen(false)} // ❌ jangan auto-redirect, cukup close
+        onConfirm={handleRedirectToLogin}
         title="Sesi Berakhir"
         message="Sesi Anda telah berakhir. Silakan login kembali untuk melanjutkan."
         confirmText="Login"

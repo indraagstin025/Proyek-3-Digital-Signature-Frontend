@@ -11,171 +11,184 @@ import SignatureSidebar from "../../components/SignatureSidebar/SignatureSidebar
 import SignatureModal from "../../components/SignatureModal/SignatureModal";
 import PDFViewer from "../../components/PDFViewer/PDFViewer";
 
-
 const SignDocumentPage = ({ theme, toggleTheme }) => {
-    const { documentId } = useParams();
-    const navigate = useNavigate();
+  const { documentId } = useParams();
+  const navigate = useNavigate();
 
-    const [documentTitle, setDocumentTitle] = useState("Memuat...");
-    const [pdfFile, setPdfFile] = useState(null);
-    const [documentVersionId, setDocumentVersionId] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [signatures, setSignatures] = useState([]);
-    const [savedSignatureUrl, setSavedSignatureUrl] = useState(null);
-    const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [documentTitle, setDocumentTitle] = useState("Memuat...");
+  const [pdfFile, setPdfFile] = useState(null);
+  const [documentVersionId, setDocumentVersionId] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [signatures, setSignatures] = useState([]);
+  const [savedSignatureUrl, setSavedSignatureUrl] = useState(null);
+  const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isLandscape, setIsLandscape] = useState(window.innerWidth > window.innerHeight);
+  const [includeQrCode, setIncludeQrCode] = useState(true);
+  const [isPortrait, setIsPortrait] = useState(false);
 
-    // 1. State baru untuk mengontrol opsi QR code
-    const [includeQrCode, setIncludeQrCode] = useState(true);
+  useEffect(() => {
+    const checkOrientation = () => {
+      setIsPortrait(window.innerHeight > window.innerWidth);
+    };
 
-    useEffect(() => {
-        const fetchDocument = async () => {
-            try {
-                setIsLoading(true);
-                const doc = await documentService.getDocumentById(documentId);
-                if (doc && doc.currentVersion) {
-                    setPdfFile(doc.currentVersion.url);
-                    setDocumentVersionId(doc.currentVersion.id);
-                    setDocumentTitle(doc.title);
-                } else {
-                    throw new Error("Data dokumen atau versi tidak valid.");
-                }
-            } catch (error) {
-                toast.error(error.message || "Gagal memuat dokumen.");
-                setTimeout(() => navigate("/dashboard/documents"), 2000);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchDocument();
-    }, [documentId, navigate]);
+    checkOrientation();
+    window.addEventListener("resize", checkOrientation);
+    return () => window.removeEventListener("resize", checkOrientation);
+  }, []);
 
-    const handleSaveSignature = useCallback((dataUrl) => {
-        setSavedSignatureUrl(dataUrl);
-        setIsSignatureModalOpen(false);
-    }, []);
+  useEffect(() => {
+    const handleResize = () => {
+      setIsLandscape(window.innerWidth > window.innerHeight);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
-    const handleAddSignature = useCallback((newSignature) => {
-        setSignatures((prev) => [...prev, newSignature]);
-    }, []);
+  const sidebarOpen = isLandscape ? true : isSidebarOpen;
 
-    const handleUpdateSignature = useCallback((updatedSignature) => {
-        setSignatures((prev) => prev.map((sig) => (sig.id === updatedSignature.id ? updatedSignature : sig)));
-    }, []);
-
-    const handleDeleteSignature = useCallback((signatureId) => {
-        setSignatures((prev) => prev.filter((sig) => sig.id !== signatureId));
-    }, []);
-
-    const handleFinalSave = useCallback(async () => {
-        if (signatures.length === 0) {
-            return toast.error("Harap tempatkan setidaknya satu tanda tangan di dokumen.");
-        }
-        if (!documentVersionId) {
-            return toast.error("ID Versi Dokumen tidak ditemukan. Gagal menyimpan.");
-        }
+  useEffect(() => {
+    const fetchDocument = async () => {
+      try {
         setIsLoading(true);
-        try {
-            // Asumsi saat ini hanya satu TTD per request
-            const sig = signatures[0]; 
-
-            // 2. Tambahkan 'displayQrCode' ke dalam payload yang dikirim ke backend
-            const payload = {
-                documentVersionId,
-                method: "canvas",
-                signatureImageUrl: sig.signatureImageUrl,
-                positionX: sig.positionX,
-                positionY: sig.positionY,
-                pageNumber: sig.pageNumber,
-                width: sig.width,
-                height: sig.height,
-                displayQrCode: includeQrCode,
-            };
-
-            await signatureService.addPersonalSignature(payload);
-            
-            toast.success("Dokumen berhasil ditandatangani! Anda akan dialihkan.");
-            setTimeout(() => navigate("/dashboard/documents", { state: { refresh: true } }), 2000);
-        } catch (error) {
-
-              console.log("🔥 FULL ERROR OBJECT:", error);
-  console.log("🔥 RESPONSE DATA:", error.response?.data);
-
-    let errorMessage = "Gagal menyimpan tanda tangan."; // Pesan default
-
-    if (error.response && error.response.data && error.response.data.message) {
-        errorMessage = error.response.data.message;
-    } else if (error.message) {
-        errorMessage = error.message;
-    }
-
-    toast.error(errorMessage);
-            setIsLoading(false);
+        const doc = await documentService.getDocumentById(documentId);
+        if (doc && doc.currentVersion) {
+          setPdfFile(doc.currentVersion.url);
+          setDocumentVersionId(doc.currentVersion.id);
+          setDocumentTitle(doc.title);
+        } else {
+          throw new Error("Data dokumen atau versi tidak valid.");
         }
-    }, [signatures, documentVersionId, navigate, includeQrCode]); // 3. Tambahkan 'includeQrCode' ke dependency array
+      } catch (error) {
+        toast.error(error.message || "Gagal memuat dokumen.");
+        setTimeout(() => navigate("/dashboard/documents"), 2000);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchDocument();
+  }, [documentId, navigate]);
 
-    if (isLoading && !pdfFile) {
-        return (
-            <div className="flex h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">
-                <FaSpinner className="animate-spin text-3xl text-blue-500" />
-                <p className="ml-4 text-lg text-gray-700 dark:text-gray-300">Memuat Dokumen...</p>
-            </div>
-        );
+  const handleSaveSignature = useCallback((dataUrl) => {
+    setSavedSignatureUrl(dataUrl);
+    setIsSignatureModalOpen(false);
+  }, []);
+
+  const handleAddSignature = useCallback((newSignature) => {
+    setSignatures((prev) => [...prev, newSignature]);
+  }, []);
+
+  const handleUpdateSignature = useCallback((updatedSignature) => {
+    setSignatures((prev) => prev.map((sig) => (sig.id === updatedSignature.id ? updatedSignature : sig)));
+  }, []);
+
+  const handleDeleteSignature = useCallback((signatureId) => {
+    setSignatures((prev) => prev.filter((sig) => sig.id !== signatureId));
+  }, []);
+
+  const handleFinalSave = useCallback(async () => {
+    if (signatures.length === 0) {
+      return toast.error("Harap tempatkan setidaknya satu tanda tangan di dokumen.");
     }
+    if (!documentVersionId) {
+      return toast.error("ID Versi Dokumen tidak ditemukan. Gagal menyimpan.");
+    }
+    setIsLoading(true);
+    try {
+      // Asumsi saat ini hanya satu TTD per request
+      const sig = signatures[0];
 
-      return (
-        <div className="h-screen w-screen overflow-hidden bg-slate-200 dark:bg-slate-900 flex flex-col">
-            {/* Header tetap di atas */}
-            <header className="fixed top-0 left-0 right-0 h-16 z-50">
-                <SigningHeader
-                    theme={theme}
-                    toggleTheme={toggleTheme}
-                    // Tambahkan tombol hamburger untuk mobile
-                    onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-                />
-            </header>
+      // 2. Tambahkan 'displayQrCode' ke dalam payload yang dikirim ke backend
+      const payload = {
+        documentVersionId,
+        method: "canvas",
+        signatureImageUrl: sig.signatureImageUrl,
+        positionX: sig.positionX,
+        positionY: sig.positionY,
+        pageNumber: sig.pageNumber,
+        width: sig.width,
+        height: sig.height,
+        displayQrCode: includeQrCode,
+      };
 
-            <div className="flex-1 pt-16 flex">
-                {/* PDF Viewer akan mengambil sisa ruang */}
-                <main className="flex-1 overflow-hidden">
-                    {pdfFile && (
-                        <PDFViewer
-                            documentTitle={documentTitle}
-                            fileUrl={pdfFile}
-                            signatures={signatures}
-                            onAddSignature={handleAddSignature}
-                            onUpdateSignature={handleUpdateSignature}
-                            onDeleteSignature={handleDeleteSignature}
-                            savedSignatureUrl={savedSignatureUrl}
-                        />
-                    )}
-                </main>
+      await signatureService.addPersonalSignature(payload);
 
-                {/* Sidebar akan menjadi overlay di mobile atau di samping di desktop */}
-                <SignatureSidebar
-                    savedSignatureUrl={savedSignatureUrl}
-                    onOpenSignatureModal={() => setIsSignatureModalOpen(true)}
-                    onSave={handleFinalSave}
-                    isLoading={isLoading}
-                    includeQrCode={includeQrCode}
-                    setIncludeQrCode={setIncludeQrCode}
-                    // Prop baru untuk kontrol dari mobile
-                    isOpen={isSidebarOpen}
-                    onClose={() => setIsSidebarOpen(false)}
-                />
-            </div>
-            
-            {/* Overlay untuk menutup sidebar saat diklik di luar area (hanya mobile) */}
-            {isSidebarOpen && (
-                <div 
-                    onClick={() => setIsSidebarOpen(false)}
-                    className="fixed inset-0 bg-black/50 z-30 md:hidden"
-                ></div>
-            )}
+      toast.success("Dokumen berhasil ditandatangani! Anda akan dialihkan.");
+      setTimeout(() => navigate("/dashboard/documents", { state: { refresh: true } }), 2000);
+    } catch (error) {
+      console.log("🔥 FULL ERROR OBJECT:", error);
+      console.log("🔥 RESPONSE DATA:", error.response?.data);
 
-            {isSignatureModalOpen && <SignatureModal onSave={handleSaveSignature} onClose={() => setIsSignatureModalOpen(false)} />}
-        </div>
+      let errorMessage = "Gagal menyimpan tanda tangan."; // Pesan default
+
+      if (error.response && error.response.data && error.response.data.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      toast.error(errorMessage);
+      setIsLoading(false);
+    }
+  }, [signatures, documentVersionId, navigate, includeQrCode]); // 3. Tambahkan 'includeQrCode' ke dependency array
+
+  if (isLoading && !pdfFile) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">
+        <FaSpinner className="animate-spin text-3xl text-blue-500" />
+        <p className="ml-4 text-lg text-gray-700 dark:text-gray-300">Memuat Dokumen...</p>
+      </div>
     );
+  }
+
+  return (
+    <div className="absolute inset-0 bg-slate-200 dark:bg-slate-900 overflow-hidden">
+      {/* Header tetap di atas */}
+      <header className="fixed top-0 left-0 w-full h-16 z-50">
+        <SigningHeader
+          theme={theme}
+          toggleTheme={toggleTheme}
+          // Tambahkan tombol hamburger untuk mobile
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+        />
+      </header>
+
+      <div className="absolute top-16 bottom-0 left-0 w-full flex overflow-hidden">
+        {/* PDF Viewer akan mengambil sisa ruang */}
+        <main className="flex-1 overflow-hidden">
+          {pdfFile && (
+            <PDFViewer
+              documentTitle={documentTitle}
+              fileUrl={pdfFile}
+              signatures={signatures}
+              onAddSignature={handleAddSignature}
+              onUpdateSignature={handleUpdateSignature}
+              onDeleteSignature={handleDeleteSignature}
+              savedSignatureUrl={savedSignatureUrl}
+            />
+          )}
+        </main>
+
+        {/* Sidebar akan menjadi overlay di mobile atau di samping di desktop */}
+        <SignatureSidebar
+          savedSignatureUrl={savedSignatureUrl}
+          onOpenSignatureModal={() => setIsSignatureModalOpen(true)}
+          onSave={handleFinalSave}
+          isLoading={isLoading}
+          isPortrait={isPortrait} 
+          includeQrCode={includeQrCode}
+          setIncludeQrCode={setIncludeQrCode}
+          isOpen={sidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+        />
+      </div>
+
+      {/* Overlay hanya untuk mobile/portrait */}
+      {isSidebarOpen && !isLandscape && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/40 z-30 md:hidden"></div>}
+
+      {isSignatureModalOpen && <SignatureModal onSave={handleSaveSignature} onClose={() => setIsSignatureModalOpen(false)} />}
+    </div>
+  );
 };
 
 export default SignDocumentPage;
