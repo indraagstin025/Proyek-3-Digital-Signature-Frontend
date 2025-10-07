@@ -1,83 +1,116 @@
-// src/pages/ResetPasswordPage.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import toast, { Toaster } from "react-hot-toast";
 import { HiOutlineLockClosed } from "react-icons/hi";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 import { ImSpinner9 } from "react-icons/im";
-import authService from "../../services/authService";
+// Pastikan path ke authService sudah benar
+import authService from "../../services/authService"; 
 import nameLogo from "../../assets/images/name.png";
 
 const ResetPasswordPage = () => {
-  const navigate = useNavigate();
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [token, setToken] = useState(null);
-  const [isCardVisible, setIsCardVisible] = useState(false);
+    const navigate = useNavigate();
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [token, setToken] = useState(null); // Menyimpan string access_token
+    const [isCardVisible, setIsCardVisible] = useState(false);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsCardVisible(true), 100);
-    return () => clearTimeout(timer);
-  }, []);
+    useEffect(() => {
+        const timer = setTimeout(() => setIsCardVisible(true), 100);
+        return () => clearTimeout(timer);
+    }, []);
 
-  useEffect(() => {
-    let tokenFromUrl = authService.getTokenFromUrl();
-    if (tokenFromUrl) {
-      sessionStorage.setItem("resetToken", tokenFromUrl);
-      setToken(tokenFromUrl);
-    } else {
-      const savedToken = sessionStorage.getItem("resetToken");
-      if (savedToken) {
-        setToken(savedToken);
-      } else {
-        toast.error("Tautan tidak valid atau sudah kedaluwarsa.");
-      }
-    }
-  }, []);
+    /**
+     * Efek ini bertanggung jawab mengambil token dari URL dan menyimpannya.
+     */
+    useEffect(() => {
+        // 1. Coba ambil token data (berisi access_token) dari URL hash
+        const tokenFromUrlData = authService.getTokenFromUrl();
+        let currentTokenString = null;
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+        if (tokenFromUrlData?.accessToken) {
+            // ✅ KASUS 1: Token ditemukan di URL hash
+            currentTokenString = tokenFromUrlData.accessToken;
+            // Simpan HANYA string access_token di sessionStorage
+            sessionStorage.setItem("resetToken", currentTokenString);
+            
+            // Hapus refresh token jika ada (opsional, tapi disarankan)
+            sessionStorage.removeItem("resetRefreshToken"); 
 
-    if (newPassword !== confirmPassword) {
-      toast.error("Password baru dan konfirmasi password tidak cocok.");
-      return;
-    }
+        } else {
+            // ✅ KASUS 2: Token tidak ada di URL, coba ambil dari sessionStorage
+            // Ini untuk kasus pengguna sudah di-redirect dan hash URL hilang
+            const savedToken = sessionStorage.getItem("resetToken");
+            if (savedToken) {
+                currentTokenString = savedToken;
+            }
+        }
 
+        if (currentTokenString) {
+            setToken(currentTokenString);
+        } else {
+            // Jika tidak ada token sama sekali, tampilkan error
+            toast.error("Tautan reset password tidak valid atau sudah kedaluwarsa.");
+        }
+    }, []);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        if (newPassword !== confirmPassword) {
+            toast.error("Password baru dan konfirmasi password tidak cocok.");
+            return;
+        }
+
+        // Pastikan kita memiliki token string yang benar untuk dikirim
+        if (!token) { 
+            toast.error("Token tidak ditemukan. Coba ulangi proses forgot password.");
+            return;
+        }
+
+        setLoading(true);
+        const startTime = Date.now();
+        let success = false;
+        try {
+            // Mengirimkan string token yang sudah di-set ke backend
+            await authService.resetPassword(token, newPassword); 
+            success = true;
+            
+            // Wajib: Hapus token dari sessionStorage setelah BERHASIL digunakan
+            sessionStorage.removeItem("resetToken"); 
+
+        } catch (err) {
+            // Handle error dari backend (misalnya 400 - Token tidak valid)
+            const errorMessage = err.response?.data?.message || err.message || "Gagal mengubah password. Silakan coba lagi.";
+            toast.error(errorMessage);
+        } finally {
+            const elapsed = Date.now() - startTime;
+            const remaining = 1000 - elapsed;
+            if (remaining > 0) await new Promise((res) => setTimeout(res, remaining));
+            
+            setLoading(false);
+            
+            if (success) {
+                toast.success("Password berhasil diubah! Mengalihkan ke login...");
+                setTimeout(() => navigate("/login"), 3000);
+            }
+        }
+    };
+
+    // Tampilkan pesan loading/error jika token belum tersedia atau gagal didapatkan
     if (!token) {
-      toast.error("Token tidak ditemukan.");
-      return;
+        return (
+            <div className="flex justify-center items-center py-20 px-4">
+                <div className="text-gray-500">
+                    {/* Tampilkan spinner hanya jika sedang memuat, jika tidak, tampilkan instruksi */}
+                    {!token && !isCardVisible ? "Memuat..." : "Menunggu tautan reset password..."}
+                </div>
+                <Toaster position="top-center" reverseOrder={false} />
+            </div>
+        );
     }
-
-    setLoading(true);
-    const startTime = Date.now();
-    let success = false;
-    try {
-      await authService.resetPassword(token, newPassword);
-      success = true;
-    } catch (err) {
-      toast.error(err.message || "Gagal mengubah password. Silakan coba lagi.");
-    } finally {
-      const elapsed = Date.now() - startTime;
-      const remaining = 1000 - elapsed;
-      if (remaining > 0) await new Promise((res) => setTimeout(res, remaining));
-      setLoading(false);
-      if (success) {
-        toast.success("Password berhasil diubah! Mengalihkan ke login...");
-        setTimeout(() => navigate("/login"), 3000);
-      }
-    }
-  };
-
-  if (!token) {
-    return (
-      <div className="flex justify-center items-center py-20 px-4">
-        <div className="text-gray-400">Memuat...</div>
-        <Toaster position="top-center" reverseOrder={false} />
-      </div>
-    );
-  }
 
   return (
     <section className="relative w-full flex items-center justify-center px-4 py-12">

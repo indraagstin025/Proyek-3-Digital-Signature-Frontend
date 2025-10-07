@@ -14,31 +14,24 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isCardVisible, setIsCardVisible] = useState(false);
-  
-  // 1. State untuk menyimpan pesan error
   const [error, setError] = useState(null);
-  
   const navigate = useNavigate();
 
-  useEffect(() => {
-    // Logika untuk verifikasi email dari URL (biarkan seperti semula)
-    const token = authService.getTokenFromUrl();
-    if (token) {
-      toast.success("Email Anda berhasil diverifikasi, silakan login.", {
-        duration: 4000,
-        position: "top-center",
-      });
-      window.history.replaceState({}, document.title, "/login");
-    }
+useEffect(() => {
+  const tokenData = authService.getTokenFromUrl();
+  if (tokenData?.accessToken) {
+    toast.success("Email Anda berhasil diverifikasi, silakan login.", {
+      duration: 4000,
+      position: "top-center",
+    });
+  }
 
-    // 2. Membersihkan state error saat komponen pertama kali dimuat
-    // Ini memperbaiki masalah "validasi tidak muncul setelah logout"
-    setError(null);
+  setError(null);
+  const timer = setTimeout(() => setIsCardVisible(true), 300);
+  return () => clearTimeout(timer);
+}, []);
 
-    // Animasi card (biarkan seperti semula)
-    const timer = setTimeout(() => setIsCardVisible(true), 100);
-    return () => clearTimeout(timer);
-  }, []); // Dependensi kosong `[]` memastikan ini hanya berjalan sekali saat mount
+
 
 const handleLogin = async (e) => {
   e.preventDefault();
@@ -46,23 +39,38 @@ const handleLogin = async (e) => {
   setError(null);
 
   try {
-    await authService.login(email, password);
+    const { token, user } = await authService.login(email, password);
+
+    if (token && user) {
+      // Simpan token dan user di localStorage
+      localStorage.setItem("authToken", token);
+      localStorage.setItem("authUser", JSON.stringify(user));
+    }
+
     toast.success("Login berhasil! Mengalihkan...");
     navigate("/dashboard");
   } catch (err) {
-    let errorMessage;
+    let errorMessage = "Terjadi kesalahan yang tidak diketahui.";
 
-    // 1. Cek untuk error dari server (misal: email/password salah)
-    if (err.response && err.response.data && err.response.data.message) {
-      errorMessage = err.response.data.message;
+    // 1️⃣ Error dari backend
+    if (err.response && err.response.data) {
+      const backendMessage = err.response.data.message || "";
+      const backendCode = err.response.data.code || "";
+
+      if (backendCode === "EMAIL_NOT_VERIFIED") {
+        // Kasus user belum verifikasi email
+        errorMessage = backendMessage || "Silakan verifikasi email Anda sebelum login.";
+        toast.error(errorMessage);
+        // Optional: redirect ke halaman instruksi verifikasi email
+        // navigate("/verify-email");
+      } else {
+        // Error umum backend (misal: InvalidCredentials)
+        errorMessage = backendMessage || errorMessage;
+      }
     }
-    // 2. Jika tidak ada respons server, cek untuk error jaringan (offline)
+    // 2️⃣ Error jaringan atau JavaScript
     else if (err.message) {
       errorMessage = err.message;
-    }
-    // 3. Pesan cadangan jika tidak ada info error sama sekali
-    else {
-      errorMessage = "Terjadi kesalahan yang tidak diketahui.";
     }
 
     setError(errorMessage);
@@ -71,6 +79,8 @@ const handleLogin = async (e) => {
     setLoading(false);
   }
 };
+
+
 
   return (
     <section className="relative w-full flex items-center justify-center px-4 py-12">
@@ -97,11 +107,8 @@ const handleLogin = async (e) => {
 
         {/* Form Login */}
         <form onSubmit={handleLogin} className="space-y-5">
-           {error && (
-            <div 
-              className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md text-center text-sm" 
-              role="alert"
-            >
+          {error && (
+            <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md text-center text-sm" role="alert">
               <p>{error}</p>
             </div>
           )}

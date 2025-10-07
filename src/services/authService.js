@@ -1,4 +1,3 @@
-// src/services/authService.js
 import apiClient from "./apiClient";
 
 const login = async (email, password) => {
@@ -9,7 +8,7 @@ const login = async (email, password) => {
 
   if (token) {
     localStorage.setItem("authToken", token);
-    localStorage.setItem("authUser", JSON.stringify(user)); // simpan juga user info
+    localStorage.setItem("authUser", JSON.stringify(user));
   } else {
     console.error("❌ Token tidak ditemukan dalam respons login backend");
   }
@@ -18,12 +17,19 @@ const login = async (email, password) => {
 };
 
 const register = async (name, email, password) => {
-  const response = await apiClient.post("/auth/register", {
-    name,
-    email,
-    password,
-  });
-  return response.data;
+  try {
+    const response = await apiClient.post("/auth/register", { name, email, password });
+    return response.data;
+  } catch (err) {
+    if (err.response?.data?.message) {
+      throw new Error(err.response.data.message);
+    }
+
+    if (err.response?.data?.errors) {
+      throw new Error(err.response.data.errors[0]?.message || "Registrasi gagal.");
+    }
+    throw err;
+  }
 };
 
 const logout = async () => {
@@ -47,25 +53,41 @@ const resetPassword = async (token, newPassword) => {
     token,
     newPassword,
   });
+
+  localStorage.removeItem("resetToken");
+  localStorage.removeItem("resetRefreshToken");
+
   return response.data;
 };
 
 const getTokenFromUrl = () => {
-  const hash = window.location.hash;
-  if (hash.includes("access_token")) {
-    const params = new URLSearchParams(hash.substring(1));
-    const accessToken = params.get("access_token");
+  try {
+    const hash = window.location.hash;
+    if (!hash) return null;
 
-    if (accessToken) {
-      window.history.replaceState(
-        {},
-        document.title,
-        window.location.pathname + window.location.search
-      );
-      return accessToken;
+    console.log("📩 URL hash ditemukan (dari Supabase):", hash);
+
+    const params = new URLSearchParams(hash.replace("#", ""));
+    const accessToken = params.get("access_token");
+    const refreshToken = params.get("refresh_token");
+    const type = params.get("type");
+
+    if (accessToken && type === "recovery") {
+      console.log("✅ Access token recovery terdeteksi. Menyimpan di localStorage...");
+
+      localStorage.setItem("resetToken", accessToken);
+      if (refreshToken) localStorage.setItem("resetRefreshToken", refreshToken);
+
+      window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+
+      return { accessToken, refreshToken, type };
     }
+
+    return null;
+  } catch (err) {
+    console.error("❌ Gagal memproses token dari URL:", err);
+    return null;
   }
-  return null;
 };
 
 const authService = {

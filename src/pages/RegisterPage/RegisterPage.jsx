@@ -26,22 +26,37 @@ const RegisterPage = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  const handleRegister = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+const handleRegister = async (e) => {
+  e.preventDefault();
+  setLoading(true);
 
-    try {
-      await authService.register(name, email, password);
-      toast.success(
-        "Pendaftaran berhasil! Silakan cek email Anda untuk verifikasi."
-      );
-      setIsRegistered(true);
-    } catch (err) {
-      toast.error(err.message || "Registrasi gagal. Silakan coba lagi.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (!name || !email || !password) {
+    toast.error("Semua field wajib diisi.");
+    setLoading(false);
+    return;
+  }
+
+  if (password.length < 8) {
+    toast.error("Password minimal 8 karakter.");
+    setLoading(false);
+    return;
+  }
+
+  try {
+    await authService.register(name, email, password);
+    toast.success("Pendaftaran berhasil! Silakan cek email Anda untuk verifikasi.");
+    setIsRegistered(true);
+  } catch (err) {
+    toast.error(err.message || "Registrasi gagal. Silakan coba lagi.");
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+
+
+
 
   if (isRegistered) {
     return (
