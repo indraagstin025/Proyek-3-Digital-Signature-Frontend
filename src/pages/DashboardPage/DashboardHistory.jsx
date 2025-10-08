@@ -20,7 +20,7 @@ const DashboardHistory = ({ theme }) => {
   };
 
   return (
-    <div id="tab-history">
+      <div id="tab-overview" className="mx-auto max-w-screen-xl pt-4"> 
       {/* 1. Menambahkan Header Halaman untuk konsistensi */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <div>

@@ -7,13 +7,13 @@ import { Toaster } from "react-hot-toast";
 import ConfirmationModal from "./components/ConfirmationModal/ConfirmationModal.jsx";
 import Header from "./components/Header/Header.jsx";
 import MainLayout from "./components/MainLayout/MainLayout.jsx";
+import CookieBanner from "./components/BannerCookie/BannerCookie.jsx";
 import HomePage from "./pages/HomePage/HomePage.jsx";
 import LoginPage from "./pages/LoginPage/LoginPage.jsx";
 import RegisterPage from "./pages/RegisterPage/RegisterPage.jsx";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage/ForgotPasswordPage.jsx";
 import ResetPasswordPage from "./pages/ResetPasswordPage/ResetPasswordPage.jsx";
 import DashboardPage from "./pages/DashboardPage/DashboardPage.jsx";
-
 import DashboardOverview from "./pages/DashboardPage/DashboardOverview.jsx";
 import DashboardDocuments from "./pages/DashboardPage/DashboardDocuments.jsx";
 import DashboardWorkspaces from "./pages/DashboardPage/DashboardWorkspaces.jsx";
@@ -28,23 +28,31 @@ const AppWrapper = () => {
 
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
   const [isSessionModalOpen, setSessionModalOpen] = useState(false);
+  const [showBanner, setShowBanner] = useState(false);
 
+  // Logika untuk menampilkan Cookie Banner
+  useEffect(() => {
+    // FIX: 'getItem' harus 'g' kecil
+    const consent = localStorage.getItem('cookie_consent'); 
+    if (!consent) {
+      const timer = setTimeout(() => setShowBanner(true), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const handleAcceptCookie = () => {
+    localStorage.setItem('cookie_consent', 'true');
+    setShowBanner(false);
+  };
+
+  // Fungsi untuk me-redirect ke login saat sesi berakhir
   const handleRedirectToLogin = () => {
     setSessionModalOpen(false);
     setRouteKey((prev) => prev + 1);
     navigate("/login", { replace: true });
   };
 
-  useEffect(() => {
-    const showSessionExpiredModal = () => {
-      setSessionModalOpen(true);
-    };
-    window.addEventListener("sessionExpired", showSessionExpiredModal);
-    return () => {
-      window.removeEventListener("sessionExpired", showSessionExpiredModal);
-    };
-  }, [navigate]);
-
+  // Logika untuk manajemen tema (Dark/Light mode)
   useEffect(() => {
     const root = document.documentElement;
     if (theme === "dark") {
@@ -61,7 +69,6 @@ const AppWrapper = () => {
 
   const isDashboard = location.pathname.startsWith("/dashboard");
 
-  // ✅ Stabilkan objek toastOptions dengan useMemo
   const toastOptions = useMemo(
     () => ({
       style: {
@@ -77,14 +84,15 @@ const AppWrapper = () => {
       },
     }),
     [theme]
-  ); // Dependensi: objek hanya dibuat ulang jika 'theme' berubah
+  );
 
   return (
-      <div className="flex-1 overflow-auto"> 
-      {/* ✅ Gunakan objek toastOptions yang sudah stabil */}
-      <Toaster position="top-center" reverseOrder={false} toastOptions={toastOptions} />      {!isDashboard && !location.pathname.includes("/sign") && <Header theme={theme} toggleTheme={toggleTheme} />}
+    <div className="flex-1 overflow-auto"> 
+      <Toaster position="top-center" reverseOrder={false} toastOptions={toastOptions} />
+      {!isDashboard && !location.pathname.includes("/sign") && <Header theme={theme} toggleTheme={toggleTheme} />}
+      
       <Routes>
-        {/* Rute untuk Halaman Publik */}
+        {/* Rute Halaman Publik */}
         <Route element={<MainLayout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage key={routeKey} />} />
@@ -95,8 +103,11 @@ const AppWrapper = () => {
 
         <Route path="/documents/:documentId/sign" element={<SignDocumentPage theme={theme} toggleTheme={toggleTheme} />} />
 
-        {/* Rute untuk Dashboard */}
-        <Route path="/dashboard" element={<DashboardPage theme={theme} toggleTheme={toggleTheme} />}>
+        {/* Rute Dashboard dengan prop tambahan untuk menangani sesi berakhir */}
+        <Route 
+          path="/dashboard" 
+          element={<DashboardPage theme={theme} toggleTheme={toggleTheme} onSessionExpired={() => setSessionModalOpen(true)} />}
+        >
           <Route index element={<DashboardOverview theme={theme} />} />
           <Route path="profile" element={<ProfilePage theme={theme} />} />
           <Route path="documents" element={<DashboardDocuments theme={theme} />} />
@@ -104,16 +115,21 @@ const AppWrapper = () => {
           <Route path="history" element={<DashboardHistory theme={theme} />} />
         </Route>
       </Routes>
+      
+      {/* Modal untuk Sesi Berakhir */}
       <ConfirmationModal
         isOpen={isSessionModalOpen}
-        onClose={() => setSessionModalOpen(false)} // ❌ jangan auto-redirect, cukup close
+        onClose={() => setSessionModalOpen(false)}
         onConfirm={handleRedirectToLogin}
         title="Sesi Berakhir"
         message="Sesi Anda telah berakhir. Silakan login kembali untuk melanjutkan."
         confirmText="Login"
-        cancelText=""
+        cancelText="" // Dikosongkan agar tombol batal tidak muncul
         confirmButtonColor="bg-blue-600 hover:bg-blue-700"
       />
+
+      {/* Menampilkan Cookie Banner secara kondisional */}
+      {showBanner && <CookieBanner onAccept={handleAcceptCookie} />}
     </div>
   );
 };

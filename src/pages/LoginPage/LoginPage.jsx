@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import authService from "../../services/authService";
 import toast from "react-hot-toast";
 import { HiOutlineMail, HiOutlineLockClosed } from "react-icons/hi";
@@ -16,71 +16,56 @@ const LoginPage = () => {
   const [isCardVisible, setIsCardVisible] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-useEffect(() => {
-  const tokenData = authService.getTokenFromUrl();
-  if (tokenData?.accessToken) {
-    toast.success("Email Anda berhasil diverifikasi, silakan login.", {
-      duration: 4000,
-      position: "top-center",
-    });
-  }
-
-  setError(null);
-  const timer = setTimeout(() => setIsCardVisible(true), 300);
-  return () => clearTimeout(timer);
-}, []);
-
-
-
-const handleLogin = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-  setError(null);
-
-  try {
-    const { token, user } = await authService.login(email, password);
-
-    if (token && user) {
-      // Simpan token dan user di localStorage
-      localStorage.setItem("authToken", token);
-      localStorage.setItem("authUser", JSON.stringify(user));
+  useEffect(() => {
+    const verificationMessage = searchParams.get("message");
+    if (verificationMessage) {
+      toast.success("Email Anda berhasil diverifikasi! Silakan login.", {
+        duration: 5000,
+      });
     }
 
-    toast.success("Login berhasil! Mengalihkan...");
-    navigate("/dashboard");
-  } catch (err) {
-    let errorMessage = "Terjadi kesalahan yang tidak diketahui.";
+    const timer = setTimeout(() => setIsCardVisible(true), 100);
+    return () => clearTimeout(timer);
+  }, [searchParams]);
 
-    // 1️⃣ Error dari backend
-    if (err.response && err.response.data) {
-      const backendMessage = err.response.data.message || "";
-      const backendCode = err.response.data.code || "";
+  /**
+   * Menangani proses login dengan validasi error yang informatif.
+   */
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
 
-      if (backendCode === "EMAIL_NOT_VERIFIED") {
-        // Kasus user belum verifikasi email
-        errorMessage = backendMessage || "Silakan verifikasi email Anda sebelum login.";
-        toast.error(errorMessage);
-        // Optional: redirect ke halaman instruksi verifikasi email
-        // navigate("/verify-email");
+    try {
+      const { user } = await authService.login(email, password);
+      toast.success(`Login berhasil, selamat datang ${user.name}!`);
+      navigate("/dashboard");
+    } catch (err) {
+      let specificErrorMessage = "Terjadi kesalahan yang tidak terduga.";
+
+      if (!err.response) {
+        specificErrorMessage = "Tidak dapat terhubung ke server. Periksa koneksi internet Anda.";
       } else {
-        // Error umum backend (misal: InvalidCredentials)
-        errorMessage = backendMessage || errorMessage;
+        const backendError = err.response.data;
+        const statusCode = err.response.status;
+
+        if (backendError.code === "EMAIL_NOT_VERIFIED") {
+          specificErrorMessage = "Email Anda belum dikonfirmasi, silakan periksa kotak masuk Anda.";
+        } else if (statusCode === 401) {
+          specificErrorMessage = "Email atau Password yang Anda masukkan salah.";
+        } else {
+          specificErrorMessage = backendError.message || "Terjadi kesalahan pada server.";
+        }
       }
+
+      toast.error(specificErrorMessage);
+      setError(specificErrorMessage);
+    } finally {
+      setLoading(false);
     }
-    // 2️⃣ Error jaringan atau JavaScript
-    else if (err.message) {
-      errorMessage = err.message;
-    }
-
-    setError(errorMessage);
-    toast.error(errorMessage);
-  } finally {
-    setLoading(false);
-  }
-};
-
-
+  };
 
   return (
     <section className="relative w-full flex items-center justify-center px-4 py-12">

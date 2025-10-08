@@ -1,53 +1,75 @@
 import React from 'react';
 
-// 1. Komponen 'StatCard' baru yang bisa dipakai ulang (Reusable Component)
-// Menerima properti: icon, label, value, dan valueColor untuk fleksibilitas
+// =================================================================
+// 1. KOMPONEN 'STATCARD' DENGAN SKALA YANG DISESUAIKAN (Proporsional)
+// =================================================================
 const StatCard = ({ icon, label, value, valueColor }) => {
   return (
-    <div className="bg-white dark:bg-slate-800/50 p-5 rounded-xl border border-slate-200/80 dark:border-slate-700/50 flex items-center gap-4 transition-all hover:-translate-y-1 hover:shadow-md">
-      {/* Ikon dengan latar belakang berwarna */}
-      <div className="p-3 rounded-lg bg-slate-100 dark:bg-slate-900/50">
-        {icon}
+    // Padding p-4, shadow-lg, rounded-xl untuk tampilan profesional
+    <div className="bg-white dark:bg-slate-800/50 p-4 rounded-xl shadow-lg border border-slate-200/80 dark:border-slate-700/50 transition-all hover:shadow-xl hover:-translate-y-0.5">
+      
+      {/* Container utama */}
+      <div className="flex justify-between items-start mb-3">
+        {/* Label - Kecil dan profesional */}
+        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{label}</p> 
+        
+        {/* Ikon - Ukuran h-5 w-5 */}
+        <div className="p-2 rounded-full bg-slate-100 dark:bg-slate-900/50">
+          {/* Menjaga ukuran ikon h-5 w-5 */}
+          {React.cloneElement(icon, { className: "h-5 w-5 " + icon.props.className.split(' ').filter(c => !c.startsWith('h-') && !c.startsWith('w-')).join(' ') })} 
+        </div>
       </div>
-      {/* Grup Teks */}
-      <div>
-        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</p>
-        <p className={`text-3xl font-bold ${valueColor || 'text-slate-800 dark:text-white'}`}>{value}</p>
-      </div>
+      
+      {/* Nilai / Value - Ukuran text-4xl agar menonjol */}
+      <p className={`text-4xl font-extrabold ${valueColor || 'text-slate-800 dark:text-white'}`}>{value}</p> 
+      
     </div>
   );
 };
 
-
+// =================================================================
+// 2. KOMPONEN UTAMA DASHBOARD OVERVIEW
+// =================================================================
 const DashboardOverview = ({ theme }) => {
-  // eslint-disable-next-line no-unused-vars
-  const isDark = theme === 'dark';
+  const isDark = theme === 'dark'; // eslint-disable-line no-unused-vars
 
-  // 2. Data untuk kartu-kartu overview. Ini membuat kode lebih mudah dikelola.
   const stats = [
     {
       label: "Menunggu Tanda Tangan Anda",
       value: 2,
-      valueColor: "text-blue-500 dark:text-blue-400",
-      icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+      valueColor: "text-blue-600 dark:text-blue-400",
+      icon: <svg xmlns="http://www.w3.org/2000/svg" className="text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
     },
     {
       label: "Dokumen Dalam Proses",
       value: 5,
-      icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+      valueColor: "text-amber-600 dark:text-amber-400",
+      icon: <svg xmlns="http://www.w3.org/2000/svg" className="text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
     },
     {
       label: "Dokumen Selesai",
       value: 45,
-      valueColor: "text-green-500 dark:text-green-400",
-      icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+      valueColor: "text-green-600 dark:text-green-400",
+      icon: <svg xmlns="http://www.w3.org/2000/svg" className="text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
     }
   ];
 
+  // Data Dummy untuk Tabel Dokumen Aktifitas
+  const latestActivities = [
+    { name: "Perjanjian Sewa Kantor", date: "2 Jam lalu", status: "Selesai" },
+    { name: "Persetujuan Cuti Tahunan", date: "1 Hari lalu", status: "Menunggu" },
+    { name: "Kontrak Vendor Baru", date: "2 Hari lalu", status: "Dalam Proses" },
+  ];
+
+  // =================================================================
+  // BAGIAN RETURN
+  // =================================================================
   return (
-    <div id="tab-overview">
-      {/* 3. Menggunakan komponen StatCard dengan perulangan (looping) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+    // Wrapper dengan pembatasan lebar dan padding atas
+    <div id="tab-overview" className="mx-auto max-w-screen-xl pt-4"> 
+      
+      {/* 1. Statistik (Grid 3 Kolom) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {stats.map(stat => (
           <StatCard
             key={stat.label}
@@ -58,24 +80,86 @@ const DashboardOverview = ({ theme }) => {
           />
         ))}
       </div>
-
-      <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Tindakan Cepat</h3>
       
-      {/* 4. Memperbarui tampilan "Tindakan Cepat" menjadi kartu */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between bg-white dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700/50 transition-all hover:shadow-lg hover:-translate-y-1">
-          <div>
-            <p className="font-semibold text-slate-800 dark:text-white">Kontrak Freelance</p>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Dari: Klien - Desain Studio</p>
-          </div>
-          <a href="#" className="text-sm font-semibold bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 flex-shrink-0 ml-4">Tanda Tangani</a>
+      {/* 2. Konten Utama: Grid 2/3 vs 1/3 */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Kolom Kiri: Tindakan Cepat & Tabel Aktivitas (2/3 lebar) */}
+        <div className="lg:col-span-2 space-y-6">
+            
+            {/* Blok Tindakan Cepat */}
+            <div>
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Tindakan Cepat</h3>
+                <div className="space-y-4">
+                  {/* Card 1 */}
+                  <div className="flex items-center justify-between bg-white dark:bg-slate-800/50 p-4 rounded-xl shadow-md border border-slate-200/80 dark:border-slate-700/50">
+                    <div>
+                      <p className="font-bold text-slate-800 dark:text-white text-base">Kontrak Freelance</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">Dari: Klien - Desain Studio</p>
+                    </div>
+                    <button type="button" className="text-sm font-semibold bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-150 flex-shrink-0 ml-4 shadow-blue-500/50 shadow-lg">Tanda Tangani</button>
+                  </div>
+                  {/* Card 2 */}
+                  <div className="flex items-center justify-between bg-white dark:bg-slate-800/50 p-4 rounded-xl shadow-md border border-slate-200/80 dark:border-slate-700/50">
+                    <div>
+                      <p className="font-bold text-slate-800 dark:text-white text-base">Perjanjian Kerahasiaan (NDA)</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">Dari: Mitra - PT. Cipta Solusi</p>
+                    </div>
+                    <button type="button" className="text-sm font-semibold bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-150 flex-shrink-0 ml-4 shadow-blue-500/50 shadow-lg">Tanda Tangani</button>
+                  </div>
+                </div>
+            </div>
+
+            {/* Blok Tabel Dokumen Aktivitas Terbaru */}
+            <div>
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Aktivitas Terbaru</h3>
+                <div className="bg-white dark:bg-slate-800/50 p-4 rounded-xl shadow-md border border-slate-200/80 dark:border-slate-700/50">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                      <thead>
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Dokumen</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Waktu</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 dark:divide-slate-700 text-base">
+                        {latestActivities.map((activity, index) => {
+                          let statusColor = "text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900";
+                          if (activity.status === "Selesai") {
+                            statusColor = "text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900";
+                          } else if (activity.status === "Menunggu") {
+                            statusColor = "text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900";
+                          }
+
+                          return (
+                            <tr key={index} className="hover:bg-slate-50 dark:hover:bg-slate-800">
+                              <td className="px-4 py-3 whitespace-nowrap font-medium text-slate-900 dark:text-white">{activity.name}</td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <span className={`px-2 inline-flex text-sm leading-5 font-semibold rounded-full ${statusColor}`}>
+                                  {activity.status}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-slate-500 dark:text-slate-400 text-sm">{activity.date}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+            </div>
         </div>
-        <div className="flex items-center justify-between bg-white dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700/50 transition-all hover:shadow-lg hover:-translate-y-1">
-          <div>
-            <p className="font-semibold text-slate-800 dark:text-white">Perjanjian Kerahasiaan (NDA)</p>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Dari: Mitra - PT. Cipta Solusi</p>
-          </div>
-          <a href="#" className="text-sm font-semibold bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 flex-shrink-0 ml-4">Tanda Tangani</a>
+
+        {/* Kolom Kanan: Ringkasan Bulanan (Chart Placeholder) (1/3 lebar) */}
+        <div className="lg:col-span-1">
+            <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Ringkasan Dokumen Bulanan</h3>
+            <div className="bg-white dark:bg-slate-800/50 p-6 rounded-xl shadow-md border border-slate-200/80 dark:border-slate-700/50 h-96 flex flex-col items-center justify-center space-y-4">
+                <div className="w-48 h-48 rounded-full bg-slate-200 dark:bg-slate-700 border-8 border-dashed border-blue-400 animate-pulse flex items-center justify-center text-base font-medium text-slate-500">
+                    Placeholder Chart Pie/Donut
+                </div>
+                <p className="text-center text-slate-500 dark:text-slate-400 text-sm">Distribusi Status Dokumen Bulan Ini</p>
+            </div>
         </div>
       </div>
     </div>

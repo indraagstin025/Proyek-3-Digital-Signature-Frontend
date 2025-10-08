@@ -18,7 +18,7 @@ const DashboardWorkspaces = ({ theme }) => {
 
   return (
     <>
-      <div id="tab-workspaces">
+        <div id="tab-overview" className="mx-auto max-w-screen-xl pt-4"> 
         {/* 2. Menyeragamkan tampilan Header seperti di halaman Dokumen */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <div>

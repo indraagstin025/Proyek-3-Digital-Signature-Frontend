@@ -116,8 +116,7 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
       toast.success("Dokumen berhasil ditandatangani! Anda akan dialihkan.");
       setTimeout(() => navigate("/dashboard/documents", { state: { refresh: true } }), 2000);
     } catch (error) {
-      console.log("🔥 FULL ERROR OBJECT:", error);
-      console.log("🔥 RESPONSE DATA:", error.response?.data);
+     
 
       let errorMessage = "Gagal menyimpan tanda tangan."; // Pesan default
 
