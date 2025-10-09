@@ -68,31 +68,20 @@ const DashboardDocuments = () => {
     fetchDocuments();
   };
 
-  const handleViewDocument = (document) => {
-    let urlToView = null;
-    if (document.status === "completed" && document.signedFileUrl) {
-      urlToView = document.signedFileUrl;
-    } else if (document.currentVersion && document.currentVersion.url) {
-      urlToView = document.currentVersion.url;
-    }
-
-    if (urlToView) {
-      setSelectedDocumentUrl(urlToView);
-      setViewModalOpen(true);
-    } else {
-      toast.error("URL dokumen tidak dapat ditemukan.");
-    }
-  };
+const handleViewDocument = (doc) => {
+  // Cukup arahkan ke route yang sudah Anda siapkan di App.jsx
+  navigate(`/documents/${doc.id}/view`);
+};
 
   const handleDeleteDocument = (documentId) => {
     setDocumentToDelete(documentId);
     setIsConfirmOpen(true);
   };
 
-  const handleViewRequestFromModal = (url) => {
-    setSelectedDocumentUrl(url);
-    setViewModalOpen(true);
-  };
+const handleViewRequestFromModal = (url) => {
+  setSelectedDocumentUrl(url);
+  setViewModalOpen(true);
+};
 
   const confirmDelete = async () => {
     if (!documentToDelete) return;
@@ -259,8 +248,15 @@ const DashboardDocuments = () => {
       )}
 
       {/* --- Modal-modal --- */}
-      {isManagementModalOpen && <DocumentManagementModal mode={modalMode} document={selectedDocument} onClose={closeManagementModal} onSuccess={handleSuccess} onViewRequest={handleViewRequestFromModal} />}
-      <ViewDocumentModal isOpen={isViewModalOpen} onClose={() => setViewModalOpen(false)} url={selectedDocumentUrl} />
+      {isManagementModalOpen && <DocumentManagementModal 
+      mode={modalMode} 
+      document={selectedDocument} 
+      onClose={closeManagementModal} 
+      onSuccess={handleSuccess} 
+      onViewRequest={handleViewRequestFromModal} />}
+      <ViewDocumentModal 
+      isOpen={isViewModalOpen} 
+      onClose={() => setViewModalOpen(false)} url={selectedDocumentUrl} />
       <ConfirmationModal
         isOpen={isConfirmOpen}
         onClose={() => {

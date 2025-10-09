@@ -47,27 +47,62 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
 
   const sidebarOpen = isLandscape ? true : isSidebarOpen;
 
-  useEffect(() => {
+// Di dalam file SignDocumentPage.jsx
+
+useEffect(() => {
+    // ✅ 1. Siapkan AbortController
+    const controller = new AbortController();
+    const signal = controller.signal;
+
     const fetchDocument = async () => {
+      if (!documentId) {
+        toast.error("ID dokumen tidak valid.");
+        navigate("/dashboard/documents");
+        return;
+      }
+
       try {
         setIsLoading(true);
+
         const doc = await documentService.getDocumentById(documentId);
-        if (doc && doc.currentVersion) {
-          setPdfFile(doc.currentVersion.url);
-          setDocumentVersionId(doc.currentVersion.id);
-          setDocumentTitle(doc.title);
-        } else {
-          throw new Error("Data dokumen atau versi tidak valid.");
+        if (!doc || !doc.currentVersion?.id) {
+          throw new Error("Dokumen tidak ditemukan.");
         }
+
+        setDocumentTitle(doc.title);
+        setDocumentVersionId(doc.currentVersion.id);
+
+        // ✅ 2. Teruskan 'signal' ke service
+        const signedUrl = await documentService.getDocumentFileUrl(documentId, { signal });
+        
+        if (!signedUrl || typeof signedUrl !== 'string' || !signedUrl.startsWith('http')) {
+          throw new Error("Format URL dokumen tidak valid.");
+        }
+
+        setPdfFile(signedUrl);
       } catch (error) {
-        toast.error(error.message || "Gagal memuat dokumen.");
-        setTimeout(() => navigate("/dashboard/documents"), 2000);
+        // ✅ 3. Abaikan error jika itu adalah pembatalan yang disengaja
+        if (error.name !== 'CanceledError' && error.message !== 'canceled') {
+          console.error("Gagal memuat dokumen:", error);
+          toast.error(error.message || "Gagal memuat dokumen.");
+          setTimeout(() => navigate("/dashboard/documents"), 2000);
+        }
       } finally {
-        setIsLoading(false);
+        // ✅ 4. Cek apakah permintaan sudah dibatalkan sebelum update state
+        if (!signal.aborted) {
+          setIsLoading(false);
+        }
       }
     };
+
     fetchDocument();
-  }, [documentId, navigate]);
+
+    // ✅ 5. Tambahkan cleanup function untuk membatalkan request
+    return () => {
+      console.log("🧹 Cleanup SignDocumentPage: Membatalkan fetch dokumen awal...");
+      controller.abort();
+    };
+}, [documentId, navigate]);
 
   const handleSaveSignature = useCallback((dataUrl) => {
     setSavedSignatureUrl(dataUrl);
@@ -86,50 +121,50 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
     setSignatures((prev) => prev.filter((sig) => sig.id !== signatureId));
   }, []);
 
-  const handleFinalSave = useCallback(async () => {
+  // Di dalam file SignDocumentPage.jsx
+
+const handleFinalSave = useCallback(async () => {
     if (signatures.length === 0) {
-      return toast.error("Harap tempatkan setidaknya satu tanda tangan di dokumen.");
+        return toast.error("Harap tempatkan setidaknya satu tanda tangan di dokumen.");
     }
     if (!documentVersionId) {
-      return toast.error("ID Versi Dokumen tidak ditemukan. Gagal menyimpan.");
+        return toast.error("ID Versi Dokumen tidak ditemukan. Gagal menyimpan.");
     }
+
+    const toastId = toast.loading("Menyimpan dan memproses tanda tangan...");
     setIsLoading(true);
     try {
-      // Asumsi saat ini hanya satu TTD per request
-      const sig = signatures[0];
+        const sig = signatures[0];
+        const payload = {
+            documentVersionId,
+            method: "canvas",
+            signatureImageUrl: sig.signatureImageUrl,
+            positionX: sig.positionX,
+            positionY: sig.positionY,
+            pageNumber: sig.pageNumber,
+            width: sig.width,
+            height: sig.height,
+            displayQrCode: includeQrCode,
+        };
 
-      // 2. Tambahkan 'displayQrCode' ke dalam payload yang dikirim ke backend
-      const payload = {
-        documentVersionId,
-        method: "canvas",
-        signatureImageUrl: sig.signatureImageUrl,
-        positionX: sig.positionX,
-        positionY: sig.positionY,
-        pageNumber: sig.pageNumber,
-        width: sig.width,
-        height: sig.height,
-        displayQrCode: includeQrCode,
-      };
+        await signatureService.addPersonalSignature(payload);
 
-      await signatureService.addPersonalSignature(payload);
+        toast.success("Dokumen berhasil ditandatangani! Melihat hasil...", { id: toastId, duration: 2000 });
 
-      toast.success("Dokumen berhasil ditandatangani! Anda akan dialihkan.");
-      setTimeout(() => navigate("/dashboard/documents", { state: { refresh: true } }), 2000);
+ 
+        setTimeout(() => navigate(`/documents/${documentId}/view`), 2000);
+
     } catch (error) {
-     
-
-      let errorMessage = "Gagal menyimpan tanda tangan."; // Pesan default
-
-      if (error.response && error.response.data && error.response.data.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
-      toast.error(errorMessage);
-      setIsLoading(false);
+        let errorMessage = "Gagal menyimpan tanda tangan.";
+        if (error.response?.data?.message) {
+            errorMessage = error.response.data.message;
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+        toast.error(errorMessage);
+        setIsLoading(false);
     }
-  }, [signatures, documentVersionId, navigate, includeQrCode]); // 3. Tambahkan 'includeQrCode' ke dependency array
+}, [signatures, documentVersionId, documentId, navigate, includeQrCode]); 
 
   if (isLoading && !pdfFile) {
     return (

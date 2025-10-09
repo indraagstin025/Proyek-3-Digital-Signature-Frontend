@@ -1,3 +1,4 @@
+// src/services/documentService.js
 import apiClient from "./apiClient";
 
 /**
@@ -124,7 +125,7 @@ export const documentService = {
    */
   useOldVersion: async (documentId, versionId) => {
     try {
-      const response = await apiClient.post(`/documents/${documentId}/versions/${versionId}/use`);
+      const response = await apiClient.put(`/documents/${documentId}/versions/${versionId}/use`);
       return response.data;
     } catch (error) {
       throw handleError(error, "Gagal mengganti versi dokumen.");
@@ -148,19 +149,68 @@ export const documentService = {
   },
 
   /**
-   * @function downloadDocument
-   * @description Mengunduh dokumen dengan menggunakan Axios, memicu download di browser,
-   * dan mengambil nama file asli dari header Content-Disposition.
-   * @param {string} documentId - ID dari dokumen yang akan diunduh.
-   * @throws {Error} Jika pengunduhan gagal karena otorisasi, server, atau alasan lain.
+   * @function getDocumentFileUrl
+   * @description Mendapatkan signed URL untuk mengakses file dokumen private.
+   * @param {string} documentId - ID dari dokumen yang akan diakses.
+   * @returns {Promise<string>} Signed URL yang valid selama 60 detik.
+   * @throws {Error} Jika gagal mendapatkan URL akses.
    */
-  downloadDocument: async (documentId) => {
-    try {
-      const response = await apiClient.get(`/documents/${documentId}/download`, {
-        responseType: "blob",
-      });
+getDocumentFileUrl: async (documentId, options = {}) => {
+  try {
+    // Teruskan 'signal' dari options ke dalam konfigurasi Axios
+    const response = await apiClient.get(`/documents/${documentId}/file`, { signal: options.signal });
+    
+    if (!response.data.url) {
+      throw new Error("Gagal mendapatkan URL dokumen dari respons API.");
+    }
+    
+    return response.data.url;
+  } catch (error) {
+    throw handleError(error, "Gagal mendapatkan akses ke dokumen.");
+  }
+},
 
-      const contentDisposition = response.headers["content-disposition"];
+  /**
+   * @function getDocumentVersionFileUrl
+   * @description Mendapatkan signed URL untuk mengakses file dari versi SPESIFIK.
+   * @param {string} documentId - ID dari dokumen induk.
+   * @param {string} versionId - ID dari versi spesifik yang akan diakses.
+   * @returns {Promise<string>} Signed URL yang valid.
+   * @throws {Error} Jika gagal mendapatkan URL akses.
+   */
+getDocumentVersionFileUrl: async (documentId, versionId) => {
+  try {
+    const response = await apiClient.get(`/documents/${documentId}/versions/${versionId}/file`);
+
+    // ✅ PERBAIKAN: Cek 'response.data.url', bukan 'signedUrl'
+    if (!response.data.url) { 
+      throw new Error("Gagal mendapatkan URL versi dokumen dari respons API.");
+    }
+
+    // ✅ PERBAIKAN: Kembalikan 'response.data.url'
+    return response.data.url; 
+  } catch (error) {
+    throw handleError(error, "Gagal mendapatkan akses ke versi dokumen.");
+  }
+},
+
+  /**
+   * @function downloadDocument
+   * @description Mengunduh file dokumen (versi aktif) dan memicu download di browser.
+   * @param {string} documentId - ID dari dokumen yang akan diunduh.
+   */
+ downloadDocument: async function (documentId) { // Menggunakan function biasa agar 'this' terikat dengan benar
+    try {
+      // ✅ PERBAIKAN: Menggunakan 'this' untuk merujuk ke fungsi lain di objek yang sama
+      const fileUrl = await this.getDocumentFileUrl(documentId);
+      
+      const response = await fetch(fileUrl);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get("content-disposition");
       let filename = `document-${documentId}.pdf`;
 
       if (contentDisposition) {
@@ -170,14 +220,12 @@ export const documentService = {
         }
       }
 
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
       link.setAttribute("download", filename);
       document.body.appendChild(link);
       link.click();
-
       link.remove();
       window.URL.revokeObjectURL(url);
 

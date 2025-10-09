@@ -1,9 +1,17 @@
 /* eslint-disable no-irregular-whitespace */
 import "./index.css";
 import React, { useState, useEffect, useMemo } from "react";
-import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation,
+  useNavigate,
+  useParams, // Diimpor untuk mengambil parameter URL
+} from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
+// Komponen-komponen aplikasi Anda
 import ConfirmationModal from "./components/ConfirmationModal/ConfirmationModal.jsx";
 import Header from "./components/Header/Header.jsx";
 import MainLayout from "./components/MainLayout/MainLayout.jsx";
@@ -21,6 +29,23 @@ import DashboardHistory from "./pages/DashboardPage/DashboardHistory.jsx";
 import SignDocumentPage from "./pages/SignDocumentPage/SignDocumentPage.jsx";
 import ProfilePage from "./pages/ProfilePage/ProfilePage.jsx";
 
+// Import halaman baru untuk melihat dokumen
+// Pastikan path ini sesuai dengan struktur proyek Anda
+import ViewDocumentPage from "./pages/ViewDocumentPage/ViewDocumentPage.jsx";
+
+// Komponen Wrapper untuk Route
+// Bertugas mengambil ID dari URL dan meneruskannya sebagai prop `url`
+const ViewDocumentPageRoute = () => {
+  const { documentId } = useParams();
+
+  // Di aplikasi nyata, Anda akan melakukan fetch ke API di sini
+  // untuk mendapatkan URL asli dokumen berdasarkan ID-nya.
+  const documentUrl = `/dokumen-contoh-${documentId}.pdf`; // Ini hanya contoh
+
+  return <ViewDocumentPage url={documentUrl} />;
+};
+
+
 const AppWrapper = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -32,8 +57,7 @@ const AppWrapper = () => {
 
   // Logika untuk menampilkan Cookie Banner
   useEffect(() => {
-    // FIX: 'getItem' harus 'g' kecil
-    const consent = localStorage.getItem('cookie_consent'); 
+    const consent = localStorage.getItem('cookie_consent');
     if (!consent) {
       const timer = setTimeout(() => setShowBanner(true), 2000);
       return () => clearTimeout(timer);
@@ -87,9 +111,13 @@ const AppWrapper = () => {
   );
 
   return (
-    <div className="flex-1 overflow-auto"> 
+    <div className="flex-1 overflow-auto">
       <Toaster position="top-center" reverseOrder={false} toastOptions={toastOptions} />
-      {!isDashboard && !location.pathname.includes("/sign") && <Header theme={theme} toggleTheme={toggleTheme} />}
+      
+      {/* Header tidak akan tampil di halaman dashboard, sign, dan view */}
+      {!isDashboard && !location.pathname.includes("/sign") && !location.pathname.includes("/view") && (
+        <Header theme={theme} toggleTheme={toggleTheme} />
+      )}
       
       <Routes>
         {/* Rute Halaman Publik */}
@@ -102,10 +130,13 @@ const AppWrapper = () => {
         </Route>
 
         <Route path="/documents/:documentId/sign" element={<SignDocumentPage theme={theme} toggleTheme={toggleTheme} />} />
+        
+        {/* === ROUTE BARU YANG DITAMBAHKAN === */}
+        <Route path="/documents/:documentId/view" element={<ViewDocumentPage/>} />
 
         {/* Rute Dashboard dengan prop tambahan untuk menangani sesi berakhir */}
-        <Route 
-          path="/dashboard" 
+        <Route
+          path="/dashboard"
           element={<DashboardPage theme={theme} toggleTheme={toggleTheme} onSessionExpired={() => setSessionModalOpen(true)} />}
         >
           <Route index element={<DashboardOverview theme={theme} />} />
@@ -124,7 +155,7 @@ const AppWrapper = () => {
         title="Sesi Berakhir"
         message="Sesi Anda telah berakhir. Silakan login kembali untuk melanjutkan."
         confirmText="Login"
-        cancelText="" // Dikosongkan agar tombol batal tidak muncul
+        cancelText=""
         confirmButtonColor="bg-blue-600 hover:bg-blue-700"
       />
 
