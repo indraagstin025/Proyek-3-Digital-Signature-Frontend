@@ -5,7 +5,6 @@ import toast from "react-hot-toast";
 import { HiOutlineMail, HiOutlineLockClosed } from "react-icons/hi";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 import { ImSpinner9 } from "react-icons/im";
-
 import nameLogo from "../../assets/images/name.png";
 
 const LoginPage = () => {
@@ -15,6 +14,7 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [isCardVisible, setIsCardVisible] = useState(false);
   const [error, setError] = useState(null);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -30,9 +30,7 @@ const LoginPage = () => {
     return () => clearTimeout(timer);
   }, [searchParams]);
 
-  /**
-   * Menangani proses login dengan validasi error yang informatif.
-   */
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -40,8 +38,16 @@ const LoginPage = () => {
 
     try {
       const { user } = await authService.login(email, password);
-      toast.success(`Login berhasil, selamat datang ${user.name}!`);
-      navigate("/dashboard");
+
+      setIsRedirecting(true);
+
+      setTimeout(() => {
+        navigate("/dashboard", {
+          state: {
+            message: `Login berhasil, selamat datang ${user.name}!`,
+          },
+        });
+      }, 1500);
     } catch (err) {
       let specificErrorMessage = "Terjadi kesalahan yang tidak terduga.";
 
@@ -62,13 +68,20 @@ const LoginPage = () => {
 
       toast.error(specificErrorMessage);
       setError(specificErrorMessage);
-    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <section className="relative w-full flex items-center justify-center px-4 py-12">
+    <section className="relative w-full min-h-screen flex items-center justify-center px-4 py-12 overflow-hidden">
+      {/* ✅ 3. JSX baru untuk loading overlay ditambahkan */}
+      {isRedirecting && (
+        <div className="absolute inset-0 bg-gray-900/80 backdrop-blur-sm flex flex-col items-center justify-center z-50 transition-opacity duration-300">
+          <ImSpinner9 className="animate-spin h-10 w-10 text-white" />
+          <p className="text-white/80 mt-4 text-lg">Mengarahkan ke dasbor...</p>
+        </div>
+      )}
+
       {/* Aurora khusus untuk LoginPage */}
       <div className="absolute inset-0">
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-green-400/30 rounded-full blur-3xl animate-pulse"></div>

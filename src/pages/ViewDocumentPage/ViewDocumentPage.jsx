@@ -1,36 +1,32 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { Toaster } from "react-hot-toast"; // ✅ 1. Import Toaster
 import { documentService } from "../../services/documentService.js";
 import { Document, Page, pdfjs } from "react-pdf";
 import { FaSpinner } from "react-icons/fa";
 
-// Import CSS wajib untuk react-pdf
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
-// Konfigurasi path untuk PDF.js worker agar library bisa berjalan.
+// Konfigurasi path untuk PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.js";
 
 const ViewDocumentPage = () => {
   const { documentId } = useParams();
   const navigate = useNavigate();
 
-  // State untuk data dan UI
   const [documentUrl, setDocumentUrl] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // State untuk fungsionalitas PDF viewer
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [containerWidth, setContainerWidth] = useState(800);
-  
-  // Refs untuk interaksi DOM
+
   const containerRef = useRef(null);
   const pagesRef = useRef([]);
 
-  // Efek untuk mengambil URL dokumen saat komponen dimuat.
-  // Menggunakan AbortController untuk menangani cleanup di React.StrictMode.
+  // Efek untuk mengambil URL dokumen saat komponen dimuat
   useEffect(() => {
     const controller = new AbortController();
     const signal = controller.signal;
@@ -41,10 +37,8 @@ const ViewDocumentPage = () => {
         setIsLoading(false);
         return;
       }
-
       setError(null);
       setIsLoading(true);
-
       try {
         const signedUrl = await documentService.getDocumentFileUrl(documentId, { signal });
         if (signedUrl) {
@@ -53,27 +47,21 @@ const ViewDocumentPage = () => {
           setError("Gagal mendapatkan URL untuk dokumen ini (respons kosong).");
         }
       } catch (err) {
-        // Jangan set error jika permintaan dibatalkan dengan sengaja
-        if (err.name !== 'CanceledError' && err.message !== 'canceled') {
-            setError(err.message || "Terjadi kesalahan saat memuat dokumen.");
+        if (err.name !== "CanceledError" && err.message !== "canceled") {
+          setError(err.message || "Terjadi kesalahan saat memuat dokumen.");
         }
       } finally {
-        // Pastikan state tidak diubah jika komponen sudah di-unmount
         if (!signal.aborted) {
-            setIsLoading(false);
+          setIsLoading(false);
         }
       }
     };
 
     fetchDocumentUrl();
-
-    // Cleanup function: batalkan permintaan API saat komponen di-unmount.
-    return () => {
-      controller.abort();
-    };
+    return () => controller.abort();
   }, [documentId]);
 
-  // Efek untuk menyesuaikan lebar kontainer PDF saat ukuran window berubah
+  // Efek untuk menyesuaikan lebar kontainer PDF
   useEffect(() => {
     const updateWidth = () => {
       if (containerRef.current) {
@@ -85,13 +73,11 @@ const ViewDocumentPage = () => {
     return () => window.removeEventListener("resize", updateWidth);
   }, []);
 
-  // Handler saat dokumen PDF berhasil dimuat
   const onDocumentLoadSuccess = ({ numPages: nextNumPages }) => {
     setNumPages(nextNumPages);
     setPageNumber(1);
   };
 
-  // Fungsi untuk scroll ke halaman tertentu
   const scrollToPage = (pageIndex) => {
     if (pagesRef.current[pageIndex]) {
       pagesRef.current[pageIndex].scrollIntoView({ behavior: "smooth" });
@@ -99,7 +85,6 @@ const ViewDocumentPage = () => {
     }
   };
 
-  // Handler saat kontainer utama di-scroll untuk update nomor halaman
   const handleScroll = (e) => {
     const { scrollTop, clientHeight } = e.target;
     let currentPage = 1;
@@ -112,7 +97,6 @@ const ViewDocumentPage = () => {
     setPageNumber(currentPage);
   };
 
-  // Tampilan saat loading
   if (isLoading) {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-slate-900 text-white gap-4">
@@ -122,17 +106,15 @@ const ViewDocumentPage = () => {
     );
   }
 
-  // Tampilan saat terjadi error
   if (error) {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-slate-900 text-red-400 gap-4 p-8 text-center">
+        {/* ✅ Tambahkan Toaster di sini juga untuk menampilkan notifikasi error */}
+        <Toaster position="top-center" />
         <h2 className="text-2xl font-bold text-white">Gagal Memuat Dokumen</h2>
         <p className="bg-red-900/50 p-4 rounded-md border border-red-500/50">{error}</p>
-        <button
-           onClick={() => navigate("/dashboard/documents")}
-          className="mt-4 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Kembali
+        <button onClick={() => navigate("/dashboard/documents")} className="mt-4 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">
+          Kembali ke Dashboard
         </button>
       </div>
     );
@@ -140,6 +122,9 @@ const ViewDocumentPage = () => {
 
   return (
     <div className="flex h-screen flex-col bg-slate-900 text-white font-sans">
+      {/* ✅ 2. Tambahkan Toaster di sini untuk notifikasi umum di halaman ini */}
+      <Toaster position="top-center" containerStyle={{ zIndex: 9999 }} />
+      
       <header className="flex-shrink-0 flex justify-between items-center p-3 border-b border-slate-700 bg-slate-800/50 shadow-lg z-10">
         <p className="font-semibold text-slate-300">
           Halaman {pageNumber} dari {numPages || "--"}
@@ -160,12 +145,8 @@ const ViewDocumentPage = () => {
       <main className="flex flex-grow overflow-hidden">
         <aside className="w-48 flex-shrink-0 overflow-y-auto bg-slate-800 border-r border-slate-700 p-2">
           {documentUrl && (
-            <Document
-              file={documentUrl}
-              onLoadSuccess={onDocumentLoadSuccess}
-              onLoadError={(error) => console.error("React-PDF (Thumbnail) onLoadError:", error.message)}
-            >
-              {Array.from({ length: numPages }, (_, index) => (
+            <Document file={documentUrl} onLoadSuccess={onDocumentLoadSuccess} onLoadError={(error) => console.error("React-PDF (Thumbnail) onLoadError:", error.message)}>
+              {Array.from({ length: numPages || 0 }, (_, index) => (
                 <div key={`thumb_${index + 1}`} className={`mb-2 cursor-pointer rounded-md overflow-hidden border-2 transition-all duration-200 ${pageNumber === index + 1 ? "border-blue-500 shadow-lg shadow-blue-500/20" : "border-transparent hover:border-slate-500"}`} onClick={() => scrollToPage(index)}>
                   <Page pageNumber={index + 1} width={150} renderAnnotationLayer={false} renderTextLayer={false} />
                 </div>
@@ -183,7 +164,7 @@ const ViewDocumentPage = () => {
               error={<p className="text-center text-red-400 p-4">Gagal memuat pratinjau dokumen.</p>}
               onLoadError={(error) => console.error("React-PDF (Main) onLoadError:", error.message)}
             >
-              {Array.from({ length: numPages }, (_, index) => (
+              {Array.from({ length: numPages || 0 }, (_, index) => (
                 <div key={`page_${index + 1}`} ref={(el) => (pagesRef.current[index] = el)} className="mb-4 flex justify-center">
                   <Page pageNumber={index + 1} width={containerWidth} />
                 </div>

@@ -1,21 +1,8 @@
 // src/services/documentService.js
 import apiClient from "./apiClient";
+import { handleError } from "./errorHandler";
 
-/**
- * Helper untuk mem-parsing error dari Axios dan mengembalikan instance Error standar.
- * @param {object} error - Objek error yang ditangkap dari blok catch.
- * @param {string} defaultMessage - Pesan default jika tidak ada pesan error spesifik.
- * @returns {Error} Instance Error dengan pesan yang relevan.
- */
-const handleError = (error, defaultMessage) => {
-  if (error.response?.data?.message) {
-    return new Error(error.response.data.message);
-  }
-  if (error.message) {
-    return new Error(error.message);
-  }
-  return new Error(defaultMessage);
-};
+
 
 /**
  * @description Kumpulan service untuk berinteraksi dengan endpoint API dokumen.
@@ -37,7 +24,7 @@ export const documentService = {
       });
       return response.data;
     } catch (error) {
-      throw handleError(error, "Gagal mengunggah dokumen.");
+      handleError(error, "Gagal mengunggah dokumen.");
     }
   },
 
@@ -51,7 +38,7 @@ export const documentService = {
       const response = await apiClient.get("/documents");
       return response.data.data;
     } catch (error) {
-      throw handleError(error, "Gagal mengambil daftar dokumen.");
+      handleError(error, "Gagal mengambil daftar dokumen.");
     }
   },
 
@@ -66,7 +53,7 @@ export const documentService = {
       const response = await apiClient.get(`/documents/${documentId}`);
       return response.data.data;
     } catch (error) {
-      throw handleError(error, "Gagal mengambil detail dokumen.");
+      handleError(error, "Gagal mengambil detail dokumen.");
     }
   },
 
@@ -82,7 +69,7 @@ export const documentService = {
       const response = await apiClient.put(`/documents/${documentId}`, updates);
       return response.data;
     } catch (error) {
-      throw handleError(error, "Gagal memperbarui dokumen.");
+      handleError(error, "Gagal memperbarui dokumen.");
     }
   },
 
@@ -97,7 +84,7 @@ export const documentService = {
       const response = await apiClient.delete(`/documents/${documentId}`);
       return response.data;
     } catch (error) {
-      throw handleError(error, "Gagal menghapus dokumen.");
+      handleError(error, "Gagal menghapus dokumen.");
     }
   },
 
@@ -112,7 +99,7 @@ export const documentService = {
       const response = await apiClient.get(`/documents/${documentId}/versions`);
       return response.data.data;
     } catch (error) {
-      throw handleError(error, "Gagal mengambil riwayat dokumen.");
+      handleError(error, "Gagal mengambil riwayat dokumen.");
     }
   },
 
@@ -128,7 +115,7 @@ export const documentService = {
       const response = await apiClient.put(`/documents/${documentId}/versions/${versionId}/use`);
       return response.data;
     } catch (error) {
-      throw handleError(error, "Gagal mengganti versi dokumen.");
+      handleError(error, "Gagal mengganti versi dokumen.");
     }
   },
 
@@ -144,7 +131,7 @@ export const documentService = {
       const response = await apiClient.delete(`/documents/${documentId}/versions/${versionId}`);
       return response.data;
     } catch (error) {
-      throw handleError(error, "Gagal menghapus versi dokumen.");
+      handleError(error, "Gagal menghapus versi dokumen.");
     }
   },
 
@@ -166,7 +153,7 @@ getDocumentFileUrl: async (documentId, options = {}) => {
     
     return response.data.url;
   } catch (error) {
-    throw handleError(error, "Gagal mendapatkan akses ke dokumen.");
+    handleError(error, "Gagal mendapatkan akses ke dokumen.");
   }
 },
 
@@ -190,7 +177,7 @@ getDocumentVersionFileUrl: async (documentId, versionId) => {
     // ✅ PERBAIKAN: Kembalikan 'response.data.url'
     return response.data.url; 
   } catch (error) {
-    throw handleError(error, "Gagal mendapatkan akses ke versi dokumen.");
+    handleError(error, "Gagal mendapatkan akses ke versi dokumen.");
   }
 },
 
@@ -231,7 +218,7 @@ getDocumentVersionFileUrl: async (documentId, versionId) => {
 
       return { status: "success", message: `Pengunduhan dokumen "${filename}" dimulai.` };
     } catch (error) {
-      throw handleError(error, "Gagal memulai pengunduhan dokumen. Harap cek otorisasi dan status dokumen.");
+      handleError(error, "Gagal memulai pengunduhan dokumen. Harap cek otorisasi dan status dokumen.");
     }
   },
 };

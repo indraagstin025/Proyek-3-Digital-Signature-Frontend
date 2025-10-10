@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { documentService } from "../../services/documentService.js";
 import ViewDocumentModal from "../../components/ViewDocumentModal/ViewDocumentModal.jsx";
@@ -24,8 +24,9 @@ const DashboardDocuments = () => {
 
   const navigate = useNavigate();
   const location = useLocation();
+  const refreshToastShownRef = useRef(false);
 
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     try {
       setIsLoading(true);
       const fetchedDocuments = await documentService.getAllDocuments();
@@ -34,24 +35,29 @@ const DashboardDocuments = () => {
       if (err.response?.status !== 401) {
         const message = err.message || "Gagal memuat dokumen.";
         setError(message);
+
         toast.error(message);
       }
     } finally {
       setIsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchDocuments();
   }, []);
 
   useEffect(() => {
-    if (location.state?.refresh) {
+    fetchDocuments();
+  }, [fetchDocuments]);
+
+  useEffect(() => {
+    if (location.state?.refresh && !refreshToastShownRef.current) {
+      refreshToastShownRef.current = true;
+
       toast.success("Daftar dokumen diperbarui.");
+
       fetchDocuments();
+
       navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location.state, navigate]);
+  }, [location.state, navigate, fetchDocuments]);
 
   const openManagementModal = (mode, document = null) => {
     setModalMode(mode);
@@ -68,36 +74,35 @@ const DashboardDocuments = () => {
     fetchDocuments();
   };
 
-const handleViewDocument = (doc) => {
-  // Cukup arahkan ke route yang sudah Anda siapkan di App.jsx
-  navigate(`/documents/${doc.id}/view`);
-};
+  const handleViewDocument = (doc) => {
+    navigate(`/documents/${doc.id}/view`);
+  };
 
   const handleDeleteDocument = (documentId) => {
     setDocumentToDelete(documentId);
     setIsConfirmOpen(true);
   };
 
-const handleViewRequestFromModal = (url) => {
-  setSelectedDocumentUrl(url);
-  setViewModalOpen(true);
-};
+  const handleViewRequestFromModal = (url) => {
+    setSelectedDocumentUrl(url);
+    setViewModalOpen(true);
+  };
 
   const confirmDelete = async () => {
     if (!documentToDelete) return;
-    const toastId = toast.loading("Menghapus dokumen...");
-    try {
-      await documentService.deleteDocument(documentToDelete);
-      toast.success("Dokumen berhasil dihapus!", { id: toastId });
-      fetchDocuments();
-    } catch (err) {
-      if (err.response?.status !== 401) {
-        toast.error(err.message || "Gagal menghapus dokumen.", { id: toastId });
-      }
-    } finally {
-      setIsConfirmOpen(false);
-      setDocumentToDelete(null);
-    }
+
+    toast
+      .promise(documentService.deleteDocument(documentToDelete), {
+        loading: "Menghapus dokumen...",
+        success: <b>Dokumen berhasil dihapus!</b>,
+        error: (err) => err.message || "Gagal menghapus dokumen.",
+      })
+      .then(() => {
+        fetchDocuments();
+      });
+
+    setIsConfirmOpen(false);
+    setDocumentToDelete(null);
   };
 
   const formatDate = (dateString) =>
@@ -129,7 +134,7 @@ const handleViewRequestFromModal = (url) => {
 
   return (
     <div id="tab-documents" className="p-0 sm:p-4">
-      <Toaster />
+      <Toaster position="top-center" containerStyle={{ zIndex: 9999 }} />
       {/* --- Header Dashboard --- */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <div>
@@ -248,15 +253,8 @@ const handleViewRequestFromModal = (url) => {
       )}
 
       {/* --- Modal-modal --- */}
-      {isManagementModalOpen && <DocumentManagementModal 
-      mode={modalMode} 
-      document={selectedDocument} 
-      onClose={closeManagementModal} 
-      onSuccess={handleSuccess} 
-      onViewRequest={handleViewRequestFromModal} />}
-      <ViewDocumentModal 
-      isOpen={isViewModalOpen} 
-      onClose={() => setViewModalOpen(false)} url={selectedDocumentUrl} />
+      {isManagementModalOpen && <DocumentManagementModal mode={modalMode} document={selectedDocument} onClose={closeManagementModal} onSuccess={handleSuccess} onViewRequest={handleViewRequestFromModal} />}
+      <ViewDocumentModal isOpen={isViewModalOpen} onClose={() => setViewModalOpen(false)} url={selectedDocumentUrl} />
       <ConfirmationModal
         isOpen={isConfirmOpen}
         onClose={() => {

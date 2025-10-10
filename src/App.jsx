@@ -45,7 +45,6 @@ const ViewDocumentPageRoute = () => {
   return <ViewDocumentPage url={documentUrl} />;
 };
 
-
 const AppWrapper = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -55,9 +54,19 @@ const AppWrapper = () => {
   const [isSessionModalOpen, setSessionModalOpen] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
 
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      setSessionModalOpen(true);
+    };
+    window.addEventListener("sessionExpired", handleSessionExpired);
+    return () => {
+      window.removeEventListener("sessionExpired", handleSessionExpired);
+    };
+  }, []);
+
   // Logika untuk menampilkan Cookie Banner
   useEffect(() => {
-    const consent = localStorage.getItem('cookie_consent');
+    const consent = localStorage.getItem("cookie_consent");
     if (!consent) {
       const timer = setTimeout(() => setShowBanner(true), 2000);
       return () => clearTimeout(timer);
@@ -65,7 +74,7 @@ const AppWrapper = () => {
   }, []);
 
   const handleAcceptCookie = () => {
-    localStorage.setItem('cookie_consent', 'true');
+    localStorage.setItem("cookie_consent", "true");
     setShowBanner(false);
   };
 
@@ -113,12 +122,10 @@ const AppWrapper = () => {
   return (
     <div className="flex-1 overflow-auto">
       <Toaster position="top-center" reverseOrder={false} toastOptions={toastOptions} />
-      
+
       {/* Header tidak akan tampil di halaman dashboard, sign, dan view */}
-      {!isDashboard && !location.pathname.includes("/sign") && !location.pathname.includes("/view") && (
-        <Header theme={theme} toggleTheme={toggleTheme} />
-      )}
-      
+      {!isDashboard && !location.pathname.includes("/sign") && !location.pathname.includes("/view") && <Header theme={theme} toggleTheme={toggleTheme} />}
+
       <Routes>
         {/* Rute Halaman Publik */}
         <Route element={<MainLayout />}>
@@ -129,16 +136,13 @@ const AppWrapper = () => {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
         </Route>
 
-        <Route path="/documents/:documentId/sign" element={<SignDocumentPage theme={theme} toggleTheme={toggleTheme} />} />
-        
+        <Route path="/documents/:documentId/sign" element={<SignDocumentPage theme={theme} toggleTheme={toggleTheme} onSessionExpired={() => setSessionModalOpen(true)} />} />
+
         {/* === ROUTE BARU YANG DITAMBAHKAN === */}
-        <Route path="/documents/:documentId/view" element={<ViewDocumentPage/>} />
+        <Route path="/documents/:documentId/view" element={<ViewDocumentPage />} />
 
         {/* Rute Dashboard dengan prop tambahan untuk menangani sesi berakhir */}
-        <Route
-          path="/dashboard"
-          element={<DashboardPage theme={theme} toggleTheme={toggleTheme} onSessionExpired={() => setSessionModalOpen(true)} />}
-        >
+        <Route path="/dashboard" element={<DashboardPage theme={theme} toggleTheme={toggleTheme} onSessionExpired={() => setSessionModalOpen(true)} />}>
           <Route index element={<DashboardOverview theme={theme} />} />
           <Route path="profile" element={<ProfilePage theme={theme} />} />
           <Route path="documents" element={<DashboardDocuments theme={theme} />} />
@@ -146,7 +150,7 @@ const AppWrapper = () => {
           <Route path="history" element={<DashboardHistory theme={theme} />} />
         </Route>
       </Routes>
-      
+
       {/* Modal untuk Sesi Berakhir */}
       <ConfirmationModal
         isOpen={isSessionModalOpen}

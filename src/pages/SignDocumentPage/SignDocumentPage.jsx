@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FaSpinner } from "react-icons/fa";
-import toast from "react-hot-toast";
+import { Toaster, toast } from "react-hot-toast"; // ✅ Pastikan 'Toaster' diimpor
 
 import { documentService } from "../../services/documentService";
 import { signatureService } from "../../services/signatureService";
@@ -15,6 +15,7 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
   const { documentId } = useParams();
   const navigate = useNavigate();
 
+  // --- State Hooks ---
   const [documentTitle, setDocumentTitle] = useState("Memuat...");
   const [pdfFile, setPdfFile] = useState(null);
   const [documentVersionId, setDocumentVersionId] = useState(null);
@@ -27,30 +28,22 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
   const [includeQrCode, setIncludeQrCode] = useState(true);
   const [isPortrait, setIsPortrait] = useState(false);
 
+  // --- Effect Hooks ---
   useEffect(() => {
-    const checkOrientation = () => {
-      setIsPortrait(window.innerHeight > window.innerWidth);
-    };
-
+    const checkOrientation = () => setIsPortrait(window.innerHeight > window.innerWidth);
     checkOrientation();
     window.addEventListener("resize", checkOrientation);
     return () => window.removeEventListener("resize", checkOrientation);
   }, []);
 
   useEffect(() => {
-    const handleResize = () => {
-      setIsLandscape(window.innerWidth > window.innerHeight);
-    };
+    const handleResize = () => setIsLandscape(window.innerWidth > window.innerHeight);
+    handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const sidebarOpen = isLandscape ? true : isSidebarOpen;
-
-// Di dalam file SignDocumentPage.jsx
-
-useEffect(() => {
-    // ✅ 1. Siapkan AbortController
+  useEffect(() => {
     const controller = new AbortController();
     const signal = controller.signal;
 
@@ -60,50 +53,34 @@ useEffect(() => {
         navigate("/dashboard/documents");
         return;
       }
-
       try {
         setIsLoading(true);
-
-        const doc = await documentService.getDocumentById(documentId);
-        if (!doc || !doc.currentVersion?.id) {
-          throw new Error("Dokumen tidak ditemukan.");
-        }
-
+        const doc = await documentService.getDocumentById(documentId, { signal });
+        if (!doc || !doc.currentVersion?.id) throw new Error("Dokumen tidak ditemukan.");
+        
         setDocumentTitle(doc.title);
         setDocumentVersionId(doc.currentVersion.id);
 
-        // ✅ 2. Teruskan 'signal' ke service
         const signedUrl = await documentService.getDocumentFileUrl(documentId, { signal });
+        if (!signedUrl || !signedUrl.startsWith("http")) throw new Error("Format URL dokumen tidak valid.");
         
-        if (!signedUrl || typeof signedUrl !== 'string' || !signedUrl.startsWith('http')) {
-          throw new Error("Format URL dokumen tidak valid.");
-        }
-
         setPdfFile(signedUrl);
       } catch (error) {
-        // ✅ 3. Abaikan error jika itu adalah pembatalan yang disengaja
-        if (error.name !== 'CanceledError' && error.message !== 'canceled') {
+        if (error.name !== "CanceledError" && error.message !== "canceled") {
           console.error("Gagal memuat dokumen:", error);
           toast.error(error.message || "Gagal memuat dokumen.");
           setTimeout(() => navigate("/dashboard/documents"), 2000);
         }
       } finally {
-        // ✅ 4. Cek apakah permintaan sudah dibatalkan sebelum update state
-        if (!signal.aborted) {
-          setIsLoading(false);
-        }
+        if (!signal.aborted) setIsLoading(false);
       }
     };
 
     fetchDocument();
+    return () => controller.abort();
+  }, [documentId, navigate]);
 
-    // ✅ 5. Tambahkan cleanup function untuk membatalkan request
-    return () => {
-      console.log("🧹 Cleanup SignDocumentPage: Membatalkan fetch dokumen awal...");
-      controller.abort();
-    };
-}, [documentId, navigate]);
-
+  // --- Callback Hooks ---
   const handleSaveSignature = useCallback((dataUrl) => {
     setSavedSignatureUrl(dataUrl);
     setIsSignatureModalOpen(false);
@@ -121,51 +98,40 @@ useEffect(() => {
     setSignatures((prev) => prev.filter((sig) => sig.id !== signatureId));
   }, []);
 
-  // Di dalam file SignDocumentPage.jsx
+  const handleFinalSave = useCallback(async () => {
+    if (signatures.length === 0) return toast.error("Harap tempatkan setidaknya satu tanda tangan.");
+    if (!documentVersionId) return toast.error("ID Versi Dokumen tidak ditemukan.");
 
-const handleFinalSave = useCallback(async () => {
-    if (signatures.length === 0) {
-        return toast.error("Harap tempatkan setidaknya satu tanda tangan di dokumen.");
-    }
-    if (!documentVersionId) {
-        return toast.error("ID Versi Dokumen tidak ditemukan. Gagal menyimpan.");
-    }
-
-    const toastId = toast.loading("Menyimpan dan memproses tanda tangan...");
     setIsLoading(true);
-    try {
-        const sig = signatures[0];
-        const payload = {
-            documentVersionId,
-            method: "canvas",
-            signatureImageUrl: sig.signatureImageUrl,
-            positionX: sig.positionX,
-            positionY: sig.positionY,
-            pageNumber: sig.pageNumber,
-            width: sig.width,
-            height: sig.height,
-            displayQrCode: includeQrCode,
-        };
+    const payload = {
+      documentVersionId,
+      method: "canvas",
+      signatureImageUrl: signatures[0].signatureImageUrl,
+      positionX: signatures[0].positionX,
+      positionY: signatures[0].positionY,
+      pageNumber: signatures[0].pageNumber,
+      width: signatures[0].width,
+      height: signatures[0].height,
+      displayQrCode: includeQrCode,
+    };
 
-        await signatureService.addPersonalSignature(payload);
+    toast.promise(
+      signatureService.addPersonalSignature(payload),
+      {
+        loading: 'Menyimpan dan memproses tanda tangan...',
+        success: <b>Dokumen berhasil ditandatangani! Anda akan dialihkan...</b>,
+        error: (err) => err.message || 'Gagal menyimpan tanda tangan.',
+      }
+    )
+    .then(() => {
+      setTimeout(() => navigate(`/documents/${documentId}/view`), 3000);
+    })
+    .catch(() => setIsLoading(false));
+  }, [signatures, documentVersionId, documentId, navigate, includeQrCode]);
 
-        toast.success("Dokumen berhasil ditandatangani! Melihat hasil...", { id: toastId, duration: 2000 });
+  const sidebarOpen = isLandscape ? true : isSidebarOpen;
 
- 
-        setTimeout(() => navigate(`/documents/${documentId}/view`), 2000);
-
-    } catch (error) {
-        let errorMessage = "Gagal menyimpan tanda tangan.";
-        if (error.response?.data?.message) {
-            errorMessage = error.response.data.message;
-        } else if (error.message) {
-            errorMessage = error.message;
-        }
-        toast.error(errorMessage);
-        setIsLoading(false);
-    }
-}, [signatures, documentVersionId, documentId, navigate, includeQrCode]); 
-
+  // --- Render Logic ---
   if (isLoading && !pdfFile) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">
@@ -177,18 +143,14 @@ const handleFinalSave = useCallback(async () => {
 
   return (
     <div className="absolute inset-0 bg-slate-200 dark:bg-slate-900 overflow-hidden">
-      {/* Header tetap di atas */}
+      {/* ✅ TOASTER LOKAL DITEMPATKAN DI SINI */}
+      <Toaster position="top-center" containerStyle={{ zIndex: 9999 }} />
+
       <header className="fixed top-0 left-0 w-full h-16 z-50">
-        <SigningHeader
-          theme={theme}
-          toggleTheme={toggleTheme}
-          // Tambahkan tombol hamburger untuk mobile
-          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-        />
+        <SigningHeader theme={theme} toggleTheme={toggleTheme} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
       </header>
 
       <div className="absolute top-16 bottom-0 left-0 w-full flex overflow-hidden">
-        {/* PDF Viewer akan mengambil sisa ruang */}
         <main className="flex-1 overflow-hidden">
           {pdfFile && (
             <PDFViewer
@@ -202,14 +164,12 @@ const handleFinalSave = useCallback(async () => {
             />
           )}
         </main>
-
-        {/* Sidebar akan menjadi overlay di mobile atau di samping di desktop */}
         <SignatureSidebar
           savedSignatureUrl={savedSignatureUrl}
           onOpenSignatureModal={() => setIsSignatureModalOpen(true)}
           onSave={handleFinalSave}
           isLoading={isLoading}
-          isPortrait={isPortrait} 
+          isPortrait={isPortrait}
           includeQrCode={includeQrCode}
           setIncludeQrCode={setIncludeQrCode}
           isOpen={sidebarOpen}
@@ -217,9 +177,7 @@ const handleFinalSave = useCallback(async () => {
         />
       </div>
 
-      {/* Overlay hanya untuk mobile/portrait */}
       {isSidebarOpen && !isLandscape && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/40 z-30 md:hidden"></div>}
-
       {isSignatureModalOpen && <SignatureModal onSave={handleSaveSignature} onClose={() => setIsSignatureModalOpen(false)} />}
     </div>
   );
