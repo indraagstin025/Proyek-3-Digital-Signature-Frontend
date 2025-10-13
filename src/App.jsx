@@ -1,49 +1,48 @@
 /* eslint-disable no-irregular-whitespace */
 import "./index.css";
 import React, { useState, useEffect, useMemo } from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  useLocation,
-  useNavigate,
-  useParams, // Diimpor untuk mengambil parameter URL
-} from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
-// Komponen-komponen aplikasi Anda
+// Komponen-komponen
 import ConfirmationModal from "./components/ConfirmationModal/ConfirmationModal.jsx";
 import Header from "./components/Header/Header.jsx";
 import MainLayout from "./components/MainLayout/MainLayout.jsx";
 import CookieBanner from "./components/BannerCookie/BannerCookie.jsx";
+import ProtectedRoute from "./components/ProtectedRoute/ProtectedRoute.jsx";
+
+// Halaman Publik
 import HomePage from "./pages/HomePage/HomePage.jsx";
 import LoginPage from "./pages/LoginPage/LoginPage.jsx";
 import RegisterPage from "./pages/RegisterPage/RegisterPage.jsx";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage/ForgotPasswordPage.jsx";
 import ResetPasswordPage from "./pages/ResetPasswordPage/ResetPasswordPage.jsx";
+
+// Halaman Dashboard Pengguna
 import DashboardPage from "./pages/DashboardPage/DashboardPage.jsx";
 import DashboardOverview from "./pages/DashboardPage/DashboardOverview.jsx";
 import DashboardDocuments from "./pages/DashboardPage/DashboardDocuments.jsx";
 import DashboardWorkspaces from "./pages/DashboardPage/DashboardWorkspaces.jsx";
 import DashboardHistory from "./pages/DashboardPage/DashboardHistory.jsx";
-import SignDocumentPage from "./pages/SignDocumentPage/SignDocumentPage.jsx";
 import ProfilePage from "./pages/ProfilePage/ProfilePage.jsx";
 
-// Import halaman baru untuk melihat dokumen
-// Pastikan path ini sesuai dengan struktur proyek Anda
+// Halaman Fungsional
+import SignDocumentPage from "./pages/SignDocumentPage/SignDocumentPage.jsx";
 import ViewDocumentPage from "./pages/ViewDocumentPage/ViewDocumentPage.jsx";
+import NotFoundPage from "./pages/NotFoundPage/NotFoundPage.jsx";
 
-// Komponen Wrapper untuk Route
-// Bertugas mengambil ID dari URL dan meneruskannya sebagai prop `url`
-const ViewDocumentPageRoute = () => {
-  const { documentId } = useParams();
+// Halaman Dashboard Admin
+import AdminDashboardPage from "./pages/AdminPage/AdminDashboardPage.jsx";
+import AdminDashboardOverview from "./pages/AdminPage/AdminDashboardOverview.jsx";
+import AdminManageUser from "./pages/AdminPage/AdminManageUser.jsx"; 
 
-  // Di aplikasi nyata, Anda akan melakukan fetch ke API di sini
-  // untuk mendapatkan URL asli dokumen berdasarkan ID-nya.
-  const documentUrl = `/dokumen-contoh-${documentId}.pdf`; // Ini hanya contoh
-
-  return <ViewDocumentPage url={documentUrl} />;
-};
+// Komponen Placeholder untuk Halaman Admin yang Belum Dibuat
+const UserManagementPage = () => (
+  <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-md text-slate-800 dark:text-white">
+    <h1 className="text-2xl font-bold">Halaman Manajemen Pengguna</h1>
+    <p className="mt-2 text-slate-600 dark:text-slate-400">Tabel pengguna, tombol tambah, edit, dan hapus akan ditampilkan di sini.</p>
+  </div>
+);
 
 const AppWrapper = () => {
   const location = useLocation();
@@ -64,7 +63,6 @@ const AppWrapper = () => {
     };
   }, []);
 
-  // Logika untuk menampilkan Cookie Banner
   useEffect(() => {
     const consent = localStorage.getItem("cookie_consent");
     if (!consent) {
@@ -78,14 +76,12 @@ const AppWrapper = () => {
     setShowBanner(false);
   };
 
-  // Fungsi untuk me-redirect ke login saat sesi berakhir
   const handleRedirectToLogin = () => {
     setSessionModalOpen(false);
     setRouteKey((prev) => prev + 1);
     navigate("/login", { replace: true });
   };
 
-  // Logika untuk manajemen tema (Dark/Light mode)
   useEffect(() => {
     const root = document.documentElement;
     if (theme === "dark") {
@@ -101,6 +97,7 @@ const AppWrapper = () => {
   };
 
   const isDashboard = location.pathname.startsWith("/dashboard");
+  const isAdmin = location.pathname.startsWith("/admin");
 
   const toastOptions = useMemo(
     () => ({
@@ -119,12 +116,12 @@ const AppWrapper = () => {
     [theme]
   );
 
-  return (
+return (
     <div className="flex-1 overflow-auto">
       <Toaster position="top-center" reverseOrder={false} toastOptions={toastOptions} />
 
-      {/* Header tidak akan tampil di halaman dashboard, sign, dan view */}
-      {!isDashboard && !location.pathname.includes("/sign") && !location.pathname.includes("/view") && <Header theme={theme} toggleTheme={toggleTheme} />}
+      {/* Header tidak akan tampil di halaman dashboard, admin, sign, dan view */}
+      {!isDashboard && !isAdmin && !location.pathname.includes("/sign") && !location.pathname.includes("/view") && <Header theme={theme} toggleTheme={toggleTheme} />}
 
       <Routes>
         {/* Rute Halaman Publik */}
@@ -134,24 +131,43 @@ const AppWrapper = () => {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
 
+        {/* Rute Fungsional */}
         <Route path="/documents/:documentId/sign" element={<SignDocumentPage theme={theme} toggleTheme={toggleTheme} onSessionExpired={() => setSessionModalOpen(true)} />} />
-
-        {/* === ROUTE BARU YANG DITAMBAHKAN === */}
         <Route path="/documents/:documentId/view" element={<ViewDocumentPage />} />
+        <Route path="*" element={<NotFoundPage />} />
 
-        {/* Rute Dashboard dengan prop tambahan untuk menangani sesi berakhir */}
-        <Route path="/dashboard" element={<DashboardPage theme={theme} toggleTheme={toggleTheme} onSessionExpired={() => setSessionModalOpen(true)} />}>
-          <Route index element={<DashboardOverview theme={theme} />} />
-          <Route path="profile" element={<ProfilePage theme={theme} />} />
-          <Route path="documents" element={<DashboardDocuments theme={theme} />} />
-          <Route path="workspaces" element={<DashboardWorkspaces theme={theme} />} />
-          <Route path="history" element={<DashboardHistory theme={theme} />} />
+        {/* --- PERBAIKAN DI SINI: BUNGKUS RUTE PRIVAT DENGAN PROTECTEDROUTE --- */}
+
+        {/* Rute yang Dilindungi untuk SEMUA PENGGUNA (user & admin) */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/dashboard" element={<DashboardPage theme={theme} toggleTheme={toggleTheme} onSessionExpired={() => setSessionModalOpen(true)} />}>
+            <Route index element={<DashboardOverview theme={theme} />} />
+            <Route path="profile" element={<ProfilePage theme={theme} />} />
+            <Route path="documents" element={<DashboardDocuments theme={theme} />} />
+            <Route path="workspaces" element={<DashboardWorkspaces theme={theme} />} />
+            <Route path="history" element={<DashboardHistory theme={theme} />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
         </Route>
+        
+        {/* Rute yang Dilindungi HANYA untuk ADMIN */}
+        <Route element={<ProtectedRoute requireAdmin={true} />}>
+          <Route path="/admin" element={<AdminDashboardPage theme={theme} toggleTheme={toggleTheme} />}>
+            <Route index element={<Navigate to="dashboard" replace />} /> 
+            <Route path="dashboard" element={<AdminDashboardOverview />} />
+            <Route path="users" element={<AdminManageUser theme={theme} />} /> 
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
+
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
+
       </Routes>
 
-      {/* Modal untuk Sesi Berakhir */}
+      {/* Modal dan Banner Cookie */}
       <ConfirmationModal
         isOpen={isSessionModalOpen}
         onClose={() => setSessionModalOpen(false)}
@@ -162,8 +178,6 @@ const AppWrapper = () => {
         cancelText=""
         confirmButtonColor="bg-blue-600 hover:bg-blue-700"
       />
-
-      {/* Menampilkan Cookie Banner secara kondisional */}
       {showBanner && <CookieBanner onAccept={handleAcceptCookie} />}
     </div>
   );
