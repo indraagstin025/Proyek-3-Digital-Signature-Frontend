@@ -13,25 +13,30 @@ const AdminDashboardPage = ({ theme, toggleTheme }) => {
   const [userData, setUserData] = useState(() => JSON.parse(localStorage.getItem("authUser") || "null"));
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => window.innerWidth >= 1024);
 
-  useEffect(() => {
-    const syncAdminData = async () => {
-      try {
-        const freshData = await userService.getMyProfile();
-        if (freshData?.isSuperAdmin) {
-          setUserData(freshData);
-          localStorage.setItem("authUser", JSON.stringify(freshData));
-        } else {
-          // Jika bukan admin, tendang ke halaman login
-          console.error("Akses Ditolak: Pengguna bukan admin.");
-          navigate("/login");
-        }
-      } catch (error) {
+useEffect(() => {
+  const syncAdminData = async () => {
+    try {
+      const freshData = await userService.getMyProfile();
+      if (freshData?.isSuperAdmin) {
+        setUserData(freshData);
+        localStorage.setItem("authUser", JSON.stringify(freshData));
+      } else {
+        console.error("Akses Ditolak: Pengguna bukan admin.");
+        navigate("/login");
+      }
+    } catch (error) {
+      if (error.response?.status === 401) {
+        // JWT expired → langsung logout/tendang ke login tanpa toast error
+        navigate("/login");
+      } else {
         console.error("Gagal sinkronisasi data admin:", error);
         navigate("/login");
       }
-    };
-    syncAdminData();
-  }, [navigate]);
+    }
+  };
+  syncAdminData();
+}, [navigate]);
+
 
   const getActivePageFromPath = (pathname) => {
     const pathParts = pathname.split("/").filter(p => p);

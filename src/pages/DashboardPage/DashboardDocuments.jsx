@@ -253,7 +253,7 @@ const DashboardDocuments = () => {
       )}
 
       {/* --- Modal-modal --- */}
-      {isManagementModalOpen && <DocumentManagementModal mode={modalMode} document={selectedDocument} onClose={closeManagementModal} onSuccess={handleSuccess} onViewRequest={handleViewRequestFromModal} />}
+      {isManagementModalOpen && <DocumentManagementModal mode={modalMode} initialDocument={selectedDocument} onClose={closeManagementModal} onSuccess={handleSuccess} onViewRequest={handleViewRequestFromModal} />}
       <ViewDocumentModal isOpen={isViewModalOpen} onClose={() => setViewModalOpen(false)} url={selectedDocumentUrl} />
       <ConfirmationModal
         isOpen={isConfirmOpen}

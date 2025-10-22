@@ -76,6 +76,13 @@ const AppWrapper = () => {
     setShowBanner(false);
   };
 
+  const handleDeclineCookie = () => {
+    localStorage.setItem("cookie_consent", "false");
+    setShowBanner(false);
+  };
+
+
+
   const handleRedirectToLogin = () => {
     setSessionModalOpen(false);
     setRouteKey((prev) => prev + 1);
@@ -178,7 +185,9 @@ return (
         cancelText=""
         confirmButtonColor="bg-blue-600 hover:bg-blue-700"
       />
-      {showBanner && <CookieBanner onAccept={handleAcceptCookie} />}
+      {showBanner && <CookieBanner 
+      onAccept={handleAcceptCookie} 
+      onDecline={handleDeclineCookie}/>}
     </div>
   );
 };

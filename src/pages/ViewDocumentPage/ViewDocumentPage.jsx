@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Toaster } from "react-hot-toast"; // ✅ 1. Import Toaster
+import { Toaster } from "react-hot-toast";
 import { documentService } from "../../services/documentService.js";
 import { Document, Page, pdfjs } from "react-pdf";
 import { FaSpinner } from "react-icons/fa";
@@ -8,7 +8,6 @@ import { FaSpinner } from "react-icons/fa";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
-// Konfigurasi path untuk PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.js";
 
 const ViewDocumentPage = () => {
@@ -26,46 +25,68 @@ const ViewDocumentPage = () => {
   const containerRef = useRef(null);
   const pagesRef = useRef([]);
 
-  // Efek untuk mengambil URL dokumen saat komponen dimuat
+  // ✅ LOG awal
+  console.log("[ViewDocumentPage] Mounted with documentId:", documentId);
+
   useEffect(() => {
     const controller = new AbortController();
     const signal = controller.signal;
 
     const fetchDocumentUrl = async () => {
       if (!documentId) {
+        console.error("[ViewDocumentPage] ❌ documentId not found");
         setError("ID Dokumen tidak ditemukan.");
         setIsLoading(false);
         return;
       }
+
+      console.log("[ViewDocumentPage] 🔄 Fetching document URL for:", documentId);
       setError(null);
       setIsLoading(true);
-      try {
-        const signedUrl = await documentService.getDocumentFileUrl(documentId, { signal });
-        if (signedUrl) {
-          setDocumentUrl(signedUrl);
-        } else {
-          setError("Gagal mendapatkan URL untuk dokumen ini (respons kosong).");
-        }
-      } catch (err) {
-        if (err.name !== "CanceledError" && err.message !== "canceled") {
-          setError(err.message || "Terjadi kesalahan saat memuat dokumen.");
-        }
-      } finally {
-        if (!signal.aborted) {
-          setIsLoading(false);
-        }
-      }
+
+try {
+  console.log("[ViewDocumentPage] 🔄 Fetching document URL for:", documentId);
+  const signedUrl = await documentService.getDocumentFileUrl(documentId, { signal });
+  console.log("[ViewDocumentPage] ✅ Received signed URL:", signedUrl);
+
+  if (signal.aborted) {
+    console.log("[ViewDocumentPage] 🚫 Request aborted, skipping update");
+    return;
+  }
+
+  if (signedUrl) {
+    setError(null); // ✅ Reset error state sebelum set URL
+    setDocumentUrl(signedUrl);
+  } else {
+    setError("Gagal mendapatkan URL untuk dokumen ini (respons kosong).");
+  }
+} catch (err) {
+  if (err.name !== "CanceledError" && err.message !== "canceled") {
+    console.error("[ViewDocumentPage] ❌ Error fetching document URL:", err);
+    setError(err.message || "Terjadi kesalahan saat memuat dokumen.");
+  }
+} finally {
+  if (!signal.aborted) {
+    setIsLoading(false);
+    console.log("[ViewDocumentPage] ✅ Fetch process finished");
+  }
+}
+
     };
 
     fetchDocumentUrl();
-    return () => controller.abort();
+    return () => {
+      console.log("[ViewDocumentPage] 🧹 Cleanup: aborting fetch");
+      controller.abort();
+    };
   }, [documentId]);
 
-  // Efek untuk menyesuaikan lebar kontainer PDF
   useEffect(() => {
     const updateWidth = () => {
       if (containerRef.current) {
-        setContainerWidth(containerRef.current.offsetWidth - 40);
+        const width = containerRef.current.offsetWidth - 40;
+        console.log("[ViewDocumentPage] 📐 Updated container width:", width);
+        setContainerWidth(width);
       }
     };
     updateWidth();
@@ -74,11 +95,18 @@ const ViewDocumentPage = () => {
   }, []);
 
   const onDocumentLoadSuccess = ({ numPages: nextNumPages }) => {
+    console.log("[ViewDocumentPage] 📄 Document loaded successfully:", nextNumPages, "pages");
     setNumPages(nextNumPages);
     setPageNumber(1);
   };
 
+  const onDocumentLoadError = (error) => {
+    console.error("[ViewDocumentPage] ❌ PDF load error:", error);
+    setError("Gagal memuat file PDF. Cek koneksi atau file tidak valid.");
+  };
+
   const scrollToPage = (pageIndex) => {
+    console.log("[ViewDocumentPage] 🧭 Scrolling to page:", pageIndex + 1);
     if (pagesRef.current[pageIndex]) {
       pagesRef.current[pageIndex].scrollIntoView({ behavior: "smooth" });
       setPageNumber(pageIndex + 1);
@@ -94,10 +122,14 @@ const ViewDocumentPage = () => {
         currentPage = i + 1;
       }
     }
-    setPageNumber(currentPage);
+    if (pageNumber !== currentPage) {
+      console.log("[ViewDocumentPage] 📜 Scrolled to page:", currentPage);
+      setPageNumber(currentPage);
+    }
   };
 
   if (isLoading) {
+    console.log("[ViewDocumentPage] ⏳ Still loading...");
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-slate-900 text-white gap-4">
         <FaSpinner className="animate-spin text-4xl text-blue-400" />

@@ -13,9 +13,7 @@ const getMyProfile = async () => {
  * 1. Update data teks saja.
  * 2. Update data teks + upload foto baru.
  * 3. Update data teks + pakai foto lama dari history.
- * @param {object} updateData - Data update (name, phoneNumber, dll).
- * @param {File|null} [newProfilePicture=null] - File foto baru.
- * @param {string|null} [oldProfilePictureId=null] - ID foto lama dari history.
+ * * @returns {Promise<{status: string, message: string, data: {user: object, profilePictures: Array<object>}}>}
  */
 const updateMyProfile = async (updateData = {}, newProfilePicture = null, oldProfilePictureId = null) => {
   let payload;
@@ -39,23 +37,32 @@ const updateMyProfile = async (updateData = {}, newProfilePicture = null, oldPro
     headers = { "Content-Type": "application/json" };
   }
 
+  // Panggilan ke PUT /users/me
   const response = await apiClient.put("/users/me", payload, { headers });
+  
+  // ✅ Perubahan 1: Biarkan response.data dikembalikan (berisi status, message, dan data:{user, profilePictures})
   return response.data;
 };
 
 /**
  * Ambil semua history foto profil.
+ * URL Disesuaikan agar konsisten dengan perubahan di backend routes.
  */
 const getProfilePictures = async () => {
-  const response = await apiClient.get("/users/me/profile-pictures");
-  return response.data.data;
+  // 🔄 Perubahan URL: Menggunakan /me/pictures agar sesuai dengan routes yang baru
+  const response = await apiClient.get("/users/me/pictures"); 
+  return response.data.data; // Mengembalikan array foto
 };
 
 /**
  * Hapus foto dari history.
+ * @returns {Promise<{status: string, message: string, data: {user: object, profilePictures: Array<object>}}>}
  */
 const deleteProfilePicture = async (pictureId) => {
-  const response = await apiClient.delete(`/users/me/profile-pictures/${pictureId}`);
+  // 🔄 Perubahan URL: Menggunakan /me/pictures agar sesuai dengan routes yang baru
+  const response = await apiClient.delete(`/users/me/pictures/${pictureId}`); 
+  
+  // ✅ Perubahan 2: Biarkan response.data dikembalikan (berisi status, message, dan data:{user, profilePictures})
   return response.data;
 };
 

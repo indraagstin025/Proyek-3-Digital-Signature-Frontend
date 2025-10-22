@@ -135,27 +135,23 @@ export const documentService = {
     }
   },
 
-  /**
-   * @function getDocumentFileUrl
-   * @description Mendapatkan signed URL untuk mengakses file dokumen private.
-   * @param {string} documentId - ID dari dokumen yang akan diakses.
-   * @returns {Promise<string>} Signed URL yang valid selama 60 detik.
-   * @throws {Error} Jika gagal mendapatkan URL akses.
-   */
 getDocumentFileUrl: async (documentId, options = {}) => {
   try {
-    // Teruskan 'signal' dari options ke dalam konfigurasi Axios
+    console.log("[documentService] 🔄 Requesting signed URL:", `/documents/${documentId}/file`);
     const response = await apiClient.get(`/documents/${documentId}/file`, { signal: options.signal });
-    
+    console.log("[documentService] ✅ Response:", response);
+
     if (!response.data.url) {
       throw new Error("Gagal mendapatkan URL dokumen dari respons API.");
     }
-    
+
     return response.data.url;
   } catch (error) {
+    console.error("[documentService] ❌ Error:", error);
     handleError(error, "Gagal mendapatkan akses ke dokumen.");
   }
 },
+
 
   /**
    * @function getDocumentVersionFileUrl
@@ -186,39 +182,23 @@ getDocumentVersionFileUrl: async (documentId, versionId) => {
    * @description Mengunduh file dokumen (versi aktif) dan memicu download di browser.
    * @param {string} documentId - ID dari dokumen yang akan diunduh.
    */
- downloadDocument: async function (documentId) { // Menggunakan function biasa agar 'this' terikat dengan benar
-    try {
-      // ✅ PERBAIKAN: Menggunakan 'this' untuk merujuk ke fungsi lain di objek yang sama
-      const fileUrl = await this.getDocumentFileUrl(documentId);
-      
-      const response = await fetch(fileUrl);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const blob = await response.blob();
-      const contentDisposition = response.headers.get("content-disposition");
-      let filename = `document-${documentId}.pdf`;
+downloadDocument: async function (documentId) {
+  try {
+    const fileUrl = await this.getDocumentFileUrl(documentId);
+    const urlObj = new URL(fileUrl);
+    const filenameParam = urlObj.searchParams.get("download");
+    const filename = filenameParam || `document-${documentId}.pdf`;
 
-      if (contentDisposition) {
-        const matches = contentDisposition.match(/filename\*?=['"]?([^"']+)/i);
-        if (matches && matches.length > 1) {
-          filename = decodeURIComponent(matches[1].replace(/['"]$/, ""));
-        }
-      }
+    const link = document.createElement("a");
+    link.href = fileUrl;
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
 
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-
-      return { status: "success", message: `Pengunduhan dokumen "${filename}" dimulai.` };
-    } catch (error) {
-      handleError(error, "Gagal memulai pengunduhan dokumen. Harap cek otorisasi dan status dokumen.");
-    }
-  },
+    return { status: "success", message: `Pengunduhan dokumen "${filename}" dimulai.` };
+  } catch (error) {
+    handleError(error, "Gagal memulai pengunduhan dokumen.");
+  }
+},
 };

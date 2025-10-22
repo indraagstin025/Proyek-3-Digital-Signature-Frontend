@@ -51,7 +51,7 @@ const resetPassword = async (accessToken, refreshToken, newPassword) => {
   try {
     const response = await apiClient.post("/auth/reset-password", {
       accessToken,
-      refreshToken,  // ✅ tambahkan refreshToken di body
+      refreshToken,
       newPassword,
     });
     return response.data;
@@ -62,7 +62,6 @@ const resetPassword = async (accessToken, refreshToken, newPassword) => {
     throw new Error("Gagal mereset password.");
   }
 };
-
 
 const authService = {
   login,

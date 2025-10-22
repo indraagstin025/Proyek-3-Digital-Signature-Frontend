@@ -1,46 +1,86 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from "react";
 import { documentService } from "../../services/documentService.js";
 import toast from "react-hot-toast";
-import { FaSpinner, FaFileAlt, FaDownload, FaTrash, FaEye, FaCheckCircle, FaClock, FaUndo } from "react-icons/fa";
+import {
+  FaSpinner,
+  FaFileAlt,
+  FaDownload,
+  FaTrash,
+  FaEye,
+  FaCheckCircle,
+  FaClock,
+  FaUndo,
+} from "react-icons/fa";
 
-const DocumentManagementModal = ({ mode, document, onClose, onSuccess, onViewRequest }) => {
+const DocumentManagementModal = ({
+  mode,
+  initialDocument,
+  onClose,
+  onSuccess,
+  onViewRequest,
+}) => {
+  console.log("📄 RENDER DocumentManagementModal:", { mode, initialDocument });
+
   const [file, setFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [versions, setVersions] = useState([]);
   const [isHistoryLoading, setHistoryLoading] = useState(true);
 
+  /**
+   * 🔹 Fetch document version history when in "update" mode
+   */
   useEffect(() => {
     const fetchHistory = async () => {
-      if (!document) return;
+      if (!initialDocument) {
+        console.log("⏭️ Skipping fetchHistory: no document data.");
+        return;
+      }
+
       setHistoryLoading(true);
+      console.log("🔍 Fetching history for document ID:", initialDocument.id);
+
       try {
-        const historyData = await documentService.getDocumentHistory(document.id);
+        const historyData = await documentService.getDocumentHistory(
+          initialDocument.id
+        );
+        console.log("✅ History fetched:", historyData);
+
         const updated = historyData.map((v) => ({
           ...v,
-          isActive: v.id === document.currentVersionId,
+          isActive: v.id === initialDocument.currentVersionId,
         }));
         setVersions(updated);
       } catch (err) {
-        toast.error(err.message || "Gagal memuat riwayat.");
+        console.error("❌ Failed to fetch history:", err);
+        toast.error(err.message || "Gagal memuat riwayat dokumen.");
       } finally {
         setHistoryLoading(false);
       }
     };
 
-    if (mode === "update" && document) {
+    if (mode === "update" && initialDocument) {
       fetchHistory();
     } else {
       setFile(null);
       setVersions([]);
+      setHistoryLoading(false);
     }
-  }, [document, mode]);
+  }, [initialDocument, mode]);
 
+  /**
+   * 🔹 File input handler
+   */
   const handleFileChange = (e) => setFile(e.target.files[0] || null);
 
+  /**
+   * 🔹 Handle document upload (create)
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
     if (mode !== "create" || !file) {
       if (!file) setError("File wajib diunggah.");
       return;
@@ -48,6 +88,7 @@ const DocumentManagementModal = ({ mode, document, onClose, onSuccess, onViewReq
 
     const toastId = toast.loading("Mengunggah dokumen...");
     setIsLoading(true);
+
     try {
       await documentService.createDocument(file);
       toast.success("Dokumen berhasil diunggah!", { id: toastId });
@@ -62,26 +103,70 @@ const DocumentManagementModal = ({ mode, document, onClose, onSuccess, onViewReq
     }
   };
 
+  /**
+   * 🔹 Set an old version as the active version
+   */
   const handleUseVersion = async (versionId) => {
     const toastId = toast.loading("Mengganti versi aktif...");
     try {
-      await documentService.useOldVersion(document.id, versionId);
+      await documentService.useOldVersion(initialDocument.id, versionId);
       toast.success("Versi berhasil diganti!", { id: toastId });
 
-      setVersions((prev) => prev.map((v) => ({ ...v, isActive: v.id === versionId })));
-
+      setVersions((prev) =>
+        prev.map((v) => ({ ...v, isActive: v.id === versionId }))
+      );
       onSuccess();
     } catch (err) {
       toast.error(err.message, { id: toastId });
     }
   };
 
+  /**
+   * 🔹 Download a specific document version
+   */
+  const handleDownloadVersion = async (version) => {
+    const toastId = toast.loading("Mempersiapkan unduhan...");
+    try {
+      const signedUrl = await documentService.getDocumentVersionFileUrl(
+        initialDocument.id,
+        version.id
+      );
+
+      // Dapatkan nama file dari parameter URL ?download=...
+      let filename = `version-${version.versionNumber || version.id}.pdf`;
+      try {
+        const urlObj = new URL(signedUrl);
+        const filenameParam = urlObj.searchParams.get("download");
+        if (filenameParam) filename = filenameParam;
+      } catch (_) {
+        // Abaikan kesalahan parsing URL
+      }
+
+      // Buat elemen link download
+      const link = window.document.createElement("a");
+      link.href = signedUrl;
+      link.setAttribute("download", filename);
+      window.document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+       toast.success("Unduhan dimulai!", { id: toastId });
+    } catch (err) {
+      toast.error(err.message || "Gagal mengunduh versi dokumen.", {
+        id: toastId,
+      });
+    }
+  };
+
+  /**
+   * 🔹 Delete a specific version
+   */
   const handleDeleteVersion = async (versionId) => {
-    if (!window.confirm("Apakah Anda yakin ingin menghapus versi ini secara permanen?")) return;
+    if (!window.confirm("Apakah Anda yakin ingin menghapus versi ini?")) return;
 
     const toastId = toast.loading("Menghapus versi...");
     try {
-      await documentService.deleteVersion(document.id, versionId);
+      await documentService.deleteVersion(initialDocument.id, versionId);
       toast.success("Versi berhasil dihapus!", { id: toastId });
       setVersions((prev) => prev.filter((v) => v.id !== versionId));
       onSuccess();
@@ -90,17 +175,21 @@ const DocumentManagementModal = ({ mode, document, onClose, onSuccess, onViewReq
     }
   };
 
+  /**
+   * 🔹 Preview a version
+   */
   const handlePreviewClick = async (version) => {
     if (!onViewRequest) {
-      console.error("onViewRequest prop is not provided to DocumentManagementModal");
+      console.error("❗ onViewRequest prop is missing.");
       return;
     }
 
     const toastId = toast.loading("Mempersiapkan pratinjau...");
-
     try {
-      const signedUrl = await documentService.getDocumentVersionFileUrl(document.id, version.id);
-
+      const signedUrl = await documentService.getDocumentVersionFileUrl(
+        initialDocument.id,
+        version.id
+      );
       onViewRequest(signedUrl);
       toast.dismiss(toastId);
     } catch (error) {
@@ -108,13 +197,14 @@ const DocumentManagementModal = ({ mode, document, onClose, onSuccess, onViewReq
     }
   };
 
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4">
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-4xl h-full max-h-[90vh] border border-slate-200/80 dark:border-slate-700/50 flex flex-col relative">
         <header className="p-4 px-6 flex justify-between items-center border-b dark:border-slate-700 flex-shrink-0">
           <div className="flex-1">
             <h2 className="text-xl font-bold text-slate-800 dark:text-white">{mode === "create" ? "Unggah Dokumen Baru" : `Kelola Dokumen`}</h2>
-            {mode === "update" && <p className="text-sm text-slate-500 dark:text-slate-400 truncate pr-10">{document?.title}</p>}
+            {mode === "update" && <p className="text-sm text-slate-500 dark:text-slate-400 truncate pr-10">{initialDocument?.title}</p>}
           </div>
         </header>
 
@@ -193,15 +283,14 @@ const DocumentManagementModal = ({ mode, document, onClose, onSuccess, onViewReq
                         >
                           <FaEye />
                         </button>
-                        <a
-                          href={version.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          onClick={() => handleDownloadVersion(version)}
                           title={`Unduh Versi ${versions.length - index}`}
                           className="p-2 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
                         >
                           <FaDownload />
-                        </a>
+                        </button>
+
                         {!version.isActive && (
                           <>
                             <button
