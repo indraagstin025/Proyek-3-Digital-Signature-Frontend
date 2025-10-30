@@ -1,3 +1,4 @@
+/* eslint-disable no-irregular-whitespace */
 // src/services/documentService.js
 import apiClient from "./apiClient";
 import { handleError } from "./errorHandler";
@@ -135,22 +136,48 @@ export const documentService = {
     }
   },
 
+/**
+   * @function getDocumentFileUrl
+   * @description Mendapatkan signed URL untuk mengakses file dari versi AKTIF.
+   * @param {string} documentId - ID dari dokumen yang akan diakses.
+   * @param {object} options - Opsi tambahan, misalnya { signal } untuk AbortController.
+   * @returns {Promise<string>} Signed URL yang valid.
+   * @throws {Error} Jika gagal mendapatkan URL akses.
+   */
 getDocumentFileUrl: async (documentId, options = {}) => {
-  try {
-    console.log("[documentService] 🔄 Requesting signed URL:", `/documents/${documentId}/file`);
-    const response = await apiClient.get(`/documents/${documentId}/file`, { signal: options.signal });
-    console.log("[documentService] ✅ Response:", response);
+    const urlPath = `/documents/${documentId}/file`;
+    
+    try {
+      console.log(`[documentService] 🔄 Requesting signed URL: ${urlPath}`);
+      const response = await apiClient.get(urlPath, { signal: options.signal });
+      
+      console.log("[documentService] ✅ Response:", response.data); 
 
-    if (!response.data.url) {
-      throw new Error("Gagal mendapatkan URL dokumen dari respons API.");
+      if (!response.data.url) {
+        throw new Error("Gagal mendapatkan URL dokumen dari respons API.");
+      }
+
+      return response.data.url;
+    } catch (error) {
+      
+      if (error.name === 'CanceledError' || error.message === 'canceled') {
+        // 1. Log bahwa ini terjadi (seperti sebelumnya)
+        console.log(`[documentService] 🟡 Request to ${urlPath} was canceled.`);
+        
+        // 2. ✅ PERBAIKAN: Lempar kembali error-nya
+        // Ini agar komponen pemanggil (SignDocumentPage) bisa 
+        // menangkapnya di blok 'catch' dan mengabaikannya dengan benar.
+        throw error; 
+        
+      } else {
+        // Ini adalah error yang sebenarnya (Network error, 404, 500, dll.)
+        console.error(`[documentService] ❌ Error fetching ${urlPath}:`, error);
+        handleError(error, "Gagal mendapatkan akses ke dokumen.");
+        // Lempar error agar komponen pemanggil juga tahu
+        throw error;
+      }
     }
-
-    return response.data.url;
-  } catch (error) {
-    console.error("[documentService] ❌ Error:", error);
-    handleError(error, "Gagal mendapatkan akses ke dokumen.");
-  }
-},
+  },
 
 
   /**

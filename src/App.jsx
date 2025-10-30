@@ -29,6 +29,7 @@ import ProfilePage from "./pages/ProfilePage/ProfilePage.jsx";
 // Halaman Fungsional
 import SignDocumentPage from "./pages/SignDocumentPage/SignDocumentPage.jsx";
 import ViewDocumentPage from "./pages/ViewDocumentPage/ViewDocumentPage.jsx";
+import VerificationPage from "./pages/VerificationPage/VerificationPage.jsx";
 import NotFoundPage from "./pages/NotFoundPage/NotFoundPage.jsx";
 
 // Halaman Dashboard Admin
@@ -138,6 +139,7 @@ return (
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/verify/:signatureId" element={<VerificationPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
 
