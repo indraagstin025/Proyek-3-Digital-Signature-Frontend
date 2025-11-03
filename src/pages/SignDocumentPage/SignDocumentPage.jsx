@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FaSpinner } from "react-icons/fa";
-import { Toaster, toast } from "react-hot-toast"; // ✅ Pastikan 'Toaster' diimpor
+import { Toaster, toast } from "react-hot-toast";
 
 import { documentService } from "../../services/documentService";
 import { signatureService } from "../../services/signatureService";
@@ -15,7 +15,6 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
   const { documentId } = useParams();
   const navigate = useNavigate();
 
-  // --- State Hooks ---
   const [documentTitle, setDocumentTitle] = useState("Memuat...");
   const [pdfFile, setPdfFile] = useState(null);
   const [documentVersionId, setDocumentVersionId] = useState(null);
@@ -28,7 +27,6 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
   const [includeQrCode, setIncludeQrCode] = useState(true);
   const [isPortrait, setIsPortrait] = useState(false);
 
-  // --- Effect Hooks ---
   useEffect(() => {
     const checkOrientation = () => setIsPortrait(window.innerHeight > window.innerWidth);
     checkOrientation();
@@ -57,13 +55,13 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
         setIsLoading(true);
         const doc = await documentService.getDocumentById(documentId, { signal });
         if (!doc || !doc.currentVersion?.id) throw new Error("Dokumen tidak ditemukan.");
-        
+
         setDocumentTitle(doc.title);
         setDocumentVersionId(doc.currentVersion.id);
 
         const signedUrl = await documentService.getDocumentFileUrl(documentId, { signal });
         if (!signedUrl || !signedUrl.startsWith("http")) throw new Error("Format URL dokumen tidak valid.");
-        
+
         setPdfFile(signedUrl);
       } catch (error) {
         if (error.name !== "CanceledError" && error.message !== "canceled") {
@@ -80,7 +78,6 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
     return () => controller.abort();
   }, [documentId, navigate]);
 
-  // --- Callback Hooks ---
   const handleSaveSignature = useCallback((dataUrl) => {
     setSavedSignatureUrl(dataUrl);
     setIsSignatureModalOpen(false);
@@ -103,35 +100,43 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
     if (!documentVersionId) return toast.error("ID Versi Dokumen tidak ditemukan.");
 
     setIsLoading(true);
+
+    const signatureToUse = signatures[0];
+
     const payload = {
       documentVersionId,
       method: "canvas",
-      signatureImageUrl: signatures[0].signatureImageUrl,
-      positionX: signatures[0].positionX,
-      positionY: signatures[0].positionY,
-      pageNumber: signatures[0].pageNumber,
-      width: signatures[0].width,
-      height: signatures[0].height,
+      signatureImageUrl: signatureToUse.signatureImageUrl,
+      positionX: signatureToUse.positionX,
+      positionY: signatureToUse.positionY,
+      pageNumber: signatureToUse.pageNumber,
+      width: signatureToUse.width,
+      height: signatureToUse.height,
       displayQrCode: includeQrCode,
     };
 
-    toast.promise(
-      signatureService.addPersonalSignature(payload),
-      {
-        loading: 'Menyimpan dan memproses tanda tangan...',
-        success: <b>Dokumen berhasil ditandatangani! Anda akan dialihkan...</b>,
-        error: (err) => err.message || 'Gagal menyimpan tanda tangan.',
-      }
-    )
-    .then(() => {
-      setTimeout(() => navigate(`/documents/${documentId}/view`), 3000);
-    })
-    .catch(() => setIsLoading(false));
+    try {
+      await toast.promise(signatureService.addPersonalSignature(payload), {
+        loading: "Menyimpan dan memproses tanda tangan digital...",
+        success: <b>Dokumen berhasil ditandatangani dan diverifikasi! Anda akan dialihkan...</b>,
+        error: (err) => {
+          setIsLoading(false);
+          return err.message || "Gagal menyimpan tanda tangan.";
+        },
+      });
+
+      setTimeout(() => {
+        setIsLoading(false);
+        navigate(`/documents/${documentId}/view`);
+      }, 3000);
+    } catch (error) {
+      console.error("Kesalahan fatal saat menyimpan:", error);
+      setIsLoading(false);
+    }
   }, [signatures, documentVersionId, documentId, navigate, includeQrCode]);
 
   const sidebarOpen = isLandscape ? true : isSidebarOpen;
 
-  // --- Render Logic ---
   if (isLoading && !pdfFile) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">
