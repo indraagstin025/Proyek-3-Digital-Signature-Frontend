@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import authService from "../../services/authService";
 import toast from "react-hot-toast";
 import { HiOutlineMail, HiOutlineLockClosed } from "react-icons/hi";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 import { ImSpinner9 } from "react-icons/im";
-
 import nameLogo from "../../assets/images/name.png";
 
 const LoginPage = () => {
@@ -14,66 +13,84 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isCardVisible, setIsCardVisible] = useState(false);
-  
-  // 1. State untuk menyimpan pesan error
   const [error, setError] = useState(null);
-  
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    // Logika untuk verifikasi email dari URL (biarkan seperti semula)
-    const token = authService.getTokenFromUrl();
-    if (token) {
-      toast.success("Email Anda berhasil diverifikasi, silakan login.", {
-        duration: 4000,
-        position: "top-center",
+    const verificationMessage = searchParams.get("message");
+    if (verificationMessage) {
+      toast.success("Email Anda berhasil diverifikasi! Silakan login.", {
+        duration: 5000,
       });
-      window.history.replaceState({}, document.title, "/login");
     }
 
-    // 2. Membersihkan state error saat komponen pertama kali dimuat
-    // Ini memperbaiki masalah "validasi tidak muncul setelah logout"
-    setError(null);
-
-    // Animasi card (biarkan seperti semula)
     const timer = setTimeout(() => setIsCardVisible(true), 100);
     return () => clearTimeout(timer);
-  }, []); // Dependensi kosong `[]` memastikan ini hanya berjalan sekali saat mount
+  }, [searchParams]);
 
-const handleLogin = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-  setError(null);
 
-  try {
-    await authService.login(email, password);
-    toast.success("Login berhasil! Mengalihkan...");
-    navigate("/dashboard");
-  } catch (err) {
-    let errorMessage;
+ const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
 
-    // 1. Cek untuk error dari server (misal: email/password salah)
-    if (err.response && err.response.data && err.response.data.message) {
-      errorMessage = err.response.data.message;
+    try {
+      const { user } = await authService.login(email, password);
+
+      setIsRedirecting(true);
+
+       const from = location.state?.from?.pathname || null;
+
+      // 2. Tentukan tujuan akhir setelah login
+      const defaultDestination = user?.isSuperAdmin ? "/admin/dashboard" : "/dashboard";
+      const finalDestination = from || defaultDestination; // Prioritaskan halaman tujuan sebelumnya
+      
+      const welcomeMessage = `Login berhasil, selamat datang ${user.name}!`;
+
+      // 2. Beri sedikit jeda agar animasi loading terlihat
+      setTimeout(() => {
+        navigate(finalDestination, {
+          state: {
+            message: welcomeMessage,
+          },
+        });
+      }, 1500);
+    } catch (err) {
+      let specificErrorMessage = "Terjadi kesalahan yang tidak terduga.";
+
+      if (!err.response) {
+        specificErrorMessage = "Tidak dapat terhubung ke server. Periksa koneksi internet Anda.";
+      } else {
+        const backendError = err.response.data;
+        const statusCode = err.response.status;
+
+        if (backendError.code === "EMAIL_NOT_VERIFIED") {
+          specificErrorMessage = "Email Anda belum dikonfirmasi, silakan periksa kotak masuk Anda.";
+        } else if (statusCode === 401) {
+          specificErrorMessage = "Email atau Password yang Anda masukkan salah.";
+        } else {
+          specificErrorMessage = backendError.message || "Terjadi kesalahan pada server.";
+        }
+      }
+
+      toast.error(specificErrorMessage);
+      setError(specificErrorMessage);
+      setLoading(false);
     }
-    // 2. Jika tidak ada respons server, cek untuk error jaringan (offline)
-    else if (err.message) {
-      errorMessage = err.message;
-    }
-    // 3. Pesan cadangan jika tidak ada info error sama sekali
-    else {
-      errorMessage = "Terjadi kesalahan yang tidak diketahui.";
-    }
-
-    setError(errorMessage);
-    toast.error(errorMessage);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
-    <section className="relative w-full flex items-center justify-center px-4 py-12">
+    <section className="relative w-full min-h-screen flex items-center justify-center px-4 py-12 overflow-hidden">
+      {/* ✅ 3. JSX baru untuk loading overlay ditambahkan */}
+      {isRedirecting && (
+        <div className="absolute inset-0 bg-gray-900/80 backdrop-blur-sm flex flex-col items-center justify-center z-50 transition-opacity duration-300">
+          <ImSpinner9 className="animate-spin h-10 w-10 text-white" />
+          <p className="text-white/80 mt-4 text-lg">Mengarahkan ke dasbor...</p>
+        </div>
+      )}
+
       {/* Aurora khusus untuk LoginPage */}
       <div className="absolute inset-0">
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-green-400/30 rounded-full blur-3xl animate-pulse"></div>
@@ -97,11 +114,8 @@ const handleLogin = async (e) => {
 
         {/* Form Login */}
         <form onSubmit={handleLogin} className="space-y-5">
-           {error && (
-            <div 
-              className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md text-center text-sm" 
-              role="alert"
-            >
+          {error && (
+            <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md text-center text-sm" role="alert">
               <p>{error}</p>
             </div>
           )}

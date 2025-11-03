@@ -25,6 +25,18 @@ body {
     overflow-x: hidden;
 }
 
+.hide-scrollbar::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+}
+
+/* Sembunyikan scroll bar untuk Firefox dan IE/Edge lama */
+.hide-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none; /* Hanya untuk IE/Edge lama */
+}
+
 html::-webkit-scrollbar,
 body::-webkit-scrollbar,
 #root::-webkit-scrollbar {

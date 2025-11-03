@@ -144,7 +144,8 @@ const PlacedSignature = ({ signature, onUpdate, onDelete, onDuplicate }) => {
       onClick={() => setIsActive(true)}
     >
       <div
-        className="field-content relative shadow-sm p-2 select-none"
+        className={`relative 
+  ${isActive ? "border-2 border-dashed border-blue-500 rounded-lg" : ""}`}
         style={{
           width: "100%",
           height: "100%",

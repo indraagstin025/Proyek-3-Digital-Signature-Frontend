@@ -1,5 +1,5 @@
+/* eslint-disable no-irregular-whitespace */
 import apiClient from "./apiClient";
-
 
 export const signatureService = {
   /**
@@ -18,15 +18,10 @@ export const signatureService = {
       const response = await apiClient.post("signatures/personal", payload);
       return response.data;
     } catch (error) {
-      // Log biar mudah debug
       console.error("❌ Error addPersonalSignature:", error);
 
-      // Ambil pesan dari backend kalau ada
-      const message =
-        error.response?.data?.message ||
-        "Gagal menandatangani dokumen. Silakan coba lagi.";
+      const message = error.response?.data?.message || "Gagal menandatangani dokumen. Silakan coba lagi.";
 
-      // Lempar error dengan pesan yang lebih bersih
       throw new Error(message);
     }
   },
@@ -43,9 +38,35 @@ export const signatureService = {
     } catch (error) {
       console.error("❌ Error getVerificationDetails:", error);
 
-      const message =
-        error.response?.data?.message ||
-        "Gagal mengambil detail verifikasi tanda tangan.";
+      const message = error.response?.data?.message || "Gagal mengambil detail verifikasi tanda tangan.";
+
+      throw new Error(message);
+    }
+  },
+
+  /**
+   * @description Mengirim file PDF yang diunggah untuk diverifikasi integritasnya (Hash Check).
+   * Digunakan untuk menguji dokumen yang telah diedit di luar sistem.
+   * @param {string} signatureId - ID unik dari tanda tangan yang dicari.
+   * @param {File} file - Objek File PDF yang akan diunggah (dari input type="file").
+   * @returns {Promise<object} Detail hasil verifikasi kriptografi.
+   */
+  verifyUploadedFile: async (signatureId, file) => {
+    const formData = new FormData();
+    formData.append("signatureId", signatureId);
+    formData.append("file", file);
+
+    try {
+      const response = await apiClient.post("signatures/verify-file", formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error(" Error verifyUploadedFile:", error);
+
+      const message = error.response?.data?.message || "Gagal memverifikasi file yang diunggah.";
 
       throw new Error(message);
     }
