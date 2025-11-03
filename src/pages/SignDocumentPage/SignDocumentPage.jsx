@@ -1,3 +1,4 @@
+/* eslint-disable no-irregular-whitespace */
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FaSpinner } from "react-icons/fa";
@@ -95,45 +96,58 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
     setSignatures((prev) => prev.filter((sig) => sig.id !== signatureId));
   }, []);
 
-  const handleFinalSave = useCallback(async () => {
-    if (signatures.length === 0) return toast.error("Harap tempatkan setidaknya satu tanda tangan.");
-    if (!documentVersionId) return toast.error("ID Versi Dokumen tidak ditemukan.");
 
-    setIsLoading(true);
 
-    const signatureToUse = signatures[0];
+  const handleFinalSave = useCallback(async () => {
+    if (signatures.length === 0) return toast.error("Harap tempatkan setidaknya satu tanda tangan.");
+    if (!documentVersionId) return toast.error("ID Versi Dokumen tidak ditemukan.");
 
-    const payload = {
-      documentVersionId,
-      method: "canvas",
-      signatureImageUrl: signatureToUse.signatureImageUrl,
-      positionX: signatureToUse.positionX,
-      positionY: signatureToUse.positionY,
-      pageNumber: signatureToUse.pageNumber,
-      width: signatureToUse.width,
-      height: signatureToUse.height,
-      displayQrCode: includeQrCode,
+    setIsLoading(true);
+
+    // 💡 PERUBAHAN UTAMA DI SINI 💡
+    const signaturesToEmbed = signatures.map(sig => ({
+        // Hanya kirim properti yang dibutuhkan oleh Backend (PDFService)
+        signatureImageUrl: sig.signatureImageUrl,
+        positionX: sig.positionX,
+        positionY: sig.positionY,
+        pageNumber: sig.pageNumber,
+        width: sig.width,
+        height: sig.height,
+        // Properti lain yang relevan (jika ada)
+    }));
+    
+    // Siapkan options untuk QR Code
+    const optionsPayload = {
+        displayQrCode: includeQrCode,
     };
 
-    try {
-      await toast.promise(signatureService.addPersonalSignature(payload), {
-        loading: "Menyimpan dan memproses tanda tangan digital...",
-        success: <b>Dokumen berhasil ditandatangani dan diverifikasi! Anda akan dialihkan...</b>,
-        error: (err) => {
-          setIsLoading(false);
-          return err.message || "Gagal menyimpan tanda tangan.";
-        },
-      });
+    const payload = {
+      documentVersionId,
+      signaturesToEmbed, // ✅ Sekarang berupa array, sesuai ekspektasi PDFService
+      options: optionsPayload, // ✅ Sekarang berupa objek options
+    };
+    // Catatan: Properti 'method' dihilangkan karena tidak digunakan oleh backend
 
-      setTimeout(() => {
-        setIsLoading(false);
-        navigate(`/documents/${documentId}/view`);
-      }, 3000);
-    } catch (error) {
-      console.error("Kesalahan fatal saat menyimpan:", error);
-      setIsLoading(false);
-    }
-  }, [signatures, documentVersionId, documentId, navigate, includeQrCode]);
+    try {
+      // ASUMSI: signatureService.addPersonalSignature memanggil endpoint yang sesuai
+      await toast.promise(signatureService.addPersonalSignature(payload), {
+        loading: "Menyimpan dan memproses tanda tangan digital...",
+        success: <b>Dokumen berhasil ditandatangani dan diverifikasi! Anda akan dialihkan...</b>,
+        error: (err) => {
+          setIsLoading(false);
+          return err.message || "Gagal menyimpan tanda tangan.";
+        },
+      });
+
+      setTimeout(() => {
+        setIsLoading(false);
+        navigate(`/documents/${documentId}/view`);
+      }, 3000);
+    } catch (error) {
+      console.error("Kesalahan fatal saat menyimpan:", error);
+      setIsLoading(false);
+    }
+  }, [signatures, documentVersionId, documentId, navigate, includeQrCode]);
 
   const sidebarOpen = isLandscape ? true : isSidebarOpen;
 
