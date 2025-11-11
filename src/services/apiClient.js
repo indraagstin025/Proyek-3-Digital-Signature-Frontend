@@ -1,6 +1,6 @@
 /**
  * @file apiClient.js
- * @description Modul konfigurasi klien Axios dengan validasi jaringan, 
+ * @description Modul konfigurasi klien Axios dengan validasi jaringan,
  * penanganan error otomatis, dan deteksi sesi berakhir.
  */
 
@@ -8,14 +8,14 @@ import axios from "axios";
 
 /**
  * Base URL untuk API backend.
- * 
+ *
  * Prioritas:
- * 1. Menggunakan `VITE_API_URL` dari environment (misalnya di Vercel/Railway)
- * 2. Berdasarkan `NODE_ENV` (production atau development)
+ * 1. Menggunakan `VITE_API_URL` dari environment (.env pada Vite)
+ * 2. Berdasarkan `import.meta.env.MODE` (production atau development)
  */
 const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
-  (process.env.NODE_ENV === "production"
+  (import.meta.env.MODE === "production"
     ? "https://proyek-3digital-signature-production.up.railway.app/api"
     : "http://localhost:3000/api");
 
@@ -23,7 +23,7 @@ console.log(`[API Client] Base URL: ${API_BASE_URL}`);
 
 /**
  * Instansiasi klien Axios utama.
- * 
+ *
  * @type {import('axios').AxiosInstance}
  */
 const apiClient = axios.create({
@@ -41,7 +41,7 @@ const apiClient = axios.create({
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-
+    // Jika server memberikan respon dengan status error
     if (error.response) {
       if (error.response.status === 401 && error.response.data) {
         const errorMessage = error.response.data.message || "";
@@ -56,6 +56,7 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // Jika server tidak merespons (network/server down)
     if (error.request) {
       const networkError = {
         response: {
@@ -70,6 +71,7 @@ apiClient.interceptors.response.use(
       return Promise.reject(networkError);
     }
 
+    // Error tidak terduga
     return Promise.reject(new Error("Terjadi kesalahan yang tidak terduga."));
   }
 );
