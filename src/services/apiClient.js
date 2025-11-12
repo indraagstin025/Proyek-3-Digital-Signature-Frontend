@@ -41,7 +41,6 @@ const apiClient = axios.create({
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Jika server memberikan respon dengan status error
     if (error.response) {
       if (error.response.status === 401 && error.response.data) {
         const errorMessage = error.response.data.message || "";
@@ -56,7 +55,6 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Jika server tidak merespons (network/server down)
     if (error.request) {
       const networkError = {
         response: {
@@ -71,7 +69,6 @@ apiClient.interceptors.response.use(
       return Promise.reject(networkError);
     }
 
-    // Error tidak terduga
     return Promise.reject(new Error("Terjadi kesalahan yang tidak terduga."));
   }
 );
