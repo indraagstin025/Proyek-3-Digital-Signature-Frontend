@@ -28,25 +28,35 @@ const DashboardHeader = ({
     <button
       onClick={toggleTheme}
       className="p-2 rounded-full transition-all
-                 bg-gray-200/70 text-gray-800 hover:bg-gray-300/70
-                 dark:bg-gray-700/70 dark:text-gray-200 dark:hover:bg-gray-600/70"
+                bg-gray-200/70 text-gray-800 hover:bg-gray-300/70
+                dark:bg-gray-700/70 dark:text-gray-200 dark:hover:bg-gray-600/70"
       aria-label="Toggle theme"
     >
       {theme === "light" ? <HiMoon className="w-5 h-5" /> : <HiSun className="w-5 h-5" />}
     </button>
   );
 
-  const leftOffset = isSidebarOpen ? "16rem" : "0px";
-  const computedWidth = isSidebarOpen ? "calc(100% - 16rem)" : "100%";
+  // Perhitungan dinamis ini tidak diperlukan jika sidebar-nya 'fixed'
+  // Mari kita sederhanakan agar lebih konsisten
+  // const leftOffset = isSidebarOpen ? "16rem" : "0px";
+  // const computedWidth = isSidebarOpen ? "calc(100% - 16rem)" : "100%";
 
   return (
     <header
-      className="fixed top-0 z-50 flex items-center justify-between h-20 px-4 
-                 shadow-sm backdrop-blur-sm sm:px-6 lg:px-8
-                 bg-gradient-to-r from-white/95 to-gray-50/95 border-b border-gray-200/80
-                 dark:bg-gradient-to-r dark:from-slate-900 dark:to-slate-800 dark:border-white/10 
-                 transition-all"
-      style={{ left: leftOffset, width: computedWidth }}
+      className={`fixed top-0 z-40 flex items-center justify-between h-20 px-4 
+                shadow-sm backdrop-blur-sm sm:px-6 lg:px-8
+                bg-gradient-to-r from-white/95 to-gray-50/95 border-b border-gray-200/80
+                dark:bg-gradient-to-r dark:from-slate-900/95 dark:to-slate-800/95 dark:border-white/10 
+                transition-all duration-300
+                
+                // ✅ INI BAGIAN PENTINGNYA
+                // Jika sidebar terbuka, geser header ini ke kanan
+                // dan perkecil lebarnya agar tidak tumpang tindih dengan sidebar.
+                ${isSidebarOpen ? "lg:left-64" : "left-0"} 
+                ${isSidebarOpen ? "lg:w-[calc(100%-16rem)]" : "w-full"}
+                `}
+      // Hapus style inline
+      // style={{ left: leftOffset, width: computedWidth }}
     >
       {/* Left section */}
       <div className="flex items-center gap-4">
@@ -73,6 +83,7 @@ const DashboardHeader = ({
       {/* Right section */}
       <div className="flex items-center gap-4">
         <ThemeToggleButton />
+        {/* Anda mungkin ingin menambahkan dropdown User di sini nanti */}
       </div>
     </header>
   );

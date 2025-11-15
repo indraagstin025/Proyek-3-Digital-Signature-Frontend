@@ -7,10 +7,12 @@ import logoDark from "../../assets/images/LogoDarkMode.jpg";
 
 const HeroSection = () => {
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden 
+    <section
+      className="relative min-h-screen flex items-center justify-center overflow-hidden 
                         bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 
                         dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 
-                        pt-5 md:pt-15"> 
+                        pt-0 md:pt-5 -mt-5"
+    >
       {/* Aurora / Glow Effect */}
       <div className="absolute inset-0">
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-green-400/30 rounded-full blur-3xl animate-pulse"></div>
@@ -30,32 +32,31 @@ const HeroSection = () => {
             Buat tanda tangan digital yang aman, cepat, dan dapat diverifikasi kapan saja.
           </p>
 
-<div className="flex flex-col sm:flex-row justify-center md:justify-start items-center gap-4 pt-4">
-  <Link
-    to="/login"
-    className="px-8 py-3 text-lg font-semibold rounded-full text-white 
+          <div className="flex flex-col sm:flex-row justify-center md:justify-start items-center gap-4 pt-4">
+            <Link
+              to="/login"
+              className="px-8 py-3 text-lg font-semibold rounded-full text-white 
                bg-gradient-to-r from-blue-600 to-indigo-600
                shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-600/40
                transform hover:-translate-y-1 hover:scale-105
                transition-all duration-300"
-  >
-    Mulai Sekarang
-  </Link>
+            >
+              Mulai Sekarang
+            </Link>
 
-  <a
-    href="#features"
-    className="px-8 py-3 text-lg font-semibold rounded-full
+            <a
+              href="#features"
+              className="px-8 py-3 text-lg font-semibold rounded-full
                bg-gradient-to-r from-slate-200 to-slate-300 text-slate-800
                dark:from-slate-700 dark:to-slate-800 dark:text-slate-200
                border border-transparent
                shadow-md hover:shadow-lg
                transform hover:-translate-y-1 hover:scale-105
                transition-all duration-300"
-  >
-    Lihat Fitur
-  </a>
-</div>
-
+            >
+              Lihat Fitur
+            </a>
+          </div>
         </div>
 
         {/* Kolom Kanan: Gambar Logo */}

@@ -1,9 +1,5 @@
-/* eslint-disable no-irregular-whitespace */
-// src/services/documentService.js
 import apiClient from "./apiClient";
 import { handleError } from "./errorHandler";
-
-
 
 /**
  * @description Kumpulan service untuk berinteraksi dengan endpoint API dokumen.
@@ -136,22 +132,22 @@ export const documentService = {
     }
   },
 
-/**
-   * @function getDocumentFileUrl
-   * @description Mendapatkan signed URL untuk mengakses file dari versi AKTIF.
-   * @param {string} documentId - ID dari dokumen yang akan diakses.
-   * @param {object} options - Opsi tambahan, misalnya { signal } untuk AbortController.
-   * @returns {Promise<string>} Signed URL yang valid.
-   * @throws {Error} Jika gagal mendapatkan URL akses.
-   */
-getDocumentFileUrl: async (documentId, options = {}) => {
+  /**
+   * @function getDocumentFileUrl
+   * @description Mendapatkan signed URL untuk mengakses file dari versi AKTIF.
+   * @param {string} documentId - ID dari dokumen yang akan diakses.
+   * @param {object} options - Opsi tambahan, misalnya { signal } untuk AbortController.
+   * @returns {Promise<string>} Signed URL yang valid.
+   * @throws {Error} Jika gagal mendapatkan URL akses.
+   */
+  getDocumentFileUrl: async (documentId, options = {}) => {
     const urlPath = `/documents/${documentId}/file`;
-    
+
     try {
       console.log(`[documentService] 🔄 Requesting signed URL: ${urlPath}`);
       const response = await apiClient.get(urlPath, { signal: options.signal });
-      
-      console.log("[documentService] ✅ Response:", response.data); 
+
+      console.log("[documentService] ✅ Response:", response.data);
 
       if (!response.data.url) {
         throw new Error("Gagal mendapatkan URL dokumen dari respons API.");
@@ -159,26 +155,18 @@ getDocumentFileUrl: async (documentId, options = {}) => {
 
       return response.data.url;
     } catch (error) {
-      
-      if (error.name === 'CanceledError' || error.message === 'canceled') {
-        // 1. Log bahwa ini terjadi (seperti sebelumnya)
+      if (error.name === "CanceledError" || error.message === "canceled") {
         console.log(`[documentService] 🟡 Request to ${urlPath} was canceled.`);
-        
-        // 2. ✅ PERBAIKAN: Lempar kembali error-nya
-        // Ini agar komponen pemanggil (SignDocumentPage) bisa 
-        // menangkapnya di blok 'catch' dan mengabaikannya dengan benar.
-        throw error; 
-        
+
+        throw error;
       } else {
-        // Ini adalah error yang sebenarnya (Network error, 404, 500, dll.)
         console.error(`[documentService] ❌ Error fetching ${urlPath}:`, error);
         handleError(error, "Gagal mendapatkan akses ke dokumen.");
-        // Lempar error agar komponen pemanggil juga tahu
+
         throw error;
       }
     }
   },
-
 
   /**
    * @function getDocumentVersionFileUrl
@@ -188,44 +176,42 @@ getDocumentFileUrl: async (documentId, options = {}) => {
    * @returns {Promise<string>} Signed URL yang valid.
    * @throws {Error} Jika gagal mendapatkan URL akses.
    */
-getDocumentVersionFileUrl: async (documentId, versionId) => {
-  try {
-    const response = await apiClient.get(`/documents/${documentId}/versions/${versionId}/file`);
+  getDocumentVersionFileUrl: async (documentId, versionId) => {
+    try {
+      const response = await apiClient.get(`/documents/${documentId}/versions/${versionId}/file`);
 
-    // ✅ PERBAIKAN: Cek 'response.data.url', bukan 'signedUrl'
-    if (!response.data.url) { 
-      throw new Error("Gagal mendapatkan URL versi dokumen dari respons API.");
+      if (!response.data.url) {
+        throw new Error("Gagal mendapatkan URL versi dokumen dari respons API.");
+      }
+
+      return response.data.url;
+    } catch (error) {
+      handleError(error, "Gagal mendapatkan akses ke versi dokumen.");
     }
-
-    // ✅ PERBAIKAN: Kembalikan 'response.data.url'
-    return response.data.url; 
-  } catch (error) {
-    handleError(error, "Gagal mendapatkan akses ke versi dokumen.");
-  }
-},
+  },
 
   /**
    * @function downloadDocument
    * @description Mengunduh file dokumen (versi aktif) dan memicu download di browser.
    * @param {string} documentId - ID dari dokumen yang akan diunduh.
    */
-downloadDocument: async function (documentId) {
-  try {
-    const fileUrl = await this.getDocumentFileUrl(documentId);
-    const urlObj = new URL(fileUrl);
-    const filenameParam = urlObj.searchParams.get("download");
-    const filename = filenameParam || `document-${documentId}.pdf`;
+  downloadDocument: async function (documentId) {
+    try {
+      const fileUrl = await this.getDocumentFileUrl(documentId);
+      const urlObj = new URL(fileUrl);
+      const filenameParam = urlObj.searchParams.get("download");
+      const filename = filenameParam || `document-${documentId}.pdf`;
 
-    const link = document.createElement("a");
-    link.href = fileUrl;
-    link.setAttribute("download", filename);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+      const link = document.createElement("a");
+      link.href = fileUrl;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
 
-    return { status: "success", message: `Pengunduhan dokumen "${filename}" dimulai.` };
-  } catch (error) {
-    handleError(error, "Gagal memulai pengunduhan dokumen.");
-  }
-},
+      return { status: "success", message: `Pengunduhan dokumen "${filename}" dimulai.` };
+    } catch (error) {
+      handleError(error, "Gagal memulai pengunduhan dokumen.");
+    }
+  },
 };

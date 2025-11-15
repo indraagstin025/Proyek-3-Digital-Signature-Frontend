@@ -30,53 +30,63 @@ const LoginPage = () => {
     return () => clearTimeout(timer);
   }, [searchParams]);
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
+const handleLogin = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setError(null);
 
-    try {
-      const { user } = await authService.login(email, password);
+  try {
+    // 1. Proses login seperti biasa
+    const { user } = await authService.login(email, password);
+    setIsRedirecting(true);
 
-      setIsRedirecting(true);
+    // --- LOGIKA SUDAH DISESUAIKAN ---
+    // Kita tidak lagi mengecek 'sessionStorage' di sini.
+    // 'DashboardPage' yang akan menangani token undangan.
 
-      const from = location.state?.from?.pathname || null;
+    // 2. Tentukan tujuan login standar
+    const from = location.state?.from?.pathname || null;
+    const defaultDestination = user?.isSuperAdmin ? "/admin/dashboard" : "/dashboard";
+    const finalDestination = from || defaultDestination;
+    
+    // --- AKHIR PENYESUAIAN ---
 
-      const defaultDestination = user?.isSuperAdmin ? "/admin/dashboard" : "/dashboard";
-      const finalDestination = from || defaultDestination;
+    const welcomeMessage = `Login berhasil, selamat datang ${user.name}!`;
 
-      const welcomeMessage = `Login berhasil, selamat datang ${user.name}!`;
+    // 3. Gunakan 'finalDestination' standar untuk navigasi
+    setTimeout(() => {
+      navigate(finalDestination, {
+        replace: true, // replace: true agar user tidak bisa "back" ke halaman login
+        state: {
+          message: welcomeMessage,
+        },
+      });
+    }, 1500);
 
-      setTimeout(() => {
-        navigate(finalDestination, {
-          state: {
-            message: welcomeMessage,
-          },
-        });
-      }, 1500);
-    } catch (err) {
-      let specificErrorMessage = "Terjadi kesalahan yang tidak terduga.";
+  } catch (err) {
+    // (Blok 'catch' Anda sudah bagus, tidak perlu diubah)
+    let specificErrorMessage = "Terjadi kesalahan yang tidak terduga.";
 
-      if (!err.response) {
-        specificErrorMessage = "Tidak dapat terhubung ke server. Periksa koneksi internet Anda.";
+    if (!err.response) {
+      specificErrorMessage = "Tidak dapat terhubung ke server. Periksa koneksi internet Anda.";
+    } else {
+      const backendError = err.response.data;
+      const statusCode = err.response.status;
+
+      if (backendError.code === "EMAIL_NOT_VERIFIED") {
+        specificErrorMessage = "Email Anda belum dikonfirmasi, silakan periksa kotak masuk Anda.";
+      } else if (statusCode === 401) {
+        specificErrorMessage = "Email atau Password yang Anda masukkan salah.";
       } else {
-        const backendError = err.response.data;
-        const statusCode = err.response.status;
-
-        if (backendError.code === "EMAIL_NOT_VERIFIED") {
-          specificErrorMessage = "Email Anda belum dikonfirmasi, silakan periksa kotak masuk Anda.";
-        } else if (statusCode === 401) {
-          specificErrorMessage = "Email atau Password yang Anda masukkan salah.";
-        } else {
-          specificErrorMessage = backendError.message || "Terjadi kesalahan pada server.";
-        }
+        specificErrorMessage = backendError.message || "Terjadi kesalahan pada server.";
       }
-
-      toast.error(specificErrorMessage);
-      setError(specificErrorMessage);
-      setLoading(false);
     }
-  };
+
+    toast.error(specificErrorMessage);
+    setError(specificErrorMessage);
+    setLoading(false);
+  }
+};
 
   return (
     <section className="relative w-full min-h-screen flex items-center justify-center px-4 py-12 overflow-hidden">

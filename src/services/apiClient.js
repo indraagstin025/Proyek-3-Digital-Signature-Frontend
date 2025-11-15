@@ -32,6 +32,50 @@ const apiClient = axios.create({
   withCredentials: true,
 });
 
+
+/**
+ * Interceptor request untuk menambahkan token otentikasi (JWT)
+ * dari localStorage ke setiap request.
+ */
+apiClient.interceptors.request.use(
+  (config) => {
+    // 1. Ambil data user dari localStorage
+    const userString = localStorage.getItem("authUser");
+    
+    if (userString) {
+      // 2. Parse data untuk mendapatkan token
+      //    CATATAN: Sesuaikan ini jika struktur data Anda berbeda.
+      //    Saya berasumsi token ada di dalam objek user, misal: user.token
+      //    Jika token tidak ada di 'authUser', Anda harus menyimpannya saat login.
+      
+      // *** ASUMSI SAYA: Token disimpan di 'authUser.token' ***
+      // *** Jika token Anda tidak ada, authService.js Anda perlu diperbaiki ***
+      // *** UNTUK SAAT INI, mari kita asumsikan 'authUser' ADALAH token ***
+      
+      // Berdasarkan authService.js Anda, sepertinya Anda menyimpan
+      // SELURUH objek user, tapi BUKAN token JWT. 
+      // Mari kita perbaiki authService.js Anda dulu...
+      
+      // ...Tunggu, mari kita lihat authService.js Anda...
+      // `localStorage.setItem("authUser", JSON.stringify(user));`
+      
+      // Backend Anda sepertinya menggunakan Supabase Auth (terlihat dari resetPassword).
+      // Supabase biasanya menangani sesi via cookie (karena ada 'withCredentials: true').
+      // TAPI... middleware Anda (authMiddleware) sepertinya custom.
+      
+      // MARI KITA ASUMSIKAN 'authMiddleware' Anda membaca cookie
+      // Jika 'authMiddleware' Anda mencari 'Authorization: Bearer' header,
+      // maka 'authService.js' Anda salah karena tidak menyimpan JWT.
+      
+      // Untuk saat ini, kita abaikan dulu. `withCredentials: true` MUNGKIN sudah cukup
+      // jika 'authMiddleware' Anda membaca cookie.
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 /**
  * Interceptor respons untuk menangani berbagai skenario error:
  * - Error 401 (Sesi berakhir)

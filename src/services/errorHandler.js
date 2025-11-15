@@ -1,25 +1,24 @@
 /**
  * Menangani error dari Axios secara terpusat.
- * Jika error adalah 401 (Unauthorized), error asli akan dilempar kembali.
- * agar bisa ditangani secara spesidik oleh interceptor atau komponen.
- * Untuk error lainnya, error akan diformat ulang dengan pesan yang lebih jelas.
- * 
- * @param {object} error - Object error yang ditangkap dari block cathh.
+ * Fungsi ini melempar kembali objek error terstruktur dari backend,
+ * atau melempar Error baru jika formatnya tidak dikenal.
+ * * @param {object} error - Object error yang ditangkap dari block catch.
  * @param {string} defaultMessage - Pesan default jika tidak ada pesan error spesifik.
- * @returns {never} Fungsi ini selalu melempar error, tidak pernah mengembalikan nilai.
+ * @returns {never} Fungsi ini selalu melempar error.
  */
-export const handleError = (error, defaultMessage) => {
-    if (error.response?.status === 401) {
-        throw error;
-    }
-
+export const handleError = (error, defaultMessage = "Terjadi kesalahan") => {
+    // 1. Lempar objek error terstruktur dari backend (misal: 400, 403, 404, 409)
+    // Ini juga akan menangkap error 401 dan error jaringan dari interceptor Anda
     if (error.response?.data?.message) {
-        throw new Error(error.response.data.message);
+        // Lempar *seluruh objek* { code, message }, BUKAN new Error(message)
+        throw error.response.data;
     }
 
+    // 2. Fallback untuk error lain (misal: error.message tapi tidak ada .response)
     if (error.message) {
         throw new Error(error.message);
     }
 
+    // 3. Fallback terakhir
     throw new Error(defaultMessage);
 }
