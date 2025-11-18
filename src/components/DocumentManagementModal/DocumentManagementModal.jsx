@@ -2,24 +2,9 @@
 import React, { useState, useEffect } from "react";
 import { documentService } from "../../services/documentService.js";
 import toast from "react-hot-toast";
-import {
-  FaSpinner,
-  FaFileAlt,
-  FaDownload,
-  FaTrash,
-  FaEye,
-  FaCheckCircle,
-  FaClock,
-  FaUndo,
-} from "react-icons/fa";
+import { FaSpinner, FaFileAlt, FaDownload, FaTrash, FaEye, FaCheckCircle, FaClock, FaUndo } from "react-icons/fa";
 
-const DocumentManagementModal = ({
-  mode,
-  initialDocument,
-  onClose,
-  onSuccess,
-  onViewRequest,
-}) => {
+const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, onViewRequest }) => {
   console.log("📄 RENDER DocumentManagementModal:", { mode, initialDocument });
 
   const [file, setFile] = useState(null);
@@ -42,9 +27,7 @@ const DocumentManagementModal = ({
       console.log("🔍 Fetching history for document ID:", initialDocument.id);
 
       try {
-        const historyData = await documentService.getDocumentHistory(
-          initialDocument.id
-        );
+        const historyData = await documentService.getDocumentHistory(initialDocument.id);
         console.log("✅ History fetched:", historyData);
 
         const updated = historyData.map((v) => ({
@@ -112,9 +95,7 @@ const DocumentManagementModal = ({
       await documentService.useOldVersion(initialDocument.id, versionId);
       toast.success("Versi berhasil diganti!", { id: toastId });
 
-      setVersions((prev) =>
-        prev.map((v) => ({ ...v, isActive: v.id === versionId }))
-      );
+      setVersions((prev) => prev.map((v) => ({ ...v, isActive: v.id === versionId })));
       onSuccess();
     } catch (err) {
       toast.error(err.message, { id: toastId });
@@ -127,10 +108,7 @@ const DocumentManagementModal = ({
   const handleDownloadVersion = async (version) => {
     const toastId = toast.loading("Mempersiapkan unduhan...");
     try {
-      const signedUrl = await documentService.getDocumentVersionFileUrl(
-        initialDocument.id,
-        version.id
-      );
+      const signedUrl = await documentService.getDocumentVersionFileUrl(initialDocument.id, version.id);
 
       // Dapatkan nama file dari parameter URL ?download=...
       let filename = `version-${version.versionNumber || version.id}.pdf`;
@@ -150,7 +128,7 @@ const DocumentManagementModal = ({
       link.click();
       link.remove();
 
-       toast.success("Unduhan dimulai!", { id: toastId });
+      toast.success("Unduhan dimulai!", { id: toastId });
     } catch (err) {
       toast.error(err.message || "Gagal mengunduh versi dokumen.", {
         id: toastId,
@@ -186,17 +164,13 @@ const DocumentManagementModal = ({
 
     const toastId = toast.loading("Mempersiapkan pratinjau...");
     try {
-      const signedUrl = await documentService.getDocumentVersionFileUrl(
-        initialDocument.id,
-        version.id
-      );
+      const signedUrl = await documentService.getDocumentVersionFileUrl(initialDocument.id, version.id);
       onViewRequest(signedUrl);
       toast.dismiss(toastId);
     } catch (error) {
       toast.error(error.message || "Gagal memuat pratinjau.", { id: toastId });
     }
   };
-
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4">
@@ -255,63 +229,102 @@ const DocumentManagementModal = ({
                 </div>
               ) : (
                 <ul className="space-y-3">
-                  {versions.map((version, index) => (
-                    <li key={version.id} className={`p-3 rounded-lg flex items-center justify-between transition-colors ${version.isActive ? "bg-blue-100 dark:bg-blue-900/50" : "bg-slate-50 dark:bg-slate-700/50"}`}>
-                      <div className="flex items-center space-x-4 min-w-0">
-                        <FaFileAlt className="text-slate-500 text-xl flex-shrink-0" />
-                        <div className="min-w-0">
-                          <p className="font-semibold text-slate-800 dark:text-white flex items-center gap-2 flex-wrap">
-                            <span className="truncate">Versi {versions.length - index}</span>
-                            {version.isActive && <span className="text-xs font-bold text-green-600 bg-green-100 dark:bg-green-500/20 dark:text-green-400 px-2 py-0.5 rounded-full flex-shrink-0">Aktif</span>}
-                            {version.signaturesPersonal?.length > 0 && (
-                              <span className="flex items-center gap-1 text-xs font-semibold text-green-600 bg-green-100 dark:bg-green-500/20 dark:text-green-400 px-2 py-0.5 rounded-full flex-shrink-0">
-                                <FaCheckCircle /> Ditandatangani
-                              </span>
-                            )}
-                          </p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center mt-1">
-                            <FaClock className="mr-1.5" />
-                            {new Date(version.createdAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-1 flex-shrink-0">
-                        <button
-                          onClick={() => handlePreviewClick(version)}
-                          title="Lihat Versi Ini"
-                          className="p-2 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-                        >
-                          <FaEye />
-                        </button>
-                        <button
-                          onClick={() => handleDownloadVersion(version)}
-                          title={`Unduh Versi ${versions.length - index}`}
-                          className="p-2 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-                        >
-                          <FaDownload />
-                        </button>
+                  {versions.map((version, index) => {
+                    // 1. Identifikasi Versi
+                    const isLatestVersion = index === 0; // Versi paling atas (Terbaru/V2)
+                    const isFirstVersion = index === versions.length - 1; // Versi paling bawah (V1/Asli)
 
-                        {!version.isActive && (
-                          <>
-                            <button
-                              onClick={() => handleUseVersion(version.id)}
-                              title="Gunakan Versi Ini"
-                              className="p-2 text-slate-600 dark:text-slate-300 hover:text-green-600 dark:hover:text-green-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-                            >
-                              <FaUndo />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteVersion(version.id)}
-                              title="Hapus Versi Ini"
-                              className="p-2 text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-                            >
-                              <FaTrash />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </li>
-                  ))}
+                    // 2. Cek Data Real dari Database (Personal / Paket)
+                    const hasPersonalSig = version.signaturesPersonal && version.signaturesPersonal.length > 0;
+                    const hasPackageSig = version.packages && version.packages.some((pkg) => pkg.signatures && pkg.signatures.length > 0);
+                    const hasRealSignatureData = hasPersonalSig || hasPackageSig;
+
+                    // 3. Cek Status Dokumen Induk
+                    // Apakah dokumen utama sudah selesai? (Status dari database Dashboard)
+                    const isDocumentCompleted = initialDocument?.status === "completed";
+
+                    // 4. LOGIKA FINAL (KOMBINASI)
+                    // Tampilkan badge "Ditandatangani" JIKA:
+                    // A. Ada data tanda tangan asli di versi ini (hasRealSignatureData)
+                    //    ATAU
+                    // B. Dokumen statusnya "Completed" DAN ini adalah versi terbaru (isLatestVersion)
+                    //    (Ini menangani kasus Paket dimana data signature tertinggal di V1)
+                    //
+                    // DAN SYARAT MUTLAK: BUKAN Versi 1 (!isFirstVersion)
+                    const showSignedBadge = (hasRealSignatureData || (isDocumentCompleted && isLatestVersion)) && !isFirstVersion;
+
+                    // Label Versi
+                    const versionNumber = versions.length - index;
+
+                    return (
+                      <li key={version.id} className={`p-3 rounded-lg flex items-center justify-between transition-colors ${version.isActive ? "bg-blue-100 dark:bg-blue-900/50" : "bg-slate-50 dark:bg-slate-700/50"}`}>
+                        <div className="flex items-center space-x-4 min-w-0">
+                          <FaFileAlt className="text-slate-500 text-xl flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="font-semibold text-slate-800 dark:text-white flex items-center gap-2 flex-wrap">
+                              <span className="truncate">Versi {versionNumber}</span>
+
+                              {/* Badge AKTIF */}
+                              {version.isActive && <span className="text-xs font-bold text-green-600 bg-green-100 dark:bg-green-500/20 dark:text-green-400 px-2 py-0.5 rounded-full flex-shrink-0">Aktif</span>}
+
+                              {/* Badge DITANDATANGANI (Sesuai Logika Final di atas) */}
+                              {showSignedBadge && (
+                                <span className="flex items-center gap-1 text-xs font-semibold text-blue-600 bg-blue-100 dark:bg-blue-500/20 dark:text-blue-400 px-2 py-0.5 rounded-full flex-shrink-0">
+                                  <FaCheckCircle /> Ditandatangani
+                                </span>
+                              )}
+                            </p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center mt-1">
+                              <FaClock className="mr-1.5" />
+                              {new Date(version.createdAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Tombol Aksi (Biarkan tetap sama seperti kode Anda) */}
+                        <div className="flex items-center space-x-1 flex-shrink-0">
+                          <button
+                            onClick={() => handlePreviewClick(version)}
+                            className="p-2 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                          >
+                            {" "}
+                            <FaEye />{" "}
+                          </button>
+                          <button
+                            onClick={() => handleDownloadVersion(version)}
+                            className="p-2 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                          >
+                            {" "}
+                            <FaDownload />{" "}
+                          </button>
+
+                          {/* Tombol Rollback & Hapus hanya muncul jika BUKAN versi aktif */}
+                          {!version.isActive && (
+                            <>
+                              <button
+                                onClick={() => handleUseVersion(version.id)}
+                                className="p-2 text-slate-600 dark:text-slate-300 hover:text-green-600 dark:hover:text-green-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                              >
+                                {" "}
+                                <FaUndo />{" "}
+                              </button>
+
+                              {/* Tombol Hapus disembunyikan untuk Versi 1 */}
+                              {!isFirstVersion && (
+                                <button
+                                  onClick={() => handleDeleteVersion(version.id)}
+                                  className="p-2 text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                                >
+                                  {" "}
+                                  <FaTrash />{" "}
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>

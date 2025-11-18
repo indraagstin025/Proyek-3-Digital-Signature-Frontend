@@ -33,11 +33,16 @@ import SignDocumentPage from "./pages/SignDocumentPage/SignDocumentPage.jsx";
 import ViewDocumentPage from "./pages/ViewDocumentPage/ViewDocumentPage.jsx";
 import VerificationPage from "./pages/VerificationPage/VerificationPage.jsx";
 import NotFoundPage from "./pages/NotFoundPage/NotFoundPage.jsx";
+import SignPackagePage from "./pages/SignPackagePage/SignPackagePage.jsx";
 
 // Halaman Dashboard Admin
 import AdminDashboardPage from "./pages/AdminPage/AdminDashboardPage.jsx";
 import AdminDashboardOverview from "./pages/AdminPage/AdminDashboardOverview.jsx";
 import AdminManageUser from "./pages/AdminPage/AdminManageUser.jsx"; 
+import { pdfjs } from "react-pdf";
+
+pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.js";
+
 
 // Komponen Placeholder untuk Halaman Admin yang Belum Dibuat
 const UserManagementPage = () => (
@@ -46,6 +51,8 @@ const UserManagementPage = () => (
     <p className="mt-2 text-slate-600 dark:text-slate-400">Tabel pengguna, tombol tambah, edit, dan hapus akan ditampilkan di sini.</p>
   </div>
 );
+
+
 
 const AppWrapper = () => {
   const location = useLocation();
@@ -133,55 +140,69 @@ return (
       {/* Header tidak akan tampil di halaman dashboard, admin, sign, dan view */}
       {!isDashboard && !isAdmin && !location.pathname.includes("/sign") && !location.pathname.includes("/view") && <Header theme={theme} toggleTheme={toggleTheme} />}
 
-      <Routes>
-        {/* Rute Halaman Publik */}
-        <Route element={<MainLayout />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage key={routeKey} />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/verify/:signatureId" element={<VerificationPage />} />
+<Routes>
+        {/* Rute Halaman Publik */}
+        <Route element={<MainLayout />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage key={routeKey} />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/verify/:signatureId" element={<VerificationPage />} />
           <Route path="/join" element={<AcceptInvitePage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Route>
+          {/* ❗️ Rute '*' DIPINDAHKAN dari sini */}
+        </Route>
 
-        {/* Rute Fungsional */}
-        <Route path="/documents/:documentId/sign" element={<SignDocumentPage theme={theme} toggleTheme={toggleTheme} onSessionExpired={() => setSessionModalOpen(true)} />} />
-        <Route path="/documents/:documentId/view" element={<ViewDocumentPage />} />
-        <Route path="*" element={<NotFoundPage />} />
+        {/* Rute Fungsional (Standalone) */}
+        <Route path="/documents/:documentId/sign" element={<SignDocumentPage theme={theme} toggleTheme={toggleTheme} onSessionExpired={() => setSessionModalOpen(true)} />} />
+        
+        {/* --- ❗️ 1. RUTE BARU DITAMBAHKAN DI SINI --- */}
+        {/* Rute ini harus dilindungi, jadi kita letakkan di dalam <ProtectedRoute> */}
+        
+        <Route path="/documents/:documentId/view" element={<ViewDocumentPage />} />
+        
+        {/* --- ❗️ 2. Rute '*' DIPINDAHKAN ke bagian bawah --- */}
+        {/* <Route path="*" element={<NotFoundPage />} /> */}
 
-        {/* --- PERBAIKAN DI SINI: BUNGKUS RUTE PRIVAT DENGAN PROTECTEDROUTE --- */}
 
-        {/* Rute yang Dilindungi untuk SEMUA PENGGUNA (user & admin) */}
-        <Route element={<ProtectedRoute />}>
-          <Route path="/dashboard" element={<DashboardPage theme={theme} toggleTheme={toggleTheme} onSessionExpired={() => setSessionModalOpen(true)} />}>
-            <Route index element={<DashboardOverview theme={theme} />} />
-            <Route path="profile" element={<ProfilePage theme={theme} />} />
-            <Route path="documents" element={<DashboardDocuments theme={theme} />} />
-            <Route path="workspaces" element={<DashboardWorkspaces theme={theme} />} />
-            <Route path="history" element={<DashboardHistory theme={theme} />} />
+        {/* --- Rute yang Dilindungi (User & Admin) --- */}
+        <Route element={<ProtectedRoute />}>
+          
+          {/* ❗️ 3. RUTE WIZARD BARU DITEMPATKAN DI SINI */}
+          {/* Ini adalah halaman fungsional yang memerlukan login */}
+          <Route 
+            path="/packages/sign/:packageId" 
+            element={<SignPackagePage theme={theme} toggleTheme={toggleTheme} onSessionExpired={() => setSessionModalOpen(true)} />} 
+          />
 
-            {/* ✅ 2. TAMBAHKAN RUTE HALAMAN DETAIL GRUP DI SINI */}
-            <Route path="group/:groupId" element={<GroupDetailPage theme={theme} />} />
+          <Route path="/dashboard" element={<DashboardPage theme={theme} toggleTheme={toggleTheme} onSessionExpired={() => setSessionModalOpen(true)} />}>
+            <Route index element={<DashboardOverview theme={theme} />} />
+            <Route path="profile" element={<ProfilePage theme={theme} />} />
+            <Route path="documents" element={<DashboardDocuments theme={theme} />} />
+            <Route path="workspaces" element={<DashboardWorkspaces theme={theme} />} />
+            <Route path="history" element={<DashboardHistory theme={theme} />} />
+            <Route path="group/:groupId" element={<GroupDetailPage theme={theme} />} />
+            {/* Rute NotFound *di dalam* dashboard */}
+            <Route path="*" element={<NotFoundPage />} /> 
+          </Route>
+        </Route>
+        
+        {/* Rute yang Dilindungi (HANYA Admin) */}
+        <Route element={<ProtectedRoute requireAdmin={true} />}>
+          <Route path="/admin" element={<AdminDashboardPage theme={theme} toggleTheme={toggleTheme} />}>
+            <Route index element={<Navigate to="dashboard" replace />} /> 
+            <Route path="dashboard" element={<AdminDashboardOverview />} />
+            <Route path="users" element={<AdminManageUser theme={theme} />} /> 
+            {/* Rute NotFound *di dalam* admin */}
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
+        </Route>
 
-            <Route path="*" element={<NotFoundPage />} />
-          </Route>
-        </Route>
-        
-        {/* Rute yang Dilindungi HANYA untuk ADMIN */}
-        <Route element={<ProtectedRoute requireAdmin={true} />}>
-          <Route path="/admin" element={<AdminDashboardPage theme={theme} toggleTheme={toggleTheme} />}>
-            <Route index element={<Navigate to="dashboard" replace />} /> 
-            <Route path="dashboard" element={<AdminDashboardOverview />} />
-            <Route path="users" element={<AdminManageUser theme={theme} />} /> 
-            <Route path="*" element={<NotFoundPage />} />
-          </Route>
+        {/* --- ❗️ 4. RUTE '*' (NOT FOUND) UTAMA DITEMPATKAN DI AKHIR --- */}
+        {/* Ini memperbaiki bug Anda sebelumnya */}
+        <Route path="*" element={<NotFoundPage />} />
 
-          <Route path="*" element={<NotFoundPage />} />
-        </Route>
-
-      </Routes>
+      </Routes>
 
       {/* Modal dan Banner Cookie */}
       <ConfirmationModal
@@ -196,7 +217,7 @@ return (
       />
       {showBanner && <CookieBanner 
       onAccept={handleAcceptCookie} 
-      onDecline={handleDeclineCookie}/>}; </div>
+      onDecline={handleDeclineCookie}/>} </div>
   );
 };
 

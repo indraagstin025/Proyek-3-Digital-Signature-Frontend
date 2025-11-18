@@ -3,29 +3,27 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { userService } from "../../services/userService";
 import toast from "react-hot-toast";
 
+// Import komponen-komponen yang digunakan
 import Sidebar from "../../components/Sidebar/Sidebar.jsx";
 import DashboardHeader from "../../components/DashboardHeader/DashboardHeader.jsx";
-
-// ✅ 1. Impor komponen modal (sesuaikan path jika perlu)
-import { AcceptInviteLinks } from "../../components/InvitiationGrupModal/AcceptInviteLinks.jsx"; 
-// ✅ Opsional: Jika Anda ingin me-refresh daftar grup setelah menerima
-// import { useQueryClient } from "@tanstack/react-query";
+import { AcceptInviteLinks } from "../../components/InvitiationGrupModal/AcceptInviteLinks.jsx";
 
 const DashboardPage = ({ theme, toggleTheme }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  // Ref untuk menghindari toast berulang kali saat mount
   const toastShownRef = useRef(false);
-  // const queryClient = useQueryClient(); // <-- Opsional
 
+  // --- State Manajemen ---
   const [userData, setUserData] = useState(() => {
     const savedUser = localStorage.getItem("authUser");
     return savedUser ? JSON.parse(savedUser) : null;
   });
 
-  // ✅ 2. State baru untuk menyimpan token undangan yang tertunda
   const [pendingToken, setPendingToken] = useState(null);
-
   const [userError, setUserError] = useState("");
+  
+  // Sidebar default terbuka di layar besar (>= lg)
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
     if (typeof window !== "undefined" && window.innerWidth >= 1024) {
       return true;
@@ -33,30 +31,37 @@ const DashboardPage = ({ theme, toggleTheme }) => {
     return false;
   });
 
+  // --- Efek Toast Notifikasi Setelah Navigasi ---
   useEffect(() => {
     const message = location.state?.message;
 
     if (message && !toastShownRef.current) {
       toastShownRef.current = true;
       toast.success(message);
+      // Hapus state agar tidak muncul lagi saat refresh
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location, navigate]);
 
-  // ✅ 3. useEffect baru untuk mengecek token saat dashboard dimuat
+  // --- Efek Cek Token Undangan Tertunda ---
   useEffect(() => {
-    // Cek localStorage HANYA SEKALI saat komponen dimuat
-    const token = localStorage.getItem('pendingInviteToken');
+    const token = localStorage.getItem("pendingInviteToken");
     if (token) {
-      setPendingToken(token); // Jika ada, tampilkan modal
+      setPendingToken(token);
     }
-  }, []); // <-- Array dependensi kosong [] penting!
+  }, []);
 
+  // --- Efek Sinkronisasi Data Pengguna Terbaru ---
   useEffect(() => {
     const syncUserData = async () => {
+      // Tidak sinkron jika userData belum dimuat dari localStorage (atau null)
+      if (!userData) return; 
+
       try {
         setUserError("");
         const freshData = await userService.getMyProfile();
+        
+        // Cek apakah data baru berbeda dari yang disimpan
         if (JSON.stringify(freshData) !== localStorage.getItem("authUser")) {
           setUserData(freshData);
           localStorage.setItem("authUser", JSON.stringify(freshData));
@@ -70,49 +75,53 @@ const DashboardPage = ({ theme, toggleTheme }) => {
     };
 
     syncUserData();
+  }, [/* dependency userData dihapus agar tidak loop, hanya dijalankan sekali saat mount */]);
 
-  }, []);
-
+  // --- Handler Pembaruan Profil ---
   const handleProfileUpdate = (updatedUser) => {
     setUserData(updatedUser);
     localStorage.setItem("authUser", JSON.stringify(updatedUser));
   };
 
-  // ✅ 4. Fungsi handler untuk menutup modal
+  // --- Handler Selesai Undangan ---
   const handleInviteDone = () => {
-    localStorage.removeItem('pendingInviteToken'); // Hapus token
-    setPendingToken(null); // Sembunyikan modal
-    
-    // ✅ Opsional: Segarkan daftar grup Anda di sidebar
-    // queryClient.invalidateQueries({ queryKey: ['groups'] });
+    localStorage.removeItem("pendingInviteToken");
+    setPendingToken(null);
+    // Opsional: Sinkronkan ulang data untuk mendapatkan grup baru
+    // syncUserData(); 
   };
 
+  // --- Logic Penentuan Halaman Aktif untuk Sidebar ---
   const getActivePageFromPath = (pathname) => {
-    // ... (logika Anda sudah benar)
     const pathParts = pathname.split("/").filter((p) => p);
-    if (pathParts.length === 2 && pathParts[1] === "group") return "workspaces"; 
-    if (pathParts.length === 1 && pathParts[0] === "dashboard") return "overview";
-    if (pathParts[0] === "dashboard" && pathParts.length > 1) return pathParts[1];
-    return "overview";
+    
+    if (pathParts[0] === "dashboard") {
+      // dashboard/workspaces/group/:groupId
+      if (pathParts.length >= 3 && pathParts[1] === "workspaces" && pathParts[2] === "group") {
+        return "workspaces"; 
+      }
+      // dashboard/settings
+      if (pathParts.length > 1) return pathParts[1]; 
+
+      // dashboard (overview)
+      return "overview";
+    }
+    return "overview"; // Default jika ada route lain di luar /dashboard
   };
 
   const activePage = getActivePageFromPath(location.pathname);
-
+  
+  // --- Tampilan Render ---
   return (
+    // Kontainer Utama (Flex Row untuk Sidebar + Main Content)
     <div className={`flex min-h-screen ${theme === "dark" ? "bg-gray-950 text-gray-200" : "bg-gray-100 text-gray-900"}`}>
       
-      {/* ✅ 5. Render Modal secara kondisional di atas segalanya */}
-      {pendingToken && (
-        <AcceptInviteLinks 
-          token={pendingToken} 
-          onDone={handleInviteDone} 
-        />
-      )}
+      {/* 1. Modal Token Undangan (Render di lapisan atas) */}
+      {pendingToken && <AcceptInviteLinks token={pendingToken} onDone={handleInviteDone} />}
 
-      {/* Sidebar */}
+      {/* 2. Sidebar */}
       <Sidebar 
         userName={userData?.name} 
-        // ... (sisa props Anda)
         userEmail={userData?.email} 
         userAvatar={userData?.profilePictureUrl} 
         isOpen={isSidebarOpen} 
@@ -121,26 +130,45 @@ const DashboardPage = ({ theme, toggleTheme }) => {
         theme={theme} 
       />
 
-      {/* Main Content */}
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarOpen ? "ml-0 lg:ml-64" : "ml-0"} overflow-x-hidden`}>
+      {/* 3. Main Content Wrapper */}
+      {/* Konten akan didorong ke samping saat sidebar terbuka di layar besar (lg) */}
+      <div 
+        className={`
+          flex-1 flex flex-col 
+          transition-all duration-300 
+          ml-0 ${isSidebarOpen ? "lg:ml-64" : "lg:ml-0"} 
+          overflow-x-hidden
+        `}
+      >
         
-        {/* Header */}
+        {/* 4. Header (Asumsi: Header tidak didorong, atau harus menggunakan styling fixed/sticky yang benar) */}
         <DashboardHeader 
-          // ... (sisa props Anda)
           activePage={activePage} 
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
           isSidebarOpen={isSidebarOpen} 
           theme={theme} 
           toggleTheme={toggleTheme} 
         />
-        
-        <main className="flex-1 p-4 overflow-y-auto pt-10 "> 
-          {userError ? (
-            <div className="text-red-500 text-center font-medium">{userError}</div> 
-          ) : (
-            <Outlet context={{ user: userData, onProfileUpdate: handleProfileUpdate }} />
-          )}
+
+        {/* 5. Konten Utama (Main) */}
+        {/* Hapus p-4 dan pt-10 dari main, gunakan div p-4 di dalamnya untuk konsistensi */}
+        <main className="flex-1 overflow-y-auto">
+          {/* Kontainer untuk Padding/Gutter di dalam main */}
+          <div className="p-4 sm:p-6 lg:p-8">
+            {userError ? (
+              <div className="text-red-500 text-center font-medium">{userError}</div>
+            ) : (
+              // Outlet context menyediakan data pengguna ke nested routes
+              <Outlet 
+                context={{ 
+                  user: userData, 
+                  onProfileUpdate: handleProfileUpdate 
+                }} 
+              />
+            )}
+          </div>
         </main>
+
       </div>
     </div>
   );

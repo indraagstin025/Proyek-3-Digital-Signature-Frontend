@@ -8,19 +8,22 @@ const MainLayout = () => {
 
   return (
     <div className="relative flex flex-col min-h-screen text-gray-300 
-                    bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 
-                    dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 
-                    overflow-hidden">
+                     bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 
+                     dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 
+                     overflow-hidden">
+      
+      {/* Hapus baris kosong yang berlebihan di sini */}
 
       {/* Aurora / Glow Background */}
-     <div className="absolute inset-0 pt z-20 pointer-events-none">
+      <div className="absolute inset-0 pt z-20 pointer-events-none">
 
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-green-400/30 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute bottom-0 right-0 w-[28rem] h-[28rem] bg-blue-500/30 rounded-full blur-3xl animate-pulse delay-2000"></div>
       </div>
 
       {/* Konten Utama */}
-      <main className={`flex-grow ${isHomePage ? '' : '-pt-10'}`}>
+      {/* Ganti -pt-10 menjadi pt-10 jika Anda ingin padding, atau hapus jika padding diatur oleh Header */}
+      <main className={`grow ${isHomePage ? '' : 'pt-10'}`}> 
         <Outlet />
       </main>
 

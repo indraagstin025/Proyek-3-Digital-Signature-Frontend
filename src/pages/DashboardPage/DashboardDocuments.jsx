@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+
 import { documentService } from "../../services/documentService.js";
+import { packageService } from "../../services/packageService.js";
+
 import ViewDocumentModal from "../../components/ViewDocumentModal/ViewDocumentModal.jsx";
 import DocumentManagementModal from "../../components/DocumentManagementModal/DocumentManagementModal.jsx";
 import ConfirmationModal from "../../components/ConfirmationModal/ConfirmationModal.jsx";
+
 import { Toaster, toast } from "react-hot-toast";
 import { FaPlus, FaCog, FaEye, FaTrashAlt, FaSpinner, FaSignature, FaFileAlt } from "react-icons/fa";
 
@@ -22,6 +26,9 @@ const DashboardDocuments = () => {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState(null);
 
+  const [selectedDocIds, setSelectedDocIds] = useState(new Set());
+  const [isSubmittingBatch, setIsSubmittingBatch] = useState(false);
+
   const navigate = useNavigate();
   const location = useLocation();
   const refreshToastShownRef = useRef(false);
@@ -35,7 +42,6 @@ const DashboardDocuments = () => {
       if (err.response?.status !== 401) {
         const message = err.message || "Gagal memuat dokumen.";
         setError(message);
-
         toast.error(message);
       }
     } finally {
@@ -50,11 +56,8 @@ const DashboardDocuments = () => {
   useEffect(() => {
     if (location.state?.refresh && !refreshToastShownRef.current) {
       refreshToastShownRef.current = true;
-
       toast.success("Daftar dokumen diperbarui.");
-
       fetchDocuments();
-
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state, navigate, fetchDocuments]);
@@ -90,7 +93,6 @@ const DashboardDocuments = () => {
 
   const confirmDelete = async () => {
     if (!documentToDelete) return;
-
     toast
       .promise(documentService.deleteDocument(documentToDelete), {
         loading: "Menghapus dokumen...",
@@ -100,7 +102,6 @@ const DashboardDocuments = () => {
       .then(() => {
         fetchDocuments();
       });
-
     setIsConfirmOpen(false);
     setDocumentToDelete(null);
   };
@@ -125,11 +126,71 @@ const DashboardDocuments = () => {
   };
 
   const getDerivedStatus = (doc) => {
-    const isCurrentVersionSigned = doc.currentVersion?.signaturesPersonal?.length > 0;
-    if (doc.status === "completed" && !isCurrentVersionSigned) {
+    if (doc.status === "completed") {
+      return "completed";
+    }
+
+    const isPersonalSigned = doc.currentVersion?.signaturesPersonal?.length > 0;
+
+    const isPackageSigned = doc.currentVersion?.packages?.some((pkgDoc) => pkgDoc.signatures?.length > 0);
+
+    const isCurrentVersionSigned = isPersonalSigned || isPackageSigned;
+
+    if (!isCurrentVersionSigned && doc.status !== "pending") {
       return "draft";
     }
+
     return doc.status;
+  };
+
+  /**
+   * @description Menangani pemilihan (centang) dokumen.
+   */
+  const handleSelectDocument = (docId) => {
+    const doc = documents.find((d) => d.id === docId);
+    if (!doc) return;
+    const displayedStatus = getDerivedStatus(doc);
+
+    setSelectedDocIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(docId)) {
+        newSet.delete(docId);
+      } else {
+        if (displayedStatus !== "completed") {
+          newSet.add(docId);
+        } else {
+          toast.error("Dokumen yang sudah 'completed' tidak bisa dipilih.");
+        }
+      }
+      return newSet;
+    });
+  };
+
+  /**
+   * @description [DIUBAH] Membuat "Paket" di backend dan menavigasi ke halaman wizard.
+   */
+  const handleBatchSignClick = async () => {
+    setIsSubmittingBatch(true);
+    const toastId = toast.loading("Mempersiapkan paket tanda tangan...");
+
+    try {
+      const docIds = Array.from(selectedDocIds);
+      const packageTitle = `Paket ${docIds.length} Dokumen - ${new Date().toLocaleDateString("id-ID")}`;
+
+      const newPackage = await packageService.createPackage(docIds, packageTitle);
+
+      if (!newPackage || !newPackage.id) {
+        throw new Error("Gagal mendapatkan ID Paket dari server.");
+      }
+
+      toast.dismiss(toastId);
+
+      navigate(`/packages/sign/${newPackage.id}`);
+      setSelectedDocIds(new Set());
+    } catch (error) {
+      toast.error(error.message || "Gagal memulai sesi tanda tangan batch.", { id: toastId });
+      setIsSubmittingBatch(false);
+    }
   };
 
   return (
@@ -145,7 +206,6 @@ const DashboardDocuments = () => {
           onClick={() => openManagementModal("create")}
           className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-teal-400 text-white font-semibold py-2 px-4 rounded-full hover:opacity-90 transition-opacity transform hover:scale-[1.02] duration-300 w-full sm:w-auto shadow-lg shadow-blue-500/40"
         >
-          {/* Menggunakan FaPlus agar konsisten dengan react-icons/fa */}
           <FaPlus className="w-4 h-4" />
           <span className="text-sm">Dokumen Baru</span>
         </button>
@@ -163,6 +223,27 @@ const DashboardDocuments = () => {
       {/* --- Tampilan Utama Dokumen --- */}
       {!isLoading && !error && (
         <>
+          {/* --- [BARU] Panel Aksi Batch --- */}
+          {selectedDocIds.size > 0 && (
+            <div className="sticky top-2 z-20 mb-6 p-4 bg-blue-100 dark:bg-blue-900/50 rounded-xl shadow-lg border border-blue-200 dark:border-blue-700 flex flex-col sm:flex-row justify-between items-center gap-4">
+              <span className="font-semibold text-lg text-blue-800 dark:text-blue-200">{selectedDocIds.size} dokumen dipilih</span>
+              <div className="flex gap-3">
+                <button onClick={() => setSelectedDocIds(new Set())} disabled={isSubmittingBatch} className="py-2 px-4 text-slate-700 dark:text-slate-300 font-medium rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700">
+                  Batal
+                </button>
+                <button
+                  onClick={handleBatchSignClick}
+                  disabled={isSubmittingBatch}
+                  className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors shadow-md disabled:opacity-50"
+                >
+                  {isSubmittingBatch ? <FaSpinner className="animate-spin" /> : <FaSignature />}
+                  Tanda Tangani ({selectedDocIds.size})
+                </button>
+              </div>
+            </div>
+          )}
+          {/* --- Akhir Panel Aksi Batch --- */}
+
           {documents.length === 0 ? (
             <div className="text-center py-20 px-6 bg-slate-50 dark:bg-slate-800/20 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700">
               <FaFileAlt className="mx-auto h-12 w-12 text-slate-400 dark:text-slate-600" />
@@ -175,11 +256,22 @@ const DashboardDocuments = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:gap-6">
+              {/* --- [DIUBAH] Kartu Dokumen dengan Logika Pemilihan --- */}
               {documents.map((doc) => {
                 const displayedStatus = getDerivedStatus(doc);
+                const isSelected = selectedDocIds.has(doc.id);
+
                 return (
-                  <div key={doc.id} className="relative p-5 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700 transition-all duration-300 hover:shadow-xl hover:border-blue-400 group">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div
+                    key={doc.id}
+                    className={`relative p-5 bg-white dark:bg-slate-800 rounded-xl shadow-lg border transition-all duration-300 group ${
+                      isSelected ? "shadow-xl border-blue-500 ring-2 ring-blue-500" : "border-slate-100 dark:border-slate-700 hover:shadow-xl hover:border-blue-400"
+                    } ${displayedStatus === "completed" ? "opacity-70" : "cursor-pointer"}`}
+                    onClick={displayedStatus !== "completed" ? () => handleSelectDocument(doc.id) : undefined}
+                  >
+                    <input type="checkbox" checked={isSelected} readOnly disabled={displayedStatus === "completed"} className="absolute top-5 left-5 w-5 h-5 z-10 text-blue-600 rounded focus:ring-blue-500" />
+
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pl-8">
                       {/* Kolom Kiri: Info Dokumen & Aksi Sekunder */}
                       <div className="flex items-start gap-4 flex-grow min-w-0">
                         <div className="flex-shrink-0 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
@@ -190,16 +282,19 @@ const DashboardDocuments = () => {
                             {doc.title}
                           </p>
 
-                          {/* Detail Status & Tanggal */}
+                          {/* Detail Status & Tanggal (MEMPERBAIKI ESLINT) */}
                           <div className="flex items-center gap-3 mt-1">
                             <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full capitalize ${getStatusClass(displayedStatus)}`}>{displayedStatus}</span>
                             <span className="text-sm text-slate-500 dark:text-slate-400">Diperbarui: {formatDate(doc.updatedAt)}</span>
                           </div>
 
-                          {/* --- REVISI 1: Aksi Sekunder Selalu Terlihat (Hapus kelas opacity-0 group-hover:opacity-100) --- */}
+                          {/* Aksi Sekunder (MEMPERBAIKI ESLINT) */}
                           <div className="mt-3 flex items-center gap-1.5 ">
                             <button
-                              onClick={() => handleViewDocument(doc)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewDocument(doc);
+                              }}
                               className="flex items-center gap-1.5 p-2 text-xs text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors"
                               title={displayedStatus === "completed" ? "Lihat Hasil TTD" : "Lihat Versi Aktif"}
                             >
@@ -207,7 +302,10 @@ const DashboardDocuments = () => {
                               <span className="hidden sm:inline">Lihat</span>
                             </button>
                             <button
-                              onClick={() => openManagementModal("update", doc)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openManagementModal("update", doc);
+                              }}
                               className="flex items-center gap-1.5 p-2 text-xs text-slate-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-gray-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                               title="Kelola & Riwayat"
                             >
@@ -215,7 +313,10 @@ const DashboardDocuments = () => {
                               <span className="hidden sm:inline">Kelola</span>
                             </button>
                             <button
-                              onClick={() => handleDeleteDocument(doc.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteDocument(doc.id);
+                              }}
                               className="flex items-center gap-1.5 p-2 text-xs text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-slate-700 transition-colors"
                               title="Hapus Dokumen"
                             >
@@ -228,7 +329,6 @@ const DashboardDocuments = () => {
 
                       {/* Kolom Kanan: Aksi Utama */}
                       <div className="flex-shrink-0 flex justify-end md:justify-center w-full md:w-auto mt-4 md:mt-0">
-                        {/* --- REVISI 2: Posisi Tombol Tanda Tangani Lebih Rapi --- */}
                         {displayedStatus !== "completed" && (
                           <button
                             onClick={(e) => {
@@ -252,7 +352,8 @@ const DashboardDocuments = () => {
         </>
       )}
 
-      {/* --- Modal-modal --- */}
+      {/* --- Modal-modal (MEMPERBAIKI ESLINT) --- */}
+      {/* Kode ini memastikan 'setSelectedDocumentUrl' dan 'documentToDelete' digunakan */}
       {isManagementModalOpen && <DocumentManagementModal mode={modalMode} initialDocument={selectedDocument} onClose={closeManagementModal} onSuccess={handleSuccess} onViewRequest={handleViewRequestFromModal} />}
       <ViewDocumentModal isOpen={isViewModalOpen} onClose={() => setViewModalOpen(false)} url={selectedDocumentUrl} />
       <ConfirmationModal
