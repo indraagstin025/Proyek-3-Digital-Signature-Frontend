@@ -25,113 +25,122 @@ import DashboardDocuments from "./pages/DashboardPage/DashboardDocuments.jsx";
 import DashboardWorkspaces from "./pages/DashboardPage/DashboardWorkspaces.jsx";
 import DashboardHistory from "./pages/DashboardPage/DashboardHistory.jsx";
 import ProfilePage from "./pages/ProfilePage/ProfilePage.jsx";
+import GroupDetailPage from "./pages/GroupPage/GroupDetailPage.jsx";
+import AcceptInvitePage from "./pages/AcceptInvitePage/AcceptInvitePage.jsx"; 
 
 // Halaman Fungsional
 import SignDocumentPage from "./pages/SignDocumentPage/SignDocumentPage.jsx";
 import ViewDocumentPage from "./pages/ViewDocumentPage/ViewDocumentPage.jsx";
 import VerificationPage from "./pages/VerificationPage/VerificationPage.jsx";
 import NotFoundPage from "./pages/NotFoundPage/NotFoundPage.jsx";
+import SignPackagePage from "./pages/SignPackagePage/SignPackagePage.jsx";
 
 // Halaman Dashboard Admin
 import AdminDashboardPage from "./pages/AdminPage/AdminDashboardPage.jsx";
 import AdminDashboardOverview from "./pages/AdminPage/AdminDashboardOverview.jsx";
 import AdminManageUser from "./pages/AdminPage/AdminManageUser.jsx"; 
+import { pdfjs } from "react-pdf";
+
+pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.js";
+
 
 // Komponen Placeholder untuk Halaman Admin yang Belum Dibuat
 const UserManagementPage = () => (
-  <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-md text-slate-800 dark:text-white">
-    <h1 className="text-2xl font-bold">Halaman Manajemen Pengguna</h1>
-    <p className="mt-2 text-slate-600 dark:text-slate-400">Tabel pengguna, tombol tambah, edit, dan hapus akan ditampilkan di sini.</p>
-  </div>
+  <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-md text-slate-800 dark:text-white">
+    <h1 className="text-2xl font-bold">Halaman Manajemen Pengguna</h1>
+    <p className="mt-2 text-slate-600 dark:text-slate-400">Tabel pengguna, tombol tambah, edit, dan hapus akan ditampilkan di sini.</p>
+  </div>
 );
 
+
+
 const AppWrapper = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const [routeKey, setRouteKey] = useState(0);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [routeKey, setRouteKey] = useState(0);
 
-  const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
-  const [isSessionModalOpen, setSessionModalOpen] = useState(false);
-  const [showBanner, setShowBanner] = useState(false);
+  const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
+  const [isSessionModalOpen, setSessionModalOpen] = useState(false);
+  const [showBanner, setShowBanner] = useState(false);
 
-  useEffect(() => {
-    const handleSessionExpired = () => {
-      setSessionModalOpen(true);
-    };
-    window.addEventListener("sessionExpired", handleSessionExpired);
-    return () => {
-      window.removeEventListener("sessionExpired", handleSessionExpired);
-    };
-  }, []);
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      setSessionModalOpen(true);
+    };
+    window.addEventListener("sessionExpired", handleSessionExpired);
+    return () => {
+      window.removeEventListener("sessionExpired", handleSessionExpired);
+    };
+  }, []);
 
-  useEffect(() => {
-    const consent = localStorage.getItem("cookie_consent");
-    if (!consent) {
-      const timer = setTimeout(() => setShowBanner(true), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, []);
+  useEffect(() => {
+    const consent = localStorage.getItem("cookie_consent");
+    if (!consent) {
+      const timer = setTimeout(() => setShowBanner(true), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
-  const handleAcceptCookie = () => {
-    localStorage.setItem("cookie_consent", "true");
-    setShowBanner(false);
-  };
+  const handleAcceptCookie = () => {
+    localStorage.setItem("cookie_consent", "true");
+    setShowBanner(false);
+  };
 
-  const handleDeclineCookie = () => {
-    localStorage.setItem("cookie_consent", "false");
-    setShowBanner(false);
-  };
+  const handleDeclineCookie = () => {
+    localStorage.setItem("cookie_consent", "false");
+    setShowBanner(false);
+  };
 
 
 
-  const handleRedirectToLogin = () => {
-    setSessionModalOpen(false);
-    setRouteKey((prev) => prev + 1);
-    navigate("/login", { replace: true });
-  };
+  const handleRedirectToLogin = () => {
+    setSessionModalOpen(false);
+    setRouteKey((prev) => prev + 1);
+    navigate("/login", { replace: true });
+  };
 
-  useEffect(() => {
-    const root = document.documentElement;
-    if (theme === "dark") {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
-    localStorage.setItem("theme", theme);
-  }, [theme]);
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === "dark") {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+    localStorage.setItem("theme", theme);
+  }, [theme]);
 
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === "light" ? "dark" : "light"));
-  };
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === "light" ? "dark" : "light"));
+  };
 
-  const isDashboard = location.pathname.startsWith("/dashboard");
-  const isAdmin = location.pathname.startsWith("/admin");
+  const isDashboard = location.pathname.startsWith("/dashboard");
+  const isAdmin = location.pathname.startsWith("/admin");
 
-  const toastOptions = useMemo(
-    () => ({
-      style: {
-        background: theme === "dark" ? "#1F2937" : "#FFFFFF",
-        color: theme === "dark" ? "#D1D5DB" : "#111827",
-        border: theme === "dark" ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid #E5E7EB",
-      },
-      error: {
-        iconTheme: { primary: "#F87171", secondary: theme === "dark" ? "#1F2937" : "#FFFFFF" },
-      },
-      success: {
-        iconTheme: { primary: "#34D399", secondary: theme === "dark" ? "#1F2937" : "#FFFFFF" },
-      },
-    }),
-    [theme]
-  );
+  const toastOptions = useMemo(
+    () => ({
+    style: {
+        background: theme === "dark" ? "#1F2937" : "#FFFFFF",
+        color: theme === "dark" ? "#D1D5DB" : "#111827",
+        border: theme === "dark" ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid #E5E7EB",
+      },
+      error: {
+        iconTheme: { primary: "#F87171", secondary: theme === "dark" ? "#1F2937" : "#FFFFFF" },
+      },
+      success: {
+        iconTheme: { primary: "#34D399", secondary: theme === "dark" ? "#1F2937" : "#FFFFFF" },
+      },
+    }),
+    [theme]
+  );
 
 return (
-    <div className="flex-1 overflow-auto">
-      <Toaster position="top-center" reverseOrder={false} toastOptions={toastOptions} />
+    <div className="flex-1 overflow-auto">
+      <Toaster position="top-center" reverseOrder={false} toastOptions={toastOptions} />
 
-      {/* Header tidak akan tampil di halaman dashboard, admin, sign, dan view */}
-      {!isDashboard && !isAdmin && !location.pathname.includes("/sign") && !location.pathname.includes("/view") && <Header theme={theme} toggleTheme={toggleTheme} />}
+      {/* Header tidak akan tampil di halaman dashboard, admin, sign, dan view */}
+      {!isDashboard && !isAdmin && !location.pathname.includes("/sign") && !location.pathname.includes("/view") && <Header theme={theme} toggleTheme={toggleTheme} />}
 
-      <Routes>
+<Routes>
         {/* Rute Halaman Publik */}
         <Route element={<MainLayout />}>
           <Route path="/" element={<HomePage />} />
@@ -140,66 +149,85 @@ return (
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/verify/:signatureId" element={<VerificationPage />} />
-          <Route path="*" element={<NotFoundPage />} />
+          <Route path="/join" element={<AcceptInvitePage />} />
+          {/* ❗️ Rute '*' DIPINDAHKAN dari sini */}
         </Route>
 
-        {/* Rute Fungsional */}
+        {/* Rute Fungsional (Standalone) */}
         <Route path="/documents/:documentId/sign" element={<SignDocumentPage theme={theme} toggleTheme={toggleTheme} onSessionExpired={() => setSessionModalOpen(true)} />} />
+        
+        {/* --- ❗️ 1. RUTE BARU DITAMBAHKAN DI SINI --- */}
+        {/* Rute ini harus dilindungi, jadi kita letakkan di dalam <ProtectedRoute> */}
+        
         <Route path="/documents/:documentId/view" element={<ViewDocumentPage />} />
-        <Route path="*" element={<NotFoundPage />} />
+        
+        {/* --- ❗️ 2. Rute '*' DIPINDAHKAN ke bagian bawah --- */}
+        {/* <Route path="*" element={<NotFoundPage />} /> */}
 
-        {/* --- PERBAIKAN DI SINI: BUNGKUS RUTE PRIVAT DENGAN PROTECTEDROUTE --- */}
 
-        {/* Rute yang Dilindungi untuk SEMUA PENGGUNA (user & admin) */}
+        {/* --- Rute yang Dilindungi (User & Admin) --- */}
         <Route element={<ProtectedRoute />}>
+          
+          {/* ❗️ 3. RUTE WIZARD BARU DITEMPATKAN DI SINI */}
+          {/* Ini adalah halaman fungsional yang memerlukan login */}
+          <Route 
+            path="/packages/sign/:packageId" 
+            element={<SignPackagePage theme={theme} toggleTheme={toggleTheme} onSessionExpired={() => setSessionModalOpen(true)} />} 
+          />
+
           <Route path="/dashboard" element={<DashboardPage theme={theme} toggleTheme={toggleTheme} onSessionExpired={() => setSessionModalOpen(true)} />}>
             <Route index element={<DashboardOverview theme={theme} />} />
             <Route path="profile" element={<ProfilePage theme={theme} />} />
             <Route path="documents" element={<DashboardDocuments theme={theme} />} />
             <Route path="workspaces" element={<DashboardWorkspaces theme={theme} />} />
             <Route path="history" element={<DashboardHistory theme={theme} />} />
-            <Route path="*" element={<NotFoundPage />} />
+            <Route path="group/:groupId" element={<GroupDetailPage theme={theme} />} />
+            {/* Rute NotFound *di dalam* dashboard */}
+            <Route path="*" element={<NotFoundPage />} /> 
           </Route>
         </Route>
         
-        {/* Rute yang Dilindungi HANYA untuk ADMIN */}
+        {/* Rute yang Dilindungi (HANYA Admin) */}
         <Route element={<ProtectedRoute requireAdmin={true} />}>
           <Route path="/admin" element={<AdminDashboardPage theme={theme} toggleTheme={toggleTheme} />}>
             <Route index element={<Navigate to="dashboard" replace />} /> 
             <Route path="dashboard" element={<AdminDashboardOverview />} />
             <Route path="users" element={<AdminManageUser theme={theme} />} /> 
+            {/* Rute NotFound *di dalam* admin */}
             <Route path="*" element={<NotFoundPage />} />
           </Route>
-
-          <Route path="*" element={<NotFoundPage />} />
         </Route>
+
+        {/* --- ❗️ 4. RUTE '*' (NOT FOUND) UTAMA DITEMPATKAN DI AKHIR --- */}
+        {/* Ini memperbaiki bug Anda sebelumnya */}
+        <Route path="*" element={<NotFoundPage />} />
 
       </Routes>
 
-      {/* Modal dan Banner Cookie */}
-      <ConfirmationModal
-        isOpen={isSessionModalOpen}
-        onClose={() => setSessionModalOpen(false)}
-        onConfirm={handleRedirectToLogin}
-        title="Sesi Berakhir"
-        message="Sesi Anda telah berakhir. Silakan login kembali untuk melanjutkan."
-        confirmText="Login"
-        cancelText=""
-        confirmButtonColor="bg-blue-600 hover:bg-blue-700"
-      />
-      {showBanner && <CookieBanner 
-      onAccept={handleAcceptCookie} 
-      onDecline={handleDeclineCookie}/>}
-    </div>
-  );
+      {/* Modal dan Banner Cookie */}
+      <ConfirmationModal
+        isOpen={isSessionModalOpen}
+        onClose={() => setSessionModalOpen(false)}
+        onConfirm={handleRedirectToLogin}
+        title="Sesi Berakhir"
+        message="Sesi Anda telah berakhir. Silakan login kembali untuk melanjutkan."
+        confirmText="Login"
+        cancelText=""
+        confirmButtonColor="bg-blue-600 hover:bg-blue-700"
+      />
+      {showBanner && <CookieBanner 
+      onAccept={handleAcceptCookie} 
+      onDecline={handleDeclineCookie}/>} </div>
+  );
 };
 
 function App() {
-  return (
-    <Router>
-      <AppWrapper />
-    </Router>
-  );
+  return (
+    // Router tetap di sini, ini adalah tempat yang benar
+    <Router>
+      <AppWrapper />
+    </Router>
+  );
 }
 
 export default App;

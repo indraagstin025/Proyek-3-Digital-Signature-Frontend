@@ -2,10 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FaSpinner } from "react-icons/fa";
 import { Toaster, toast } from "react-hot-toast";
-
 import { documentService } from "../../services/documentService";
 import { signatureService } from "../../services/signatureService";
-
 import SigningHeader from "../../components/SigningHeader/SigningHeader";
 import SignatureSidebar from "../../components/SignatureSidebar/SignatureSidebar";
 import SignatureModal from "../../components/SignatureModal/SignatureModal";
@@ -14,7 +12,6 @@ import PDFViewer from "../../components/PDFViewer/PDFViewer";
 const SignDocumentPage = ({ theme, toggleTheme }) => {
   const { documentId } = useParams();
   const navigate = useNavigate();
-
   const [documentTitle, setDocumentTitle] = useState("Memuat...");
   const [pdfFile, setPdfFile] = useState(null);
   const [documentVersionId, setDocumentVersionId] = useState(null);

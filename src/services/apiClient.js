@@ -1,63 +1,101 @@
-// apiClient.js - VERSI DENGAN VALIDASI JARINGAN
+/**
+ * @file apiClient.js
+ * @description Konfigurasi Axios final: aman dari error JSON.parse,
+ * stabil, dan mendukung sesi menggunakan cookie + token.
+ */
 
 import axios from "axios";
 
-const API_BASE_URL = "https://proyek-3digital-signature-production.up.railway.app/api";
+const API_BASE_URL = "http://localhost:3000/api";
 
+console.log(`[API Client] Base URL: ${API_BASE_URL}`);
+
+/* ============================================================
+ * AXIOS INSTANCE (JSON)
+ * ============================================================ */
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
-  withCredentials: true,
+  withCredentials: true, // cookie session tetap dikirim
 });
 
-apiClient.interceptors.response.use(
-  (response) => {
-    return response;
+/* ============================================================
+ * OPTIONAL AXIOS INSTANCE (FILE / BLOB DOWNLOAD)
+ * ============================================================ */
+export const apiFileClient = axios.create({
+  baseURL: API_BASE_URL,
+  withCredentials: true,
+  responseType: "blob",
+});
+
+/* ============================================================
+ * REQUEST INTERCEPTOR — AMAN
+ * Tidak membatalkan request, tidak redirect dalam interceptor.
+ * ============================================================ */
+apiClient.interceptors.request.use(
+  (config) => {
+    const userString = localStorage.getItem("authUser");
+
+    if (userString) {
+      try {
+        const user = JSON.parse(userString);
+        if (user?.token) {
+          config.headers.Authorization = `Bearer ${user.token}`;
+        }
+      } catch (parseError) {
+        console.warn("[API] JSON.parse(authUser) gagal → token dihapus.");
+        localStorage.removeItem("authUser");
+      }
+    }
+
+    return config;
   },
+  (error) => Promise.reject(error)
+);
+
+/* ============================================================
+ * RESPONSE INTERCEPTOR — STABIL
+ * Menangani 401, network error, dan error tak dikenal.
+ * ============================================================ */
+apiClient.interceptors.response.use(
+  (response) => response,
   (error) => {
-    // 1. Server MERESPONS dengan sebuah status error (misal: 401, 500, 503)
+    // FIX: Abaikan error pembatalan (common saat unmount/strict mode)
+    if (axios.isCancel(error) || error.code === "ERR_CANCELED") {
+      return new Promise(() => {}); // swallow the cancel
+    }
+
     if (error.response) {
-      // Logika untuk sesi berakhir yang sudah ada tetap dipertahankan
-      if (error.response.status === 401 && error.response.data) {
-        const errorMessage = error.response.data.message || "";
-        if (
-          errorMessage.includes("Sesi tidak ditemukan") ||
-          errorMessage.includes("Sesi Anda telah berakhir")
-        ) {
-          const sessionExpiredEvent = new CustomEvent("sessionExpired");
-          window.dispatchEvent(sessionExpiredEvent);
+      const status = error.response.status;
+      const msg = error.response.data?.message || "";
+
+      if (status === 401) {
+        if (msg.includes("Sesi tidak ditemukan") || msg.includes("Sesi Anda telah berakhir")) {
+          window.dispatchEvent(new CustomEvent("sessionExpired"));
         }
       }
-      // Untuk error lain dari server (404, 500, 503 asli, dll),
-      // langsung teruskan error aslinya dari backend.
+
       return Promise.reject(error);
-    } 
-    
-    // 2. Server TIDAK MERESPONS (Internet mati atau server down)
-    else if (error.request) {
-      // Buat sebuah objek error custom yang strukturnya mirip dengan error dari backend Anda
-      // agar bisa ditangani dengan cara yang sama di halaman login/komponen lain.
+    }
+
+    if (error.request) {
       const networkError = {
         response: {
           data: {
             code: "NETWORK_ERROR",
-            // Pesan ini diambil dari CommonError.NetworkError Anda
-            message: "Koneksi ke server lambat atau tidak stabil. Silakan coba lagi beberapa saat.",
+            message: "Koneksi ke server lambat atau tidak stabil. Silakan coba lagi.",
           },
-          // Sesuai permintaan Anda, kita gunakan status 503 untuk masalah jaringan/server down.
-          // Ini lebih sesuai daripada 500 (Internal Server Error).
-          status: 503, 
+          status: 503,
         },
       };
       return Promise.reject(networkError);
-    } 
-    
-    // 3. Error lain yang tidak terduga
-    else {
-      // Untuk error yang lebih aneh lagi, kembalikan pesan generik.
-      return Promise.reject(new Error("Terjadi kesalahan yang tidak terduga."));
     }
+
+    console.error("[API] Unknown Error:", error);
+    return Promise.reject(new Error("Terjadi kesalahan yang tidak terduga."));
   }
 );
+
+
 
 export default apiClient;

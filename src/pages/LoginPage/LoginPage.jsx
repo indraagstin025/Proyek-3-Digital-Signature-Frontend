@@ -30,28 +30,24 @@ const LoginPage = () => {
     return () => clearTimeout(timer);
   }, [searchParams]);
 
-
- const handleLogin = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
       const { user } = await authService.login(email, password);
-
       setIsRedirecting(true);
 
-       const from = location.state?.from?.pathname || null;
-
-      // 2. Tentukan tujuan akhir setelah login
+      const from = location.state?.from?.pathname || null;
       const defaultDestination = user?.isSuperAdmin ? "/admin/dashboard" : "/dashboard";
-      const finalDestination = from || defaultDestination; // Prioritaskan halaman tujuan sebelumnya
-      
+      const finalDestination = from || defaultDestination;
+
       const welcomeMessage = `Login berhasil, selamat datang ${user.name}!`;
 
-      // 2. Beri sedikit jeda agar animasi loading terlihat
       setTimeout(() => {
         navigate(finalDestination, {
+          replace: true,
           state: {
             message: welcomeMessage,
           },
