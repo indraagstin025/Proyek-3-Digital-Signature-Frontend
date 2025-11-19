@@ -147,44 +147,120 @@ html.dark body {
 }
 
 .dropzone-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 5; /* Di bawah tanda tangan (z-10), tapi di atas kanvas PDF */
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10; 
+    pointer-events: none; /* Dinonaktifkan secara default */
 }
 
 .dragging-clone {
-  /* Membuat klon menjadi semi-transparan dan selalu di atas */
-  opacity: 0.7;
-  z-index: 9999;
-  position: absolute; /* Penting agar bisa diposisikan di mana saja */
-  pointer-events: none; /* Agar tidak mengganggu event drop */
-  box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+    opacity: 0.7;
+    z-index: 9999;
+    position: absolute;
+    pointer-events: none;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
 }
 
-html, body, #root {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-}
-
-/* Tambahkan ini ke file CSS global Anda */
 body.dragging-active,
 body.dragging-active * {
-  user-select: none !important;
-  -webkit-user-select: none !important;
-  -moz-user-select: none !important;
-  -ms-user-select: none !important;
-  cursor: grabbing !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    cursor: grabbing !important;
+}
+
+
+/* ========================================================== */
+/* A. KONTROL INTERAKSI SIGNATURE (PLACED-FIELD) */
+/* ========================================================== */
+/* ========================================================== */
+/* A. KONTROL INTERAKSI SIGNATURE (PLACED-FIELD) */
+/* ========================================================== */
+
+.placed-field {
+    /* INTERACTJS SETUP */
+    touch-action: none; 
+    position: absolute;
+    
+    /* Z-INDEX & MARGIN */
+    z-index: 20; 
+    margin: 10px; /* Ruang aman untuk handle */
+    
+    /* STYLING BORDER */
+    border: 2px solid transparent; 
+    border-radius: 6px;
+    transition: border-color 0.15s ease-in-out; 
+    
+    /* PERFORMANCE: Mendorong Akselerasi GPU pada elemen induk */
+    transform: translate3d(0, 0, 0); 
+}
+
+.placed-field.active-field {
+    border-color: #3b82f6; /* Aktif: Border Biru */
 }
 
 .placed-field:hover {
-  border-color: #3b82f6; 
+    border-color: #3b82f6; /* Hover: Border Biru */
 }
 
-.placed-field {
-  touch-action: none; /* cegah gesture scroll/pinch bawaan supaya drag di mobile jalan mulus */
+.placed-field.is-dragging {
+    /* PERFORMANCE: Menonaktifkan visual berat saat drag */
+    box-shadow: none !important; 
+    opacity: 0.9;
+}
+
+/* KUNCI: Membuat Tanda Tangan Realistis (Menghilangkan Canvas) */
+.placed-field .field-content {
+    padding: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    /* Transform 3D tidak lagi diperlukan di sini karena sudah ada di .placed-field */
+}
+
+.placed-field img {
+    background: transparent !important;
+}
+
+/* ========================================================== */
+/* B. HANDLE RESIZE */
+/* ========================================================== */
+
+.placed-field .handle-resize {
+    position: absolute;
+    
+    /* ERGONOMI SENTUH */
+    width: 32px; 
+    height: 32px;
+    margin: -16px; /* Offset ke sudut */
+    
+    z-index: 50; 
+    pointer-events: auto; 
+    
+    /* STYLING VISUAL */
+    background: #3b82f6; 
+    border: 3px solid #ffffff; 
+    border-radius: 50%;
+}
+
+/* Kursor dan Penempatan Handle */
+.placed-field .handle-resize.top-left { top: 0; left: 0; cursor: nwse-resize; }
+.placed-field .handle-resize.top-right { top: 0; right: 0; cursor: nesw-resize; }
+.placed-field .handle-resize.bottom-left { bottom: 0; left: 0; cursor: nesw-resize; }
+.placed-field .handle-resize.bottom-right { bottom: 0; right: 0; cursor: nwse-resize; }
+
+
+/* ========================================================== */
+/* C. TOOLBAR & OVERLAY */
+/* ========================================================== */
+
+.field-toolbar {
+    /* Posisikan di luar area interaktif utama (di atas margin 10px) */
+    top: -20px; 
+    right: -20px;
+    z-index: 60; /* Paling atas */
 }
 
