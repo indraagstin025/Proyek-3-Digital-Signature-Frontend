@@ -63,9 +63,8 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    // FIX: Abaikan error pembatalan (common saat unmount/strict mode)
     if (axios.isCancel(error) || error.code === "ERR_CANCELED") {
-      return new Promise(() => {}); // swallow the cancel
+      return new Promise(() => {});
     }
 
     if (error.response) {
