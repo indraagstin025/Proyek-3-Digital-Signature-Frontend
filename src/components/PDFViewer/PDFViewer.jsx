@@ -117,7 +117,7 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
     };
   }, [numPages, isMobileOrPortrait]);
 
-  useEffect(() => {
+useEffect(() => {
     interact(".dropzone-overlay").dropzone({
       ondropactivate(event) {
         event.target.classList.remove("pointer-events-none");
@@ -135,12 +135,17 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
         const x_display = event.dragEvent.clientX - pageRect.left;
         const y_display = event.dragEvent.clientY - pageRect.top;
 
-        const DEFAULT_WIDTH = pageRect.width * 0.2;
-        const DEFAULT_HEIGHT = DEFAULT_WIDTH * 0.4;
+        // --- PERBAIKAN DI SINI ---
+        // Kita batasi lebarnya agar tidak terlalu besar (max 150px atau 15% lebar halaman)
+        const DEFAULT_WIDTH = Math.min(pageRect.width * 0.15, 150);
+        
+        // Set HEIGHT sama dengan WIDTH agar menjadi KOTAK (Square)
+        const DEFAULT_HEIGHT = DEFAULT_WIDTH; 
 
         const existingId = event.relatedTarget?.getAttribute("data-id");
 
         if (existingId) {
+          // Logika update posisi (drag yang sudah ada)
           onUpdateSignature({
             id: existingId,
             pageNumber,
@@ -150,6 +155,7 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
             positionY: y_display / pageRect.height,
           });
         } else {
+          // Logika tambah baru (drop dari sidebar)
           const newSignature = {
             id: `sig-${Date.now()}`,
             signatureImageUrl: savedSignatureUrl,
@@ -161,7 +167,7 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
             x_display,
             y_display,
             width_display: DEFAULT_WIDTH,
-            height_display: DEFAULT_HEIGHT,
+            height_display: DEFAULT_HEIGHT, // Ini sekarang sama dengan width
           };
 
           onAddSignature(newSignature);

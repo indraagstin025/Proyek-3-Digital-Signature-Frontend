@@ -125,22 +125,44 @@ const DashboardDocuments = () => {
     }
   };
 
-  const getDerivedStatus = (doc) => {
-    if (doc.status === "completed") {
+const getDerivedStatus = (doc) => {
+    const currentVer = doc.currentVersion;
+
+    // 1. Safety Check: Jika tidak ada data versi, gunakan status default
+    if (!currentVer) return doc.status || "draft";
+
+    // 2. Deteksi Tanda Tangan di Versi Aktif
+    
+    // A. Tanda Tangan Personal (Manual)
+    const isPersonalSigned = currentVer.signaturesPersonal && currentVer.signaturesPersonal.length > 0;
+
+    // B. Tanda Tangan Paket (DIPERBAIKI)
+    // Kita samakan logikanya dengan Modal. Cukup cek apakah array 'packages' ada isinya.
+    // Jika versi ini terhubung ke paket, berarti versi ini adalah hasil tanda tangan batch (Completed).
+    const isPackageSigned = currentVer.packages && currentVer.packages.length > 0;
+
+    // Gabungan
+    const isCurrentVersionSigned = isPersonalSigned || isPackageSigned;
+
+    // --- LOGIKA PENENTUAN STATUS ---
+
+    // KONDISI 1: Versi Aktif MEMILIKI tanda tangan (V2, V3, dst)
+    // Maka status MUTLAK adalah "completed" (Hijau).
+    if (isCurrentVersionSigned) {
       return "completed";
     }
 
-    const isPersonalSigned = doc.currentVersion?.signaturesPersonal?.length > 0;
-
-    const isPackageSigned = doc.currentVersion?.packages?.some((pkgDoc) => pkgDoc.signatures?.length > 0);
-
-    const isCurrentVersionSigned = isPersonalSigned || isPackageSigned;
-
-    if (!isCurrentVersionSigned && doc.status !== "pending") {
-      return "draft";
+    // KONDISI 2: Versi Aktif KOSONG / BERSIH (V1 atau Rollback)
+    // Kita MENGABAIKAN status 'completed' dari database untuk kasus ini.
+    // Ini penting agar saat rollback ke V1, statusnya turun jadi Draft sehingga bisa ditanda tangan ulang.
+    
+    // Pengecualian: Jika status database adalah "pending" (menunggu pihak lain), tetapkan pending.
+    if (doc.status === "pending") {
+      return "pending";
     }
 
-    return doc.status;
+    // Default: Draft (Abu-abu)
+    return "draft";
   };
 
   /**
