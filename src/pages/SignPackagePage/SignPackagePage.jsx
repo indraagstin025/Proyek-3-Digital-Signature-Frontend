@@ -3,14 +3,14 @@ import { useParams, useNavigate } from "react-router-dom";
 import { packageService } from "../../services/packageService";
 import { toast, Toaster } from "react-hot-toast";
 import { documentService } from "../../services/documentService.js";
-
+import SigningHeader from "../../components/SigningHeader/SigningHeader"; 
 import PDFViewer from "../../components/PDFViewer/PDFViewer";
 import SignatureSidebar from "../../components/SignatureSidebar/SignatureSidebar";
 import SignatureModal from "../../components/SignatureModal/SignatureModal";
 
-import { FaSpinner, FaFileAlt, FaCheckCircle, FaChevronRight } from "react-icons/fa";
+import { FaSpinner, FaChevronRight, FaChevronLeft } from "react-icons/fa";
 
-const SignPackagePage = () => {
+const SignPackagePage = ({ theme, toggleTheme }) => { 
   const { packageId } = useParams();
   const navigate = useNavigate();
 
@@ -20,6 +20,7 @@ const SignPackagePage = () => {
   const [error, setError] = useState(null);
 
   const [currentPdfBlobUrl, setCurrentPdfBlobUrl] = useState(null);
+  // eslint-disable-next-line no-unused-vars
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -30,8 +31,19 @@ const SignPackagePage = () => {
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
   const [includeQrCode, setIncludeQrCode] = useState(true);
 
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isLandscape, setIsLandscape] = useState(window.innerWidth > window.innerHeight);
+
   const totalDocs = packageDetails?.documents?.length || 0;
   const isLastDocument = totalDocs > 0 && currentIndex === totalDocs - 1;
+
+  // Logika Orientasi
+  useEffect(() => {
+    const handleResize = () => setIsLandscape(window.innerWidth > window.innerHeight);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     const fetchPackage = async () => {
@@ -133,6 +145,24 @@ const SignPackagePage = () => {
     setCurrentSignatures((prev) => prev.filter((sig) => sig.id !== signatureId));
   }, []);
 
+  const navigateDocument = useCallback((direction) => {
+    const nextIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
+    if (nextIndex < 0 || nextIndex >= totalDocs) return;
+
+    if (currentSignatures.length > 0 && currentPackageDocument) {
+        const newAllSignatures = new Map(allSignatures).set(currentPackageDocument.id, currentSignatures);
+        setAllSignatures(newAllSignatures);
+    }
+    
+    setCurrentIndex(nextIndex);
+    
+    const nextDocId = packageDetails.documents[nextIndex].id;
+    setCurrentSignatures(allSignatures.get(nextDocId) || []);
+
+    toast.success(`Memuat dokumen: ${packageDetails.documents[nextIndex].docVersion?.document?.title || `Dokumen ${nextIndex + 1}`}`);
+  }, [currentIndex, allSignatures, currentSignatures, currentPackageDocument, packageDetails, totalDocs]);
+
+
   const handleNextOrSubmit = async () => {
     if (currentSignatures.length === 0) {
       toast.error(`Harap tempatkan setidaknya satu tanda tangan di ${currentDocumentTitle}.`);
@@ -144,7 +174,6 @@ const SignPackagePage = () => {
     }
 
     const newAllSignatures = new Map(allSignatures).set(currentPackageDocument.id, currentSignatures);
-
     setAllSignatures(newAllSignatures);
 
     if (isLastDocument) {
@@ -152,7 +181,6 @@ const SignPackagePage = () => {
       const toastId = toast.loading("Menyelesaikan dan menyimpan semua tanda tangan...");
 
       const finalSignaturesPayload = [];
-
       newAllSignatures.forEach((signatures, packageDocId) => {
         signatures.forEach((sig) => {
           finalSignaturesPayload.push({
@@ -177,20 +205,20 @@ const SignPackagePage = () => {
           toast.error(`Proses selesai, namun ${result.failed.length} dokumen gagal.`, { id: toastId });
         }
 
-        navigate("/dashboard/documents", { state: { refresh: true } });
+        navigate("/dashboard/documents");
       } catch (err) {
         setIsSubmitting(false);
         setError(err.message);
         toast.error(err.message || "Gagal menyimpan paket.", { id: toastId });
       }
     } else {
-      toast.success(`Tanda tangan untuk ${currentDocumentTitle} disimpan. Memuat dokumen berikutnya...`);
-      setCurrentIndex((prev) => prev + 1);
-      setCurrentSignatures([]);
+      navigateDocument('next');
     }
   };
 
-  if (isLoading || !packageDetails) {
+  const sidebarOpen = isLandscape ? true : isSidebarOpen;
+
+  if (isLoading && !currentPdfBlobUrl) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">
         <FaSpinner className="animate-spin text-3xl text-blue-500" />
@@ -201,112 +229,87 @@ const SignPackagePage = () => {
   }
 
   return (
-    <>
-      <Toaster position="top-center" containerStyle={{ zIndex: 99999 }} />
+    <div className="absolute inset-0 bg-slate-200 dark:bg-slate-900 overflow-hidden">
+      <Toaster position="top-center" containerStyle={{ zIndex: 9999 }} />
       {isSignatureModalOpen && <SignatureModal onClose={() => setIsSignatureModalOpen(false)} onSave={handleSignatureSave} />}
 
-      <div className="flex h-screen w-full bg-slate-200 dark:bg-slate-800">
-        {/* === Sidebar Kiri (Daftar Dokumen) === */}
-        <nav className="hidden md:flex flex-col w-64 bg-white dark:bg-slate-900 shadow-lg flex-shrink-0">
-          <div className="p-4 border-b dark:border-slate-700">
-            {/* ❗️ Aman karena 'packageDetails' sudah di-guard */}
-            <h2 className="font-bold text-lg dark:text-white truncate" title={packageDetails.title}>
-              {packageDetails.title || "Paket Tanda Tangan"}
-            </h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              {/* ❗️ 'totalDocs' sudah didefinisikan di atas */}
-              Dokumen {currentIndex + 1} dari {totalDocs}
-            </p>
-          </div>
-          <ul className="flex-1 overflow-y-auto p-2 space-y-1">
-            {/* ❗️ Aman karena 'packageDetails' sudah di-guard */}
-            {packageDetails.documents.map((doc, index) => {
-              const isActive = index === currentIndex;
-              const isDone = allSignatures.has(doc.id) || (isActive && currentSignatures.length > 0);
+      {/* 1. SIGNING HEADER (Tinggi 64px) */}
+      <header className="fixed top-0 left-0 w-full h-16 z-50">
+        <SigningHeader theme={theme} toggleTheme={toggleTheme} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
+      </header>
+      
+      {/* 2. WRAPPER NAVIGASI DOKUMEN (Tinggi 48px, Posisi di bawah h-16) */}
+      <div className={`fixed top-16 left-0 w-full h-12 z-40 bg-white dark:bg-slate-900 shadow-sm border-b border-slate-200/80 dark:border-white/10`}>
+        <div className="flex items-center justify-center h-full px-4">
+            
+            <button
+                onClick={() => navigateDocument('prev')}
+                disabled={currentIndex === 0}
+                className="p-2 rounded-full text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 transition"
+                title="Dokumen Sebelumnya"
+            >
+                <FaChevronLeft className="w-5 h-5" />
+            </button>
 
-              return (
-                <li
-                  key={doc.id}
-                  className={`flex items-center p-3 rounded-md cursor-pointer ${
-                    isActive ? "bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300" : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-                  }`}
-                >
-                  {isDone ? <FaCheckCircle className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" /> : <FaFileAlt className="w-5 h-5 mr-3 flex-shrink-0" />}
-                  {/* ❗️ [PERBAIKAN] Tambahkan '?' untuk keamanan data */}
-                  <span className="truncate flex-1">{doc?.docVersion?.document?.title || `Dokumen ${index + 1}`}</span>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-
-        {/* === Area Viewer Tengah === */}
-        <main className="flex-1 flex flex-col overflow-hidden">
-          {/* (Opsional) Header Navigasi Mobile */}
-          <div className="md:hidden p-2 bg-white dark:bg-slate-900 shadow text-center">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              {/* ❗️ 'totalDocs' sudah didefinisikan di atas */}
-              Dokumen {currentIndex + 1} dari {totalDocs}:<span className="font-semibold dark:text-white ml-1">{currentDocumentTitle}</span>
-            </p>
-          </div>
-
-          <div className="flex-1 overflow-auto">
-            {/* ❗️ Menggunakan 'isLoadingPdf' dan 'currentPdfBlobUrl' */}
-            {isLoadingPdf || !currentPdfBlobUrl ? (
-              <div className="flex h-full items-center justify-center">
-                <FaSpinner className="animate-spin text-3xl text-blue-500" />
-                <p className="ml-4 text-lg text-gray-700 dark:text-gray-300">Memuat {currentDocumentTitle}...</p>
-              </div>
-            ) : (
-              <PDFViewer
-                key={currentPdfBlobUrl}
-                fileUrl={currentPdfBlobUrl}
-                documentTitle={currentDocumentTitle}
-                signatures={currentSignatures}
-                onAddSignature={handleAddSignature}
-                onUpdateSignature={handleUpdateSignature}
-                onDeleteSignature={handleDeleteSignature}
-                savedSignatureUrl={savedSignatureUrl}
-              />
-            )}
-          </div>
-        </main>
-
-        {/* === Sidebar Kanan (Alat TTD) === */}
-        <div className="hidden lg:block">
-          <SignatureSidebar
-            savedSignatureUrl={savedSignatureUrl}
-            onOpenSignatureModal={() => setIsSignatureModalOpen(true)}
-            onSave={handleNextOrSubmit}
-            isLoading={isSubmitting}
-            includeQrCode={includeQrCode}
-            setIncludeQrCode={setIncludeQrCode}
-            saveButtonText={isLastDocument ? "Selesaikan & Simpan Semua" : "Terapkan & Lanjut"}
-            isSaveDisabled={!savedSignatureUrl}
-          />
-        </div>
-
-        {/* Tombol Simpan "Sticky" untuk Mobile/Tablet */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-white dark:bg-slate-900 shadow-lg z-50">
-          <button
-            onClick={handleNextOrSubmit}
-            disabled={isSubmitting || !savedSignatureUrl}
-            className="w-full flex justify-center items-center text-white font-bold py-3 px-4 rounded-full bg-gradient-to-r from-blue-500 to-teal-400 disabled:opacity-50"
-          >
-            {isSubmitting ? (
-              <FaSpinner className="animate-spin" />
-            ) : isLastDocument ? (
-              "Selesaikan & Simpan Semua"
-            ) : (
-              <>
-                <span>Terapkan & Lanjut</span>
-                <FaChevronRight className="w-4 h-4 ml-2" />
-              </>
-            )}
-          </button>
+            <div className="text-center mx-4 flex-1 min-w-0 max-w-lg"> 
+                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                    Paket: {packageDetails?.title}
+                </p>
+                <h3 className="font-semibold text-base text-slate-800 dark:text-white truncate" title={currentDocumentTitle}>
+                    {currentDocumentTitle} ({currentIndex + 1} dari {totalDocs})
+                </h3>
+            </div>
+            
+            <button
+                onClick={() => navigateDocument('next')}
+                disabled={isLastDocument}
+                className="p-2 rounded-full text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 transition"
+                title="Dokumen Berikutnya"
+            >
+                <FaChevronRight className="w-5 h-5" />
+            </button>
         </div>
       </div>
-    </>
+
+
+      {/* 3. WRAPPER KONTEN UTAMA (Dimulai dari top-[112px]) */}
+      <div className="absolute top-[112px] bottom-0 left-0 w-full flex overflow-hidden">
+        
+        <main className="flex-1 overflow-hidden">
+          {currentPdfBlobUrl && (
+            <PDFViewer
+              key={currentPdfBlobUrl}
+              fileUrl={currentPdfBlobUrl}
+              documentTitle={currentDocumentTitle}
+              signatures={currentSignatures}
+              onAddSignature={handleAddSignature}
+              onUpdateSignature={handleUpdateSignature}
+              onDeleteSignature={handleDeleteSignature}
+              savedSignatureUrl={savedSignatureUrl}
+            />
+          )}
+        </main>
+        
+        {/* Sidebar Alat TTD */}
+        <SignatureSidebar
+          savedSignatureUrl={savedSignatureUrl}
+          onOpenSignatureModal={() => setIsSignatureModalOpen(true)}
+          onSave={handleNextOrSubmit}
+          isLoading={isSubmitting}
+          includeQrCode={includeQrCode}
+          setIncludeQrCode={setIncludeQrCode}
+          isOpen={sidebarOpen} 
+          onClose={() => setIsSidebarOpen(false)}
+        />
+      </div>
+
+      {/* Overlay untuk Mobile/Portrait */}
+      {isSidebarOpen && !isLandscape && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/40 z-30 md:hidden"></div>}
+      
+      {/* Modals */}
+      {isSignatureModalOpen && <SignatureModal onSave={handleSignatureSave} onClose={() => setIsSignatureModalOpen(false)} />}
+      
+    </div>
   );
 };
 

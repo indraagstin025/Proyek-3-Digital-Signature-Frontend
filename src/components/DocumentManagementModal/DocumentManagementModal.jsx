@@ -1,4 +1,5 @@
 /* eslint-disable no-unused-vars */
+
 import React, { useState, useEffect } from "react";
 import { documentService } from "../../services/documentService.js";
 import toast from "react-hot-toast";
@@ -110,17 +111,18 @@ const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, on
     try {
       const signedUrl = await documentService.getDocumentVersionFileUrl(initialDocument.id, version.id);
 
-      // Dapatkan nama file dari parameter URL ?download=...
+      
       let filename = `version-${version.versionNumber || version.id}.pdf`;
       try {
         const urlObj = new URL(signedUrl);
         const filenameParam = urlObj.searchParams.get("download");
         if (filenameParam) filename = filenameParam;
+      // eslint-disable-next-line no-empty
       } catch (_) {
-        // Abaikan kesalahan parsing URL
+        
       }
 
-      // Buat elemen link download
+      
       const link = window.document.createElement("a");
       link.href = signedUrl;
       link.setAttribute("download", filename);
@@ -230,31 +232,20 @@ const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, on
               ) : (
                 <ul className="space-y-3">
                   {versions.map((version, index) => {
-                    // 1. Identifikasi Versi
-                    const isLatestVersion = index === 0; // Versi paling atas (Terbaru/V2)
-                    const isFirstVersion = index === versions.length - 1; // Versi paling bawah (V1/Asli)
-
-                    // 2. Cek Data Real dari Database (Personal / Paket)
-                    const hasPersonalSig = version.signaturesPersonal && version.signaturesPersonal.length > 0;
-                    const hasPackageSig = version.packages && version.packages.some((pkg) => pkg.signatures && pkg.signatures.length > 0);
-                    const hasRealSignatureData = hasPersonalSig || hasPackageSig;
-
-                    // 3. Cek Status Dokumen Induk
-                    // Apakah dokumen utama sudah selesai? (Status dari database Dashboard)
-                    const isDocumentCompleted = initialDocument?.status === "completed";
-
-                    // 4. LOGIKA FINAL (KOMBINASI)
-                    // Tampilkan badge "Ditandatangani" JIKA:
-                    // A. Ada data tanda tangan asli di versi ini (hasRealSignatureData)
-                    //    ATAU
-                    // B. Dokumen statusnya "Completed" DAN ini adalah versi terbaru (isLatestVersion)
-                    //    (Ini menangani kasus Paket dimana data signature tertinggal di V1)
-                    //
-                    // DAN SYARAT MUTLAK: BUKAN Versi 1 (!isFirstVersion)
-                    const showSignedBadge = (hasRealSignatureData || (isDocumentCompleted && isLatestVersion)) && !isFirstVersion;
-
-                    // Label Versi
+                    
+                    const isFirstVersion = index === versions.length - 1; 
                     const versionNumber = versions.length - index;
+
+                    
+
+                    
+                    
+                    const isPackageSigned = version.packages && version.packages.length > 0; 
+                    const isManualSigned = version.signaturesPersonal && version.signaturesPersonal.length > 0;
+                    const isSigned = isManualSigned || isPackageSigned;
+
+                    
+                    const showSignedBadge = isSigned && !isFirstVersion;
 
                     return (
                       <li key={version.id} className={`p-3 rounded-lg flex items-center justify-between transition-colors ${version.isActive ? "bg-blue-100 dark:bg-blue-900/50" : "bg-slate-50 dark:bg-slate-700/50"}`}>
@@ -267,7 +258,7 @@ const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, on
                               {/* Badge AKTIF */}
                               {version.isActive && <span className="text-xs font-bold text-green-600 bg-green-100 dark:bg-green-500/20 dark:text-green-400 px-2 py-0.5 rounded-full flex-shrink-0">Aktif</span>}
 
-                              {/* Badge DITANDATANGANI (Sesuai Logika Final di atas) */}
+                              {/* Badge DITANDATANGANI */}
                               {showSignedBadge && (
                                 <span className="flex items-center gap-1 text-xs font-semibold text-blue-600 bg-blue-100 dark:bg-blue-500/20 dark:text-blue-400 px-2 py-0.5 rounded-full flex-shrink-0">
                                   <FaCheckCircle /> Ditandatangani
@@ -281,42 +272,39 @@ const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, on
                           </div>
                         </div>
 
-                        {/* Tombol Aksi (Biarkan tetap sama seperti kode Anda) */}
+                        {/* Tombol Aksi */}
                         <div className="flex items-center space-x-1 flex-shrink-0">
                           <button
                             onClick={() => handlePreviewClick(version)}
                             className="p-2 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                            title="Lihat"
                           >
-                            {" "}
-                            <FaEye />{" "}
+                            <FaEye />
                           </button>
                           <button
                             onClick={() => handleDownloadVersion(version)}
                             className="p-2 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                            title="Unduh"
                           >
-                            {" "}
-                            <FaDownload />{" "}
+                            <FaDownload />
                           </button>
 
-                          {/* Tombol Rollback & Hapus hanya muncul jika BUKAN versi aktif */}
                           {!version.isActive && (
                             <>
                               <button
                                 onClick={() => handleUseVersion(version.id)}
                                 className="p-2 text-slate-600 dark:text-slate-300 hover:text-green-600 dark:hover:text-green-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                                title="Rollback"
                               >
-                                {" "}
-                                <FaUndo />{" "}
+                                <FaUndo />
                               </button>
-
-                              {/* Tombol Hapus disembunyikan untuk Versi 1 */}
                               {!isFirstVersion && (
                                 <button
                                   onClick={() => handleDeleteVersion(version.id)}
                                   className="p-2 text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                                  title="Hapus Versi"
                                 >
-                                  {" "}
-                                  <FaTrash />{" "}
+                                  <FaTrash />
                                 </button>
                               )}
                             </>
