@@ -159,7 +159,9 @@ return (
         {/* --- ❗️ 1. RUTE BARU DITAMBAHKAN DI SINI --- */}
         {/* Rute ini harus dilindungi, jadi kita letakkan di dalam <ProtectedRoute> */}
         
-        <Route path="/documents/:documentId/view" element={<ViewDocumentPage />} />
+       <Route path="/documents/:documentId/view" element={<ViewDocumentPage theme={theme} toggleTheme={toggleTheme} />} />
+        
+
         
         {/* --- ❗️ 2. Rute '*' DIPINDAHKAN ke bagian bawah --- */}
         {/* <Route path="*" element={<NotFoundPage />} /> */}
