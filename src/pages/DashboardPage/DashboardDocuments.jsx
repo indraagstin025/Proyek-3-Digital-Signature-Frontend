@@ -13,15 +13,7 @@ import DocumentManagementModal from "../../components/DocumentManagementModal/Do
 import ConfirmationModal from "../../components/ConfirmationModal/ConfirmationModal.jsx";
 
 import { Toaster, toast } from "react-hot-toast";
-import {
-  FaPlus,
-  FaCog,
-  FaEye,
-  FaTrashAlt,
-  FaSpinner,
-  FaSignature,
-  FaFileAlt,
-} from "react-icons/fa";
+import { FaPlus, FaCog, FaEye, FaTrashAlt, FaSpinner, FaSignature, FaFileAlt } from "react-icons/fa";
 
 const DashboardDocuments = () => {
   const [documents, setDocuments] = useState([]);
@@ -219,16 +211,16 @@ const DashboardDocuments = () => {
           <span className="ml-3 text-slate-500">Memuat daftar dokumen...</span>
         </div>
       )}
-      {error && (
-        <div className="text-center text-red-500 p-4 rounded bg-red-50 dark:bg-red-900/10 border border-red-200">{error}</div>
-      )}
+      {error && <div className="text-center text-red-500 p-4 rounded bg-red-50 dark:bg-red-900/10 border border-red-200">{error}</div>}
 
       {/* Batch bar (mobile fixed bottom, desktop static) */}
       {selectedDocIds.size > 0 && (
         <div className="fixed bottom-4 left-4 right-4 sm:static sm:mb-6 z-40 p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/50 rounded-xl shadow-lg border border-blue-200 dark:border-blue-700 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="font-semibold text-sm text-blue-800 dark:text-blue-200">{selectedDocIds.size} dokumen dipilih</span>
-            <button onClick={() => setSelectedDocIds(new Set())} className="py-1 px-3 text-xs text-slate-700 dark:text-slate-300 rounded-md bg-transparent hover:bg-slate-200 dark:hover:bg-slate-700">Batal</button>
+            <button onClick={() => setSelectedDocIds(new Set())} className="py-1 px-3 text-xs text-slate-700 dark:text-slate-300 rounded-md bg-transparent hover:bg-slate-200 dark:hover:bg-slate-700">
+              Batal
+            </button>
           </div>
           <div className="w-full sm:w-auto flex justify-end">
             <button onClick={handleBatchSignClick} disabled={isSubmittingBatch} className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-md shadow-md w-full sm:w-auto">
@@ -262,9 +254,9 @@ const DashboardDocuments = () => {
             return (
               <article
                 key={doc.id}
-                className={`w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 sm:p-5 bg-slate-800/60 dark:bg-slate-800 rounded-xl border transition-shadow
-                  ${isSelected ? "ring-2 ring-blue-500 border-blue-200 shadow-xl" : "hover:shadow-lg"}
-                  ${displayedStatus === "completed" ? "opacity-80" : ""}
+                className={`w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 sm:p-5 
+                  bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 transition-all duration-200
+                  ${isSelected ? "ring-2 ring-blue-500 border-transparent shadow-lg" : "hover:shadow-md dark:hover:border-slate-600"}
                 `}
                 onClick={displayedStatus !== "completed" ? () => handleSelectDocument(doc.id) : undefined}
                 aria-label={`Dokumen ${doc.title}`}
@@ -285,28 +277,37 @@ const DashboardDocuments = () => {
                   </div>
 
                   {/* Icon */}
-                  <div className="flex-shrink-0 bg-blue-50 dark:bg-blue-900/20 p-2 rounded-md">
-                    <FaFileAlt className="w-5 h-5 text-blue-600" />
+                  <div className="flex-shrink-0 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                    <FaFileAlt className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   </div>
 
                   {/* Title + meta + secondary actions */}
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-base sm:text-lg font-bold text-white leading-snug break-words" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }} title={doc.title}>
+                    {/* PERBAIKAN WARNA TEXT: text-slate-800 (Light) / dark:text-white (Dark) */}
+                    <h3
+                      className="text-base sm:text-lg font-bold text-slate-800 dark:text-white leading-snug break-words"
+                      style={{
+                        wordBreak: "break-word",
+                        overflowWrap: "anywhere",
+                      }}
+                      title={doc.title}
+                    >
                       {doc.title}
                     </h3>
 
-                    <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-slate-300">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusClass(displayedStatus)}`}>{displayedStatus}</span>
-                      <span className="text-slate-400">Diperbarui: {formatDate(doc.updatedAt)}</span>
+                    <div className="flex flex-wrap items-center gap-3 mt-2 text-sm">
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusClass(displayedStatus)}`}>{displayedStatus}</span>
+                      <span className="text-slate-500 dark:text-slate-400">Diperbarui: {formatDate(doc.updatedAt)}</span>
                     </div>
 
-                    <div className="mt-3 flex items-center gap-4 text-sm text-slate-300">
+                    {/* Action Buttons (Lihat, Kelola, Hapus) */}
+                    <div className="mt-3 flex items-center gap-2 sm:gap-4 text-sm text-slate-600 dark:text-slate-300">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleViewDocument(doc);
                         }}
-                        className="flex items-center gap-2 p-1.5 rounded-md hover:bg-slate-700"
+                        className="flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                         title="Lihat"
                       >
                         <FaEye className="w-4 h-4" />
@@ -318,7 +319,7 @@ const DashboardDocuments = () => {
                           e.stopPropagation();
                           openManagementModal("update", doc);
                         }}
-                        className="flex items-center gap-2 p-1.5 rounded-md hover:bg-slate-700"
+                        className="flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                         title="Kelola"
                       >
                         <FaCog className="w-4 h-4" />
@@ -330,7 +331,7 @@ const DashboardDocuments = () => {
                           e.stopPropagation();
                           handleDeleteDocument(doc.id);
                         }}
-                        className="flex items-center gap-2 p-1.5 rounded-md hover:bg-slate-700"
+                        className="flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-red-50 text-red-600 hover:text-red-700 dark:hover:bg-red-900/20 dark:text-red-400 transition-colors"
                         title="Hapus"
                       >
                         <FaTrashAlt className="w-4 h-4" />
@@ -365,15 +366,7 @@ const DashboardDocuments = () => {
       )}
 
       {/* Modals */}
-      {isManagementModalOpen && (
-        <DocumentManagementModal
-          mode={modalMode}
-          initialDocument={selectedDocument}
-          onClose={closeManagementModal}
-          onSuccess={handleSuccess}
-          onViewRequest={handleViewRequestFromModal}
-        />
-      )}
+      {isManagementModalOpen && <DocumentManagementModal mode={modalMode} initialDocument={selectedDocument} onClose={closeManagementModal} onSuccess={handleSuccess} onViewRequest={handleViewRequestFromModal} />}
 
       <ViewDocumentModal isOpen={isViewModalOpen} onClose={() => setViewModalOpen(false)} url={selectedDocumentUrl} />
 
