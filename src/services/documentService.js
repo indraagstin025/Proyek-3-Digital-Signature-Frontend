@@ -6,10 +6,7 @@ import { handleError } from "./errorHandler";
  */
 export const documentService = {
   /**
-   * Mengunggah dokumen baru. Judul dokumen diambil secara otomatis dari nama file.
-   * @param {File} file - Objek file yang akan diunggah.
-   * @returns {Promise<object>} Data dokumen yang baru dibuat.
-   * @throws {Error} Jika unggahan gagal.
+   * Mengunggah dokumen baru.
    */
   createDocument: async (file) => {
     const formData = new FormData();
@@ -26,9 +23,7 @@ export const documentService = {
   },
 
   /**
-   * Mengambil daftar semua dokumen milik pengguna yang terotentikasi.
-   * @returns {Promise<Array<object>>} Array berisi objek dokumen.
-   * @throws {Error} Jika pengambilan data gagal.
+   * Mengambil daftar semua dokumen.
    */
   getAllDocuments: async () => {
     try {
@@ -40,10 +35,7 @@ export const documentService = {
   },
 
   /**
-   * Mengambil detail satu dokumen spesifik berdasarkan ID-nya.
-   * @param {string} documentId - ID dari dokumen yang akan diambil.
-   * @returns {Promise<object>} Objek detail dokumen.
-   * @throws {Error} Jika dokumen tidak ditemukan atau terjadi kegagalan.
+   * Mengambil detail satu dokumen.
    */
   getDocumentById: async (documentId) => {
     try {
@@ -55,11 +47,7 @@ export const documentService = {
   },
 
   /**
-   * Memperbarui metadata dokumen (misalnya, judul).
-   * @param {string} documentId - ID dari dokumen yang akan diperbarui.
-   * @param {object} updates - Objek berisi data untuk diperbarui, contoh: { title: "Judul Baru" }.
-   * @returns {Promise<object>} Data dokumen yang telah diperbarui.
-   * @throws {Error} Jika pembaruan gagal.
+   * Memperbarui metadata dokumen.
    */
   updateDocument: async (documentId, updates) => {
     try {
@@ -71,10 +59,7 @@ export const documentService = {
   },
 
   /**
-   * Menghapus dokumen berdasarkan ID-nya.
-   * @param {string} documentId - ID dari dokumen yang akan dihapus.
-   * @returns {Promise<object>} Respons sukses dari API.
-   * @throws {Error} Jika penghapusan gagal.
+   * Menghapus dokumen.
    */
   deleteDocument: async (documentId) => {
     try {
@@ -86,10 +71,7 @@ export const documentService = {
   },
 
   /**
-   * Mengambil riwayat versi lengkap dari sebuah dokumen.
-   * @param {string} documentId - ID dari dokumen induk.
-   * @returns {Promise<Array<object>>} Array berisi objek riwayat versi.
-   * @throws {Error} Jika pengambilan riwayat gagal.
+   * Mengambil riwayat versi.
    */
   getDocumentHistory: async (documentId) => {
     try {
@@ -101,11 +83,7 @@ export const documentService = {
   },
 
   /**
-   * Mengatur versi lama untuk menjadi versi aktif saat ini.
-   * @param {string} documentId - ID dari dokumen induk.
-   * @param {string} versionId - ID dari versi yang akan diaktifkan.
-   * @returns {Promise<object>} Data dokumen yang telah diperbarui.
-   * @throws {Error} Jika penggantian versi gagal.
+   * Menggunakan versi lama.
    */
   useOldVersion: async (documentId, versionId) => {
     try {
@@ -117,11 +95,7 @@ export const documentService = {
   },
 
   /**
-   * Menghapus satu versi spesifik dari riwayat dokumen.
-   * @param {string} documentId - ID dari dokumen induk.
-   * @param {string} versionId - ID dari versi yang akan dihapus.
-   * @returns {Promise<object>} Respons sukses dari API.
-   * @throws {Error} Jika penghapusan versi gagal.
+   * Menghapus versi spesifik.
    */
   deleteVersion: async (documentId, versionId) => {
     try {
@@ -134,20 +108,16 @@ export const documentService = {
 
   /**
    * @function getDocumentFileUrl
-   * @description Mendapatkan signed URL untuk mengakses file dari versi AKTIF.
-   * @param {string} documentId - ID dari dokumen yang akan diakses.
-   * @param {object} options - Opsi tambahan, misalnya { signal } untuk AbortController.
-   * @returns {Promise<string>} Signed URL yang valid.
-   * @throws {Error} Jika gagal mendapatkan URL akses.
+   * @description Mendapatkan signed URL untuk versi AKTIF.
+   * @param {string} documentId - ID dokumen.
+   * @param {object} options - { signal, purpose: 'view' | 'download' }
    */
   getDocumentFileUrl: async (documentId, options = {}) => {
-    const urlPath = `/documents/${documentId}/file`;
+    const purpose = options.purpose || "view";
+    const urlPath = `/documents/${documentId}/file?purpose=${purpose}`;
 
     try {
-      console.log(`[documentService] 🔄 Requesting signed URL: ${urlPath}`);
       const response = await apiClient.get(urlPath, { signal: options.signal });
-
-      console.log("[documentService] ✅ Response:", response.data);
 
       if (!response.data.url) {
         throw new Error("Gagal mendapatkan URL dokumen dari respons API.");
@@ -156,13 +126,9 @@ export const documentService = {
       return response.data.url;
     } catch (error) {
       if (error.name === "CanceledError" || error.message === "canceled") {
-        console.log(`[documentService] 🟡 Request to ${urlPath} was canceled.`);
-
         throw error;
       } else {
-        console.error(`[documentService] ❌ Error fetching ${urlPath}:`, error);
         handleError(error, "Gagal mendapatkan akses ke dokumen.");
-
         throw error;
       }
     }
@@ -170,16 +136,14 @@ export const documentService = {
 
   /**
    * @function getDocumentVersionFileUrl
-   * @description Mendapatkan signed URL untuk mengakses file dari versi SPESIFIK.
-   * @param {string} documentId - ID dari dokumen induk.
-   * @param {string} versionId - ID dari versi spesifik yang akan diakses.
-   * @returns {Promise<string>} Signed URL yang valid.
-   * @throws {Error} Jika gagal mendapatkan URL akses.
+   * @description Mendapatkan signed URL untuk versi SPESIFIK.
    */
-  getDocumentVersionFileUrl: async (documentId, versionId) => {
-    try {
-      const response = await apiClient.get(`/documents/${documentId}/versions/${versionId}/file`);
+  getDocumentVersionFileUrl: async (documentId, versionId, options = {}) => {
+    const purpose = options.purpose || "view";
+    const urlPath = `/documents/${documentId}/versions/${versionId}/file?purpose=${purpose}`;
 
+    try {
+      const response = await apiClient.get(urlPath);
       if (!response.data.url) {
         throw new Error("Gagal mendapatkan URL versi dokumen dari respons API.");
       }
@@ -192,12 +156,13 @@ export const documentService = {
 
   /**
    * @function downloadDocument
-   * @description Mengunduh file dokumen (versi aktif) dan memicu download di browser.
-   * @param {string} documentId - ID dari dokumen yang akan diunduh.
+   * @description Mengunduh file dokumen (versi aktif).
+   * Meminta URL dengan mode 'download' agar browser mendownloadnya sebagai file.
    */
   downloadDocument: async function (documentId) {
     try {
-      const fileUrl = await this.getDocumentFileUrl(documentId);
+      const fileUrl = await this.getDocumentFileUrl(documentId, { purpose: "download" });
+
       const urlObj = new URL(fileUrl);
       const filenameParam = urlObj.searchParams.get("download");
       const filename = filenameParam || `document-${documentId}.pdf`;
@@ -205,11 +170,16 @@ export const documentService = {
       const link = document.createElement("a");
       link.href = fileUrl;
       link.setAttribute("download", filename);
+      link.style.display = "none";
       document.body.appendChild(link);
-      link.click();
-      link.remove();
 
-      return { status: "success", message: `Pengunduhan dokumen "${filename}" dimulai.` };
+      link.click();
+
+      setTimeout(() => {
+        document.body.removeChild(link);
+      }, 100);
+
+      return { status: "success", message: `Pengunduhan dokumen dimulai.` };
     } catch (error) {
       handleError(error, "Gagal memulai pengunduhan dokumen.");
     }
