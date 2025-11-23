@@ -1,7 +1,3 @@
-// DashboardDocuments.jsx
-// Versi: List view full-width (responsive mobile ↔ desktop)
-// Screenshot reference (local): sandbox:/mnt/data/9113ba0c-16c0-4af6-9272-bc64e4716368.png
-
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -13,7 +9,8 @@ import DocumentManagementModal from "../../components/DocumentManagementModal/Do
 import ConfirmationModal from "../../components/ConfirmationModal/ConfirmationModal.jsx";
 
 import { Toaster, toast } from "react-hot-toast";
-import { FaPlus, FaCog, FaEye, FaTrashAlt, FaSpinner, FaSignature, FaFileAlt } from "react-icons/fa";
+// Tambahkan FaCheck di import
+import { FaPlus, FaCog, FaEye, FaTrashAlt, FaSpinner, FaSignature, FaFileAlt, FaCheck } from "react-icons/fa";
 
 const DashboardDocuments = () => {
   const [documents, setDocuments] = useState([]);
@@ -30,7 +27,6 @@ const DashboardDocuments = () => {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState(null);
 
-  // store selected ids as Set for efficient add/remove
   const [selectedDocIds, setSelectedDocIds] = useState(new Set());
   const [isSubmittingBatch, setIsSubmittingBatch] = useState(false);
 
@@ -131,12 +127,21 @@ const DashboardDocuments = () => {
 
   const getDerivedStatus = (doc) => {
     const currentVer = doc.currentVersion;
+
     if (!currentVer) return doc.status || "draft";
 
     const isPersonalSigned = currentVer.signaturesPersonal && currentVer.signaturesPersonal.length > 0;
-    const isPackageSigned = currentVer.packages && currentVer.packages.length > 0;
+
+    const isPackageSigned =
+      currentVer.packages &&
+      currentVer.packages.some((p) => {
+        return p.package && (p.package.status === "completed" || p.package.status === "COMPLETED");
+      });
+
     if (isPersonalSigned || isPackageSigned) return "completed";
+
     if (doc.status === "pending") return "pending";
+
     return "draft";
   };
 
@@ -250,6 +255,7 @@ const DashboardDocuments = () => {
           {documents.map((doc) => {
             const displayedStatus = getDerivedStatus(doc);
             const isSelected = selectedDocIds.has(doc.id);
+            const isCompleted = displayedStatus === "completed";
 
             return (
               <article
@@ -258,32 +264,45 @@ const DashboardDocuments = () => {
                   bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 transition-all duration-200
                   ${isSelected ? "ring-2 ring-blue-500 border-transparent shadow-lg" : "hover:shadow-md dark:hover:border-slate-600"}
                 `}
-                onClick={displayedStatus !== "completed" ? () => handleSelectDocument(doc.id) : undefined}
+                // Jika sudah completed, klik row tidak melakukan apa-apa (atau bisa diarahkan ke view)
+                // Jika belum completed, klik row akan memilih/unselect
+                onClick={!isCompleted ? () => handleSelectDocument(doc.id) : undefined}
                 aria-label={`Dokumen ${doc.title}`}
               >
-                {/* Left group: checkbox + icon + info */}
+                {/* Left group: Button + icon + info */}
                 <div className="flex items-start sm:items-center gap-4 w-full sm:w-auto sm:flex-1 min-w-0">
-                  {/* Checkbox */}
-                  <div className="flex-shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      readOnly
-                      disabled={displayedStatus === "completed"}
-                      className="w-5 h-5 sm:w-5 sm:h-5 rounded bg-white text-blue-600 focus:ring-blue-500"
-                      onChange={() => handleSelectDocument(doc.id)}
-                      aria-label={`Pilih dokumen ${doc.title}`}
-                    />
+                  
+                  {/* --- CUSTOM SELECTION BUTTON --- */}
+                  <div className="flex-shrink-0 pt-1 sm:pt-0">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation(); // Mencegah trigger row onClick
+                        if (!isCompleted) handleSelectDocument(doc.id);
+                      }}
+                      disabled={isCompleted}
+                      className={`
+                        flex items-center justify-center w-10 h-10 rounded-full border transition-all duration-200 focus:outline-none
+                        ${
+                          isSelected
+                            ? "bg-blue-500 border-blue-500 text-white shadow-md transform scale-105"
+                            : "bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-300 hover:border-blue-400 hover:text-blue-400"
+                        }
+                        ${isCompleted ? "opacity-30 cursor-not-allowed bg-slate-100 dark:bg-slate-800" : "cursor-pointer"}
+                      `}
+                      title={isSelected ? "Batalkan Pilihan" : isCompleted ? "Sudah Selesai" : "Pilih Dokumen"}
+                    >
+                      {isSelected ? <FaCheck className="w-4 h-4" /> : <FaPlus className="w-4 h-4" />}
+                    </button>
                   </div>
+                  {/* ------------------------------- */}
 
-                  {/* Icon */}
+                  {/* Icon File */}
                   <div className="flex-shrink-0 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
                     <FaFileAlt className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   </div>
 
                   {/* Title + meta + secondary actions */}
                   <div className="flex-1 min-w-0">
-                    {/* PERBAIKAN WARNA TEXT: text-slate-800 (Light) / dark:text-white (Dark) */}
                     <h3
                       className="text-base sm:text-lg font-bold text-slate-800 dark:text-white leading-snug break-words"
                       style={{
