@@ -3,6 +3,9 @@ import "./index.css";
 import React, { useState, useEffect, useMemo } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
+import { ImSpinner9 } from "react-icons/im";
+import authService from "./services/authService.js";
+import SplashScreen from "./components/SplashScreen/SplashScreen.jsx";
 
 // Komponen-komponen
 import ConfirmationModal from "./components/ConfirmationModal/ConfirmationModal.jsx";
@@ -17,6 +20,7 @@ import LoginPage from "./pages/LoginPage/LoginPage.jsx";
 import RegisterPage from "./pages/RegisterPage/RegisterPage.jsx";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage/ForgotPasswordPage.jsx";
 import ResetPasswordPage from "./pages/ResetPasswordPage/ResetPasswordPage.jsx";
+import VerifyEmailPage from "./pages/VerifyEmailPage/VerifyEmailPage.jsx";
 
 // Halaman Dashboard Pengguna
 import DashboardPage from "./pages/DashboardPage/DashboardPage.jsx";
@@ -41,6 +45,7 @@ import AdminDashboardOverview from "./pages/AdminPage/AdminDashboardOverview.jsx
 import AdminManageUser from "./pages/AdminPage/AdminManageUser.jsx"; 
 import { pdfjs } from "react-pdf";
 
+
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.js";
 
 
@@ -62,6 +67,7 @@ const AppWrapper = () => {
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
   const [isSessionModalOpen, setSessionModalOpen] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   useEffect(() => {
     const handleSessionExpired = () => {
@@ -80,6 +86,46 @@ const AppWrapper = () => {
       return () => clearTimeout(timer);
     }
   }, []);
+
+// 3. Logika Cek Sesi Awal (Smart Delay)
+  useEffect(() => {
+    const initSession = async () => {
+      // Cek history refresh
+      const isRefresh = sessionStorage.getItem("app_loaded");
+      
+      // Cek apakah user berada di Halaman Utama ("/")
+      const isRoot = location.pathname === "/";
+
+      // ATURAN MUNCUL:
+      // Hanya jika (Buka Baru) DAN (Halaman Utama)
+      const showSplashScreen = !isRefresh && isRoot;
+      
+      // Jika Splash Screen tampil -> Delay 2 detik (Branding)
+      // Jika tidak (halaman lain/refresh) -> Delay 0 detik (Cepat)
+      const delayDuration = showSplashScreen ? 2000 : 0;
+      
+      const minLoadingTime = new Promise((resolve) => setTimeout(resolve, delayDuration));
+      const sessionCheck = authService.getMe(); // Request ke backend
+
+      try {
+        await Promise.all([sessionCheck, minLoadingTime]);
+        
+        // Jika User Login, redirect ke dashboard
+        const publicPaths = ["/login", "/register", "/"];
+        if (publicPaths.includes(location.pathname)) {
+             navigate("/dashboard", { replace: true });
+        }
+      } catch (error) {
+        // Jika User Tamu & Splash Screen aktif, tunggu animasinya selesai
+        if (showSplashScreen) await minLoadingTime;
+      } finally {
+        sessionStorage.setItem("app_loaded", "true");
+        setIsCheckingSession(false);
+      }
+    };
+
+    initSession();
+  }, []); // Jalan sekali saat mount, mengambil location.pathname awal
 
   const handleAcceptCookie = () => {
     localStorage.setItem("cookie_consent", "true");
@@ -133,6 +179,25 @@ const AppWrapper = () => {
     [theme]
   );
 
+// 4. RENDER LOADING STATE
+  if (isCheckingSession) {
+    const isRefresh = sessionStorage.getItem("app_loaded");
+    const isRoot = location.pathname === "/";
+    
+    // KONDISI 1: Tampilkan Splash Screen (Hanya di Root & Bukan Refresh)
+    if (isRoot && !isRefresh) {
+      return <SplashScreen />;
+    }
+
+    // KONDISI 2: Tampilkan Spinner Minimalis (Halaman Lain / Refresh)
+    // Ini mencegah layar putih total (blank) saat loading cepat
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-slate-50 dark:bg-slate-900">
+         <ImSpinner9 className="animate-spin h-8 w-8 text-blue-600 dark:text-blue-400" />
+      </div>
+    );
+  }
+
 return (
     <div className="flex-1 overflow-auto">
       <Toaster position="top-center" reverseOrder={false} toastOptions={toastOptions} />
@@ -150,6 +215,7 @@ return (
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/verify/:signatureId" element={<VerificationPage />} />
           <Route path="/join" element={<AcceptInvitePage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage/>} />
           {/* ❗️ Rute '*' DIPINDAHKAN dari sini */}
         </Route>
 

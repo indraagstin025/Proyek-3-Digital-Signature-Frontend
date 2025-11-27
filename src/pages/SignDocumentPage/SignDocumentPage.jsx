@@ -8,6 +8,7 @@ import SigningHeader from "../../components/SigningHeader/SigningHeader";
 import SignatureSidebar from "../../components/SignatureSidebar/SignatureSidebar";
 import SignatureModal from "../../components/SignatureModal/SignatureModal";
 import PDFViewer from "../../components/PDFViewer/PDFViewer";
+import AiAnalysisModal from "../../components/AiAnalysisModal/AiAnalysisModal";
 
 const SignDocumentPage = ({ theme, toggleTheme }) => {
   const { documentId } = useParams();
@@ -15,7 +16,12 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
   const [documentTitle, setDocumentTitle] = useState("Memuat...");
   const [pdfFile, setPdfFile] = useState(null);
   const [documentVersionId, setDocumentVersionId] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  // Loading state terpisah
+  const [isLoadingDoc, setIsLoadingDoc] = useState(true); // Load Dokumen
+  const [isSaving, setIsSaving] = useState(false);        // Simpan Tanda Tangan
+  const [isAnalyzing, setIsAnalyzing] = useState(false);  // AI Auto Tag / Analyze
+
   const [signatures, setSignatures] = useState([]);
   const [savedSignatureUrl, setSavedSignatureUrl] = useState(null);
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
@@ -23,7 +29,12 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
   const [isLandscape, setIsLandscape] = useState(window.innerWidth > window.innerHeight);
   const [includeQrCode, setIncludeQrCode] = useState(true);
   const [isPortrait, setIsPortrait] = useState(false);
+  
+  // State AI Analysis Modal
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [aiData, setAiData] = useState(null);
 
+  // ... useEffect Orientasi (sama) ...
   useEffect(() => {
     const checkOrientation = () => setIsPortrait(window.innerHeight > window.innerWidth);
     checkOrientation();
@@ -49,7 +60,7 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
         return;
       }
       try {
-        setIsLoading(true);
+        setIsLoadingDoc(true);
         const doc = await documentService.getDocumentById(documentId, { signal });
         if (!doc || !doc.currentVersion?.id) throw new Error("Dokumen tidak ditemukan.");
 
@@ -67,7 +78,7 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
           setTimeout(() => navigate("/dashboard/documents"), 2000);
         }
       } finally {
-        if (!signal.aborted) setIsLoading(false);
+        if (!signal.aborted) setIsLoadingDoc(false);
       }
     };
 
@@ -92,49 +103,118 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
     setSignatures((prev) => prev.filter((sig) => sig.id !== signatureId));
   }, []);
 
+  // --- HANDLER AI AUTO TAG ---
+  const handleAutoTag = useCallback(async () => {
+    if (!documentId) return;
+
+    const confirm = window.confirm("AI akan memindai dokumen dan menempatkan area tanda tangan secara otomatis. Lanjutkan?");
+    if (!confirm) return;
+
+    setIsAnalyzing(true);
+    const toastId = toast.loading("🤖 AI sedang membaca dokumen...");
+
+    try {
+      const result = await signatureService.autoTagDocument(documentId);
+      
+      if (result.data && result.data.length > 0) {
+        const aiSignatures = result.data.map(sig => ({
+          id: sig.id, 
+          pageNumber: sig.pageNumber,
+          positionX: sig.positionX,
+          positionY: sig.positionY,
+          width: sig.width,
+          height: sig.height,
+          signatureImageUrl: savedSignatureUrl || null, 
+          type: 'placeholder',
+          x_display: 0, 
+          y_display: 0 
+        }));
+
+        setSignatures(prev => [...prev, ...aiSignatures]);
+        toast.success(`Berhasil! ${result.data.length} lokasi ditemukan.`, { id: toastId });
+      } else {
+        toast.success("Selesai. AI tidak menemukan kata kunci tanda tangan.", { id: toastId });
+      }
+    } catch (error) {
+      console.error("Auto Tag Error:", error);
+      toast.error("Gagal menjalankan AI.", { id: toastId });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [documentId, savedSignatureUrl]);
+
+  // --- HANDLER AI ANALYZE (LEGAL CHECK) ---
+  const handleAnalyzeDocument = useCallback(async () => {
+    if (!documentId) return;
+
+    setIsAnalyzing(true);
+    setIsAiModalOpen(true); 
+    setAiData(null);
+
+    try {
+      const result = await signatureService.analyzeDocument(documentId);
+      if (result && result.data) {
+        setAiData(result.data);
+      } else {
+        toast.error("Gagal mendapatkan hasil analisis.");
+        setIsAiModalOpen(false);
+      }
+    } catch (error) {
+      console.error("AI Analysis Error:", error);
+      toast.error("Gagal menjalankan AI.");
+      setIsAiModalOpen(false);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [documentId]);
+
+  // --- HANDLER SAVE FINAL ---
   const handleFinalSave = useCallback(async () => {
     if (signatures.length === 0) return toast.error("Harap tempatkan setidaknya satu tanda tangan.");
     if (!documentVersionId) return toast.error("ID Versi Dokumen tidak ditemukan.");
 
-    setIsLoading(true);
+    setIsSaving(true); // Gunakan loading state khusus simpan
 
-    const signatureToUse = signatures[0];
+    const signaturesToSubmit = signatures
+      .filter(sig => sig.signatureImageUrl)
+      .map(sig => ({
+        documentVersionId,
+        method: "canvas",
+        signatureImageUrl: sig.signatureImageUrl,
+        positionX: sig.positionX,
+        positionY: sig.positionY,
+        pageNumber: sig.pageNumber,
+        width: sig.width,
+        height: sig.height,
+        displayQrCode: includeQrCode,
+      }));
 
-    const payload = {
-      documentVersionId,
-      method: "canvas",
-      signatureImageUrl: signatureToUse.signatureImageUrl,
-      positionX: signatureToUse.positionX,
-      positionY: signatureToUse.positionY,
-      pageNumber: signatureToUse.pageNumber,
-      width: signatureToUse.width,
-      height: signatureToUse.height,
-      displayQrCode: includeQrCode,
-    };
+    if (signaturesToSubmit.length === 0) {
+        setIsSaving(false);
+        return toast.error("Semua tanda tangan masih kosong. Silakan isi tanda tangan pada kotak yang tersedia.");
+    }
 
     try {
-      await toast.promise(signatureService.addPersonalSignature(payload), {
-        loading: "Menyimpan dan memproses tanda tangan digital...",
-        success: <b>Dokumen berhasil ditandatangani dan diverifikasi! Anda akan dialihkan...</b>,
-        error: (err) => {
-          setIsLoading(false);
-          return err.message || "Gagal menyimpan tanda tangan.";
-        },
+      await signatureService.addPersonalSignature({ 
+          signatures: signaturesToSubmit 
       });
 
+      toast.success(<b>Dokumen berhasil ditandatangani!</b>);
+
       setTimeout(() => {
-        setIsLoading(false);
+        setIsSaving(false);
         navigate(`/documents/${documentId}/view`);
-      }, 3000);
+      }, 2000);
     } catch (error) {
       console.error("Kesalahan fatal saat menyimpan:", error);
-      setIsLoading(false);
+      setIsSaving(false);
+      toast.error(error.message || "Gagal menyimpan tanda tangan.");
     }
   }, [signatures, documentVersionId, documentId, navigate, includeQrCode]);
 
   const sidebarOpen = isLandscape ? true : isSidebarOpen;
 
-  if (isLoading && !pdfFile) {
+  if (isLoadingDoc && !pdfFile) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">
         <FaSpinner className="animate-spin text-3xl text-blue-500" />
@@ -145,7 +225,6 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
 
   return (
     <div className="absolute inset-0 bg-slate-200 dark:bg-slate-900 overflow-hidden">
-      {/* ✅ TOASTER LOKAL DITEMPATKAN DI SINI */}
       <Toaster position="top-center" containerStyle={{ zIndex: 9999 }} />
 
       <header className="fixed top-0 left-0 w-full h-16 z-50">
@@ -166,16 +245,30 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
             />
           )}
         </main>
+        
         <SignatureSidebar
           savedSignatureUrl={savedSignatureUrl}
           onOpenSignatureModal={() => setIsSignatureModalOpen(true)}
           onSave={handleFinalSave}
-          isLoading={isLoading}
+          
+          // Pass Handler & Loading States yang Benar
+          onAutoTag={handleAutoTag}
+          onAnalyze={handleAnalyzeDocument}
+          isLoading={isAnalyzing || isSaving} // Disable tombol jika salah satu sedang jalan
+          
           isPortrait={isPortrait}
           includeQrCode={includeQrCode}
           setIncludeQrCode={setIncludeQrCode}
           isOpen={sidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
+        />
+
+        {/* Modal AI */}
+        <AiAnalysisModal 
+          isOpen={isAiModalOpen} 
+          onClose={() => setIsAiModalOpen(false)} 
+          data={aiData} 
+          isLoading={isAnalyzing}
         />
       </div>
 

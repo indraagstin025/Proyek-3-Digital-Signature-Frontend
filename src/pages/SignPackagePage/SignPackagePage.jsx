@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { packageService } from "../../services/packageService";
 import { toast, Toaster } from "react-hot-toast";
 import { documentService } from "../../services/documentService.js";
+import { signatureService } from "../../services/signatureService"; // [BARU] Import Signature Service
 import SigningHeader from "../../components/SigningHeader/SigningHeader"; 
 import PDFViewer from "../../components/PDFViewer/PDFViewer";
 import SignatureSidebar from "../../components/SignatureSidebar/SignatureSidebar";
@@ -129,18 +130,21 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
         }, 1000);
       }
     };
-  }, [currentPackageDocument]);
+  }, [currentPackageDocument, currentDocumentTitle]);
 
   const handleSignatureSave = useCallback((dataUrl) => {
     setSavedSignatureUrl(dataUrl);
     setIsSignatureModalOpen(false);
   }, []);
+
   const handleAddSignature = useCallback((newSignature) => {
     setCurrentSignatures((prev) => [...prev, newSignature]);
   }, []);
+
   const handleUpdateSignature = useCallback((updatedSignature) => {
     setCurrentSignatures((prev) => prev.map((sig) => (sig.id === updatedSignature.id ? updatedSignature : sig)));
   }, []);
+
   const handleDeleteSignature = useCallback((signatureId) => {
     setCurrentSignatures((prev) => prev.filter((sig) => sig.id !== signatureId));
   }, []);
@@ -149,19 +153,77 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
     const nextIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
     if (nextIndex < 0 || nextIndex >= totalDocs) return;
 
-    if (currentSignatures.length > 0 && currentPackageDocument) {
+    // Simpan signature halaman saat ini ke Map global sebelum pindah
+    if (currentPackageDocument) {
         const newAllSignatures = new Map(allSignatures).set(currentPackageDocument.id, currentSignatures);
         setAllSignatures(newAllSignatures);
     }
     
     setCurrentIndex(nextIndex);
     
+    // Load signature halaman berikutnya (jika ada di Map)
     const nextDocId = packageDetails.documents[nextIndex].id;
     setCurrentSignatures(allSignatures.get(nextDocId) || []);
 
     toast.success(`Memuat dokumen: ${packageDetails.documents[nextIndex].docVersion?.document?.title || `Dokumen ${nextIndex + 1}`}`);
   }, [currentIndex, allSignatures, currentSignatures, currentPackageDocument, packageDetails, totalDocs]);
 
+  // --- [FITUR BARU] Handler Auto Tag Paket ---
+  const handleAutoTag = useCallback(async () => {
+    if (!currentPackageDocument) {
+        toast.error("Tidak ada dokumen yang aktif.");
+        return;
+    }
+
+    const docId = currentPackageDocument.docVersion?.document?.id;
+    if (!docId) return;
+
+    const confirm = window.confirm(`AI akan memindai "${currentDocumentTitle}". Lanjutkan?`);
+    if (!confirm) return;
+
+    const toastId = toast.loading("🤖 AI sedang membaca dokumen ini...");
+
+    try {
+      // Panggil AI untuk dokumen yang sedang aktif
+      const result = await signatureService.autoTagDocument(docId);
+      
+      if (result.data && result.data.length > 0) {
+        const aiSignatures = result.data.map(sig => ({
+          id: sig.id,
+          pageNumber: sig.pageNumber,
+          positionX: sig.positionX,
+          positionY: sig.positionY,
+          width: sig.width,
+          height: sig.height,
+          // Gunakan gambar user jika sudah ada, atau null (jadi placeholder)
+          signatureImageUrl: savedSignatureUrl || null, 
+          type: 'placeholder',
+          // Data display dummy (nanti dihitung ulang oleh PlacedSignature)
+          x_display: 0, 
+          y_display: 0 
+        }));
+
+        // Tambahkan ke currentSignatures (Halaman aktif)
+        setCurrentSignatures(prev => [...prev, ...aiSignatures]);
+        
+        // Update juga ke Map global allSignatures agar tersimpan di memori paket
+        setAllSignatures(prevMap => {
+            const newMap = new Map(prevMap);
+            const existing = newMap.get(currentPackageDocument.id) || [];
+            // Gabungkan existing dengan hasil AI baru
+            newMap.set(currentPackageDocument.id, [...existing, ...aiSignatures]);
+            return newMap;
+        });
+        
+        toast.success(`Berhasil! ${result.data.length} lokasi ditemukan.`, { id: toastId });
+      } else {
+        toast.success("AI tidak menemukan kata kunci di dokumen ini.", { id: toastId });
+      }
+    } catch (error) {
+      console.error("Auto Tag Error:", error);
+      toast.error("Gagal menjalankan AI.", { id: toastId });
+    }
+  }, [currentPackageDocument, currentDocumentTitle, savedSignatureUrl, allSignatures]);
 
   const handleNextOrSubmit = async () => {
     if (currentSignatures.length === 0) {
@@ -173,6 +235,7 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
       return;
     }
 
+    // Simpan state halaman ini ke Map global
     const newAllSignatures = new Map(allSignatures).set(currentPackageDocument.id, currentSignatures);
     setAllSignatures(newAllSignatures);
 
@@ -183,18 +246,27 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
       const finalSignaturesPayload = [];
       newAllSignatures.forEach((signatures, packageDocId) => {
         signatures.forEach((sig) => {
-          finalSignaturesPayload.push({
-            packageDocId: packageDocId,
-            signatureImageUrl: sig.signatureImageUrl,
-            pageNumber: sig.pageNumber,
-            positionX: sig.positionX,
-            positionY: sig.positionY,
-            width: sig.width,
-            height: sig.height,
-            displayQrCode: includeQrCode,
-          });
+          // HANYA KIRIM YANG SUDAH ADA GAMBARNYA
+          if (sig.signatureImageUrl) {
+            finalSignaturesPayload.push({
+                packageDocId: packageDocId,
+                signatureImageUrl: sig.signatureImageUrl,
+                pageNumber: sig.pageNumber,
+                positionX: sig.positionX,
+                positionY: sig.positionY,
+                width: sig.width,
+                height: sig.height,
+                displayQrCode: includeQrCode,
+            });
+          }
         });
       });
+
+      if (finalSignaturesPayload.length === 0) {
+          setIsSubmitting(false);
+          toast.error("Tidak ada tanda tangan yang valid untuk disimpan.", { id: toastId });
+          return;
+      }
 
       try {
         const result = await packageService.signPackage(packageId, finalSignaturesPayload);
@@ -295,6 +367,10 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
           savedSignatureUrl={savedSignatureUrl}
           onOpenSignatureModal={() => setIsSignatureModalOpen(true)}
           onSave={handleNextOrSubmit}
+          
+          // [FIX] Passing Handler AI Auto-Tag
+          onAutoTag={handleAutoTag}
+          
           isLoading={isSubmitting}
           includeQrCode={includeQrCode}
           setIncludeQrCode={setIncludeQrCode}
@@ -305,9 +381,6 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
 
       {/* Overlay untuk Mobile/Portrait */}
       {isSidebarOpen && !isLandscape && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/40 z-30 md:hidden"></div>}
-      
-      {/* Modals */}
-      {isSignatureModalOpen && <SignatureModal onSave={handleSignatureSave} onClose={() => setIsSignatureModalOpen(false)} />}
       
     </div>
   );

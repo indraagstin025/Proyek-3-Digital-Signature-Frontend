@@ -1,67 +1,118 @@
 import apiClient from "./apiClient";
 
+const TAG = "[UserService]"; // Prefix agar mudah difilter di console
+
 /**
  * Ambil Profile user yang sedang login.
  */
 const getMyProfile = async () => {
-  const response = await apiClient.get("/users/me");
-  return response.data.data;
+  console.log(`${TAG} 📡 Fetching user profile...`);
+  try {
+    const response = await apiClient.get("/users/me");
+    console.log(`${TAG} ✅ Profile loaded:`, response.data.data);
+    return response.data.data;
+  } catch (error) {
+    console.error(`${TAG} ❌ Failed to fetch profile:`, error);
+    throw error;
+  }
 };
 
 /**
  * Perbarui profile user.
- * Menangani:
- * 1. Update teks saja.
- * 2. Upload foto baru.
- * 3. Gunakan foto lama dari riwayat.
+ * Menangani: Update Teks, Upload File, atau Pakai Foto Lama.
  */
 const updateMyProfile = async (updateData = {}, newProfilePicture = null, oldProfilePictureId = null) => {
+  console.group(`${TAG} 🛠 Updating Profile`);
+  console.log("Input Params:", { updateData, newProfilePicture, oldProfilePictureId });
+
   let payload;
   let headers;
 
+  // SKENARIO 1: Upload Foto Baru (Multipart/Form-Data)
   if (newProfilePicture) {
+    console.log("👉 Mode: Upload New Picture");
     payload = new FormData();
+    
+    // Append Text Data
     Object.keys(updateData).forEach((key) => {
       if (updateData[key] !== undefined && updateData[key] !== null) {
         payload.append(key, updateData[key]);
       }
     });
+
+    // Append File
     payload.append("profilePicture", newProfilePicture);
     headers = { "Content-Type": "multipart/form-data" };
-  } else {
+
+    // DEBUG: Intip isi FormData (Karena console.log(formData) biasanya kosong)
+    console.log("📦 FormData Content:");
+    for (let pair of payload.entries()) {
+        console.log(`   - ${pair[0]}:`, pair[1]);
+    }
+
+  } 
+  // SKENARIO 2: Update Teks / Foto Lama (JSON)
+  else {
+    console.log("👉 Mode: Update JSON (Text/History)");
     payload = { ...updateData };
+    
     if (oldProfilePictureId) {
+      console.log("   - Using Old Picture ID:", oldProfilePictureId);
       payload.profilePictureId = oldProfilePictureId;
     }
+    
+    console.log("📦 JSON Payload:", payload);
     headers = { "Content-Type": "application/json" };
   }
 
-  const response = await apiClient.put("/users/me", payload, { headers });
-
-  return {
-    message: response.data.message,
-    data: response.data.data,
-  };
+  try {
+    const response = await apiClient.put("/users/me", payload, { headers });
+    console.log("✅ Update Success:", response.data);
+    console.groupEnd();
+    
+    return {
+      message: response.data.message,
+      data: response.data.data,
+    };
+  } catch (error) {
+    console.error("❌ Update Failed:", error.response?.data || error.message);
+    console.groupEnd();
+    throw error;
+  }
 };
 
 /**
  * Ambil semua history foto profil.
  */
 const getProfilePictures = async () => {
-  const response = await apiClient.get("/users/me/pictures");
-  return response.data.data;
+  console.log(`${TAG} 📡 Fetching profile pictures history...`);
+  try {
+    const response = await apiClient.get("/users/me/pictures");
+    console.log(`${TAG} ✅ Pictures loaded. Count:`, response.data.data.length);
+    return response.data.data;
+  } catch (error) {
+    console.error(`${TAG} ❌ Failed to fetch pictures:`, error);
+    throw error;
+  }
 };
 
 /**
  * Hapus foto dari history.
  */
 const deleteProfilePicture = async (pictureId) => {
-  const response = await apiClient.delete(`/users/me/pictures/${pictureId}`);
-
-  return {
-    message: response.data.message,
-    data: response.data.data,
-  };
+  console.log(`${TAG} 🗑 Deleting picture ID: ${pictureId}...`);
+  try {
+    const response = await apiClient.delete(`/users/me/pictures/${pictureId}`);
+    console.log(`${TAG} ✅ Picture deleted successfully.`);
+    
+    return {
+      message: response.data.message,
+      data: response.data.data,
+    };
+  } catch (error) {
+    console.error(`${TAG} ❌ Failed to delete picture:`, error);
+    throw error;
+  }
 };
 
 export const userService = {

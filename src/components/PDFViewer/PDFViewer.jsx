@@ -127,6 +127,8 @@ useEffect(() => {
         event.target.classList.remove("pointer-events-auto");
         event.target.classList.add("pointer-events-none");
       },
+// PDFViewer.jsx (Sekitar baris 110-140)
+
       ondrop: (event) => {
         const overlayElement = event.target;
         const pageNumber = parseInt(overlayElement.dataset.pageNumber, 10);
@@ -135,39 +137,56 @@ useEffect(() => {
         const x_display = event.dragEvent.clientX - pageRect.left;
         const y_display = event.dragEvent.clientY - pageRect.top;
 
-        // --- PERBAIKAN DI SINI ---
-        // Kita batasi lebarnya agar tidak terlalu besar (max 150px atau 15% lebar halaman)
-        const DEFAULT_WIDTH = Math.min(pageRect.width * 0.15, 150);
-        
-        // Set HEIGHT sama dengan WIDTH agar menjadi KOTAK (Square)
-        const DEFAULT_HEIGHT = DEFAULT_WIDTH; 
+        const DEFAULT_WIDTH_DISPLAY = Math.min(pageRect.width * 0.15, 150);
+        const DEFAULT_HEIGHT_DISPLAY = DEFAULT_WIDTH_DISPLAY; // Square default
+
+        // Konstanta Padding (Sesuai dengan PlacedSignature)
+        const PADDING = 12;
+        const TOTAL_PADDING = 24;
 
         const existingId = event.relatedTarget?.getAttribute("data-id");
 
         if (existingId) {
-          // Logika update posisi (drag yang sudah ada)
+          // UPDATE POSISI
+          // Saat drag, kita punya x_display (kotak luar).
+          // Kita harus simpan positionX gambar asli (inner).
+          const realImageX = x_display + PADDING;
+          const realImageY = y_display + PADDING;
+
           onUpdateSignature({
             id: existingId,
             pageNumber,
             x_display,
             y_display,
-            positionX: x_display / pageRect.width,
-            positionY: y_display / pageRect.height,
+            // Hitung persentase berdasarkan posisi gambar asli
+            positionX: realImageX / pageRect.width,
+            positionY: realImageY / pageRect.height,
           });
         } else {
-          // Logika tambah baru (drop dari sidebar)
+          // TAMBAH BARU
+          // Hitung dimensi inner (gambar asli)
+          const realWidth = DEFAULT_WIDTH_DISPLAY - TOTAL_PADDING;
+          const realHeight = DEFAULT_HEIGHT_DISPLAY - TOTAL_PADDING;
+          
+          const realImageX = x_display + PADDING;
+          const realImageY = y_display + PADDING;
+
           const newSignature = {
             id: `sig-${Date.now()}`,
             signatureImageUrl: savedSignatureUrl,
             pageNumber,
-            positionX: x_display / pageRect.width,
-            positionY: y_display / pageRect.height,
-            width: DEFAULT_WIDTH / pageRect.width,
-            height: DEFAULT_HEIGHT / pageRect.height,
+            
+            // Data Tampilan (Outer Box)
             x_display,
             y_display,
-            width_display: DEFAULT_WIDTH,
-            height_display: DEFAULT_HEIGHT, // Ini sekarang sama dengan width
+            width_display: DEFAULT_WIDTH_DISPLAY,
+            height_display: DEFAULT_HEIGHT_DISPLAY,
+
+            // Data Database (Inner Image - Bersih)
+            positionX: realImageX / pageRect.width,
+            positionY: realImageY / pageRect.height,
+            width: realWidth / pageRect.width,
+            height: realHeight / pageRect.height,
           };
 
           onAddSignature(newSignature);

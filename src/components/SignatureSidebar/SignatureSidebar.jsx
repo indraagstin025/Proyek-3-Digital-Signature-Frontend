@@ -2,53 +2,78 @@
 
 import React, { useEffect } from "react";
 import interact from "interactjs";
-import { FaPenNib, FaQrcode, FaTimes } from "react-icons/fa";
+import { FaPenNib, FaQrcode, FaTimes, FaMagic, FaRobot } from "react-icons/fa";
 
-const SignatureSidebar = ({ savedSignatureUrl, onOpenSignatureModal, onSave, isLoading, includeQrCode, setIncludeQrCode, isOpen, onClose }) => {
+const SignatureSidebar = ({ 
+  savedSignatureUrl, 
+  onOpenSignatureModal, 
+  onSave, 
+  isLoading, 
+  includeQrCode, 
+  setIncludeQrCode, 
+  isOpen, 
+  onClose,
+  onAutoTag,
+  onAnalyze
+}) => {
+  
+  // --- LOGIKA DRAG & DROP DARI SIDEBAR ---
   useEffect(() => {
     if (!savedSignatureUrl) return;
 
     let clone = null;
+    let startPos = { x: 0, y: 0 };
 
     interact(".draggable-signature").draggable({
       inertia: true,
-      autoScroll: true,
+      autoScroll: false, // Matikan autoScroll native interactjs agar tidak konflik dengan sidebar scroll
       listeners: {
         start(event) {
-          document.body.classList.add("dragging-active");
-
           const original = event.target;
+          const rect = original.getBoundingClientRect();
+
+          // 1. Simpan posisi awal mouse untuk kalkulasi delta yang akurat
+          startPos = { x: event.clientX, y: event.clientY };
+
+          // 2. Buat Clone
           clone = original.cloneNode(true);
-          clone.classList.add("dragging-clone", "draggable-signature");
-          clone.style.position = "absolute";
-          clone.style.zIndex = "1000";
           
-          // Clone akan mengambil ukuran persis dari elemen sidebar yang sekarang sudah KOTAK
-          clone.style.width = `${original.offsetWidth}px`;
-          clone.style.height = `${original.offsetHeight}px`;
+          // 3. Styling Kritis untuk Clone agar bisa "keluar" dari sidebar
+          clone.style.position = "fixed"; // Gunakan fixed agar relatif terhadap viewport
+          clone.style.left = `${rect.left}px`;
+          clone.style.top = `${rect.top}px`;
+          clone.style.width = `${rect.width}px`;
+          clone.style.height = `${rect.height}px`;
+          clone.style.zIndex = "9999"; // Layer paling atas
+          clone.style.opacity = "0.8";
           
+          // [FIX PENTING] Agar mouse bisa mendeteksi Dropzone di bawah clone
+          clone.style.pointerEvents = "none"; 
+
+          // Tambahkan class bawaan dan tempel ke Body
+          clone.classList.add("dragging-clone");
           document.body.appendChild(clone);
 
-          const originalRect = original.getBoundingClientRect();
-          clone.style.left = `${originalRect.left}px`;
-          clone.style.top = `${originalRect.top}px`;
-
-          clone.setAttribute("data-x", 0);
-          clone.setAttribute("data-y", 0);
-
+          // Visual feedback pada elemen asli
           original.style.opacity = "0.4";
         },
         move(event) {
           if (!clone) return;
-          const x = (parseFloat(clone.getAttribute("data-x")) || 0) + event.dx;
-          const y = (parseFloat(clone.getAttribute("data-y")) || 0) + event.dy;
-          clone.style.transform = `translate(${x}px, ${y}px)`;
-          clone.setAttribute("data-x", x);
-          clone.setAttribute("data-y", y);
+          
+          // Hitung pergeseran berdasarkan posisi mouse viewport (karena clone fixed)
+          // Kita pakai event.client - startPos + offset awal (0)
+          const dx = event.clientX - startPos.x;
+          const dy = event.clientY - startPos.y;
+
+          clone.style.transform = `translate(${dx}px, ${dy}px)`;
         },
         end(event) {
-          document.body.classList.remove("dragging-active");
-          if (clone) clone.remove();
+          // Bersihkan Clone
+          if (clone) {
+             clone.remove();
+             clone = null;
+          }
+          // Kembalikan opacity elemen asli
           event.target.style.opacity = "1";
         },
       },
@@ -78,8 +103,8 @@ const SignatureSidebar = ({ savedSignatureUrl, onOpenSignatureModal, onSave, isL
       {/* Header */}
       <div className="py-6 px-6 border-b border-slate-200/80 dark:border-slate-700/50 flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-bold text-slate-800 dark:text-white">Tanda Tangan Anda</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Gunakan atau buat tanda tangan.</p>
+          <h2 className="text-xl font-bold text-slate-800 dark:text-white">Tanda Tangan</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Panel kontrol dokumen.</p>
         </div>
         <button
           onClick={onClose}
@@ -91,23 +116,20 @@ const SignatureSidebar = ({ savedSignatureUrl, onOpenSignatureModal, onSave, isL
 
       {/* Main Content */}
       <div className="flex-1 p-6 space-y-6 overflow-y-auto">
+        
+        {/* --- 1. BAGIAN TANDA TANGAN --- */}
         <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-md border border-slate-200/80 dark:border-slate-700">
           <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-3">
-            Metode Gambar Langsung
+            Drag & Drop ke Dokumen
           </p>
           
           {savedSignatureUrl ? (
             <div className="group relative flex justify-center">
-              {/* PERUBAHAN UTAMA DI SINI:
-                 1. w-32 aspect-square: Memaksa container menjadi KOTAK (128x128px).
-                 2. mx-auto: Supaya posisi di tengah.
-                 3. padding dikurangi sedikit agar gambar lebih maksimal.
-              */}
-              <div className="draggable-signature w-32 aspect-square p-2 border-2 border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 flex justify-center items-center cursor-grab touch-none shadow-sm hover:shadow-md hover:border-blue-400 transition-all">
+              {/* [FIX] Tambahkan touch-none agar tidak scroll saat drag di mobile */}
+              <div className="draggable-signature w-32 aspect-square p-2 border-2 border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 flex justify-center items-center cursor-grab touch-none shadow-sm hover:shadow-md hover:border-blue-400 transition-all active:cursor-grabbing">
                 <img
                   src={savedSignatureUrl}
                   alt="Tanda Tangan"
-                  // Gambar dipaksa fit di dalam kotak
                   className="w-full h-full object-contain pointer-events-none select-none"
                 />
               </div>
@@ -138,16 +160,64 @@ const SignatureSidebar = ({ savedSignatureUrl, onOpenSignatureModal, onSave, isL
             <div className="w-full border-t border-slate-300 dark:border-slate-700" />
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-slate-50 dark:bg-slate-900/70 text-slate-500">atau</span>
+            <span className="px-2 bg-slate-50 dark:bg-slate-900/70 text-slate-500 font-medium">Asisten Cerdas</span>
           </div>
+        </div>
+        
+        {/* --- 2. BAGIAN AI AUTO TAG --- */}
+        <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-slate-800 dark:to-slate-800 p-4 rounded-xl shadow-sm border border-purple-100 dark:border-slate-700">
+           <div className="flex items-center gap-2 mb-3">
+              <div className="p-1.5 bg-purple-100 text-purple-600 rounded-lg dark:bg-slate-700 dark:text-purple-400">
+                 <FaMagic size={14} />
+              </div>
+              <p className="text-sm font-bold text-slate-700 dark:text-white">Auto Placement</p>
+           </div>
+           
+           <button
+             onClick={onAutoTag}
+             disabled={isLoading}
+             className="w-full py-2.5 px-4 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg border border-slate-200 dark:border-slate-600 shadow-sm hover:shadow hover:border-purple-300 dark:hover:border-slate-500 transition-all flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+           >
+             {isLoading ? (
+               <span className="animate-pulse">Memproses...</span>
+             ) : (
+               <>
+                 <span>Otomatis Pasang TTD</span>
+               </>
+             )}
+           </button>
+        </div>
+
+        {/* --- 3. BAGIAN AI LEGAL CHECK --- */}
+        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-slate-800 dark:to-slate-800 p-4 rounded-xl shadow-sm border border-indigo-100 dark:border-slate-700">
+           <div className="flex items-center gap-2 mb-3">
+              <div className="p-1.5 bg-indigo-100 text-indigo-600 rounded-lg dark:bg-slate-700 dark:text-indigo-400">
+                 <FaRobot size={14} />
+              </div>
+              <p className="text-sm font-bold text-slate-700 dark:text-white">Legal Assistant</p>
+           </div>
+           
+           <button
+             onClick={onAnalyze} 
+             disabled={isLoading}
+             className="w-full py-2.5 px-4 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg border border-slate-200 dark:border-slate-600 shadow-sm hover:shadow hover:border-indigo-300 dark:hover:border-slate-500 transition-all flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+           >
+             {isLoading ? (
+               <span className="animate-pulse">Menganalisis...</span>
+             ) : (
+               <>
+                 <span>Cek Risiko Dokumen</span>
+               </>
+             )}
+           </button>
         </div>
 
         {/* Placeholder QR */}
         <button
-          className="w-full flex items-center justify-center gap-3 text-slate-400 font-semibold p-3 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 cursor-not-allowed"
+          className="w-full flex items-center justify-center gap-3 text-slate-400 text-sm font-semibold p-3 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 cursor-not-allowed opacity-70"
         >
           <FaQrcode />
-          <span>Tanda Tangan dengan QR</span>
+          <span>QR Verification (Coming Soon)</span>
         </button>
       </div>
 
@@ -158,7 +228,7 @@ const SignatureSidebar = ({ savedSignatureUrl, onOpenSignatureModal, onSave, isL
             htmlFor="qr-toggle"
             className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer select-none"
           >
-            Sertakan QR Verifikasi
+            Sertakan QR Code
           </label>
           <button
             id="qr-toggle"
@@ -178,7 +248,7 @@ const SignatureSidebar = ({ savedSignatureUrl, onOpenSignatureModal, onSave, isL
         <button
           onClick={onSave}
           disabled={isLoading || !savedSignatureUrl}
-          className="w-full flex justify-center items-center text-white font-bold py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 shadow-lg shadow-blue-500/30 transition-all transform hover:scale-[1.02] active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-slate-900 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed disabled:shadow-none"
+          className="w-full flex justify-center items-center text-white font-bold py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 shadow-lg shadow-blue-500/30 transition-all transform hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed"
         >
           {isLoading ? (
             <>
@@ -186,10 +256,10 @@ const SignatureSidebar = ({ savedSignatureUrl, onOpenSignatureModal, onSave, isL
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              Menyimpan...
+              Memproses...
             </>
           ) : (
-            "Terapkan ke Dokumen"
+            "Simpan Dokumen"
           )}
         </button>
       </div>

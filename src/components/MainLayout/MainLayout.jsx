@@ -15,7 +15,7 @@ const MainLayout = () => {
       {/* Hapus baris kosong yang berlebihan di sini */}
 
       {/* Aurora / Glow Background */}
-      <div className="absolute inset-0 pt z-20 pointer-events-none">
+      <div className="absolute inset-0 pt z-5 pointer-events-none">
 
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-green-400/30 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute bottom-0 right-0 w-[28rem] h-[28rem] bg-blue-500/30 rounded-full blur-3xl animate-pulse delay-2000"></div>

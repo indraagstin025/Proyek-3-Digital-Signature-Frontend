@@ -71,4 +71,35 @@ export const signatureService = {
       throw new Error(message);
     }
   },
+
+  /**
+   * Meminta AI untuk mendeteksi posisi tanda tangan secara otomatis.
+   * Backend akan menganalisis PDF dan menyimpan placeholder di database.
+   * @param {string} documentId - ID dokumen yang sedang dibuka.
+   * @returns {Promise<object>} Response sukses dari backend berisi jumlah lokasi yang ditemukan
+   */
+  autoTagDocument: async (documentId) => {
+    try {
+      const response = await apiClient.post(`documents/${documentId}/auto-tag`);
+      return response.data;
+    } catch (error) {
+      const message = error.response?.data?.message || "Gagal menjalankan AI Auto-Tagging";
+      throw new Error(message);
+    }
+  },
+
+  /**
+   * [BARU] Meminta AI untuk menganalisis isi dokumen (Legal Check).
+   * @param {string} documentId
+   */
+  async analyzeDocument(documentId) {
+    try {
+      // Endpoint baru di Node.js
+      const response = await apiClient.post(`documents/${documentId}/analyze`);
+      return response.data; // Mengembalikan { status: 'success', data: { ...JSON Gemini... } }
+    } catch (error) {
+      console.error("❌ Error analyzeDocument:", error);
+      throw new Error(error.response?.data?.message || "Gagal menganalisis dokumen.");
+    }
+  },
 };

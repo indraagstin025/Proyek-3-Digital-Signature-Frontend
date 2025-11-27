@@ -1,7 +1,7 @@
 /**
  * @file apiClient.js
  * @description Konfigurasi Axios final: aman dari error JSON.parse,
- * stabil, dan mendukung sesi menggunakan cookie + token.
+ * stabil, mendukung sesi cookie, dan fitur "Silent Check" untuk 401.
  */
 
 import axios from "axios";
@@ -40,6 +40,7 @@ apiClient.interceptors.request.use(
       try {
         const user = JSON.parse(userString);
         if (user?.token) {
+          // Opsional: Jika backend masih support Bearer token selain Cookie
           config.headers.Authorization = `Bearer ${user.token}`;
         }
       } catch (parseError) {
@@ -54,22 +55,34 @@ apiClient.interceptors.request.use(
 );
 
 /* ============================================================
- * RESPONSE INTERCEPTOR — STABIL
- * Menangani 401, network error, dan error tak dikenal.
+ * RESPONSE INTERCEPTOR — STABIL & PINTAR
+ * Menangani 401, network error, dan mendukung "Silent Check".
  * ============================================================ */
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    // 1. Cek apakah request dibatalkan (CancelToken)
     if (axios.isCancel(error) || error.code === "ERR_CANCELED") {
       return new Promise(() => {});
+    }
+
+    // 2. Cek apakah ini Request Khusus yang minta skip interceptor (Silent Check)
+    // Digunakan oleh authService.getMe() saat inisialisasi aplikasi
+    if (error.config && error.config._skipSessionCheck) {
+        // Langsung lempar error ke pemanggil (try-catch di service),
+        // JANGAN trigger event modal global.
+        return Promise.reject(error); 
     }
 
     if (error.response) {
       const status = error.response.status;
       const msg = error.response.data?.message || "";
 
+      // 3. Handle 401 (Unauthorized) Global
       if (status === 401) {
-        if (msg.includes("Sesi tidak ditemukan") || msg.includes("Sesi Anda telah berakhir")) {
+        // Trigger Modal HANYA jika pesannya tentang sesi habis/hilang
+        // DAN bukan request yang di-skip di atas
+        if (msg.includes("Sesi") || msg.includes("berakhir")) {
           window.dispatchEvent(new CustomEvent("sessionExpired"));
         }
       }
@@ -94,7 +107,5 @@ apiClient.interceptors.response.use(
     return Promise.reject(new Error("Terjadi kesalahan yang tidak terduga."));
   }
 );
-
-
 
 export default apiClient;

@@ -31,6 +31,10 @@ const ProfilePage = () => {
   const { user, onProfileUpdate } = useOutletContext();
 
   const [formData, setFormData] = useState({ name: "", phoneNumber: "", title: "", address: "" });
+  
+  // [FIX 1] Tambahkan State Lokal untuk Gambar agar update instan
+  const [displayProfileUrl, setDisplayProfileUrl] = useState(null);
+  
   const [profilePictures, setProfilePictures] = useState([]);
   const [isUpdating, setIsUpdating] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -45,12 +49,24 @@ const ProfilePage = () => {
     }, {});
   };
 
-  const updateStatesFromBackend = useCallback(
+const updateStatesFromBackend = useCallback(
     (data) => {
+      // 1. Update Context Global
       onProfileUpdate(data.user);
 
-      setProfilePictures(data.profilePictures);
+      // 2. Update State Lokal dengan CACHE BUSTING
+      if (data.user && data.user.profilePictureUrl) {
+        // Cek apakah URL sudah mengandung '?' (query params)
+        const separator = data.user.profilePictureUrl.includes("?") ? "&" : "?";
+        
+        // Tambahkan timestamp unik (milidetik saat ini) agar browser reload gambar
+        const freshUrl = `${data.user.profilePictureUrl}${separator}t=${new Date().getTime()}`;
+        
+        setDisplayProfileUrl(freshUrl);
+      }
 
+      // 3. Update data form lainnya
+      setProfilePictures(data.profilePictures);
       setFormData({
         name: data.user.name || "",
         phoneNumber: data.user.phoneNumber || "",
@@ -64,6 +80,9 @@ const ProfilePage = () => {
   useEffect(() => {
     const loadInitialData = async () => {
       if (user) {
+        // [FIX 3] Sinkronisasi awal state lokal dengan user context
+        setDisplayProfileUrl(user.profilePictureUrl);
+
         setFormData({
           name: user.name || "",
           phoneNumber: user.phoneNumber || "",
@@ -87,10 +106,6 @@ const ProfilePage = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  /**
-   * Fungsi terpusat untuk menangani semua jenis pembaruan profil (text, upload, use old).
-   * Dibungkus useCallback karena menjadi dependency handler lainnya.
-   */
   const handleProfileUpdate = useCallback(
     async ({ updateData, newPicture = null, oldPictureId = null }) => {
       setIsUpdating(true);
@@ -103,6 +118,7 @@ const ProfilePage = () => {
         toast.success(response.message || "Profil berhasil diperbarui!", { id: toastId });
         setShowModal(false);
       } catch (err) {
+        console.error(err);
         toast.error(err.response?.data?.message || "Gagal memperbarui profil.", { id: toastId });
       } finally {
         setIsUpdating(false);
@@ -113,14 +129,11 @@ const ProfilePage = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
     const payload = cleanupPayload(formData);
-
     if (Object.keys(payload).length === 0) {
       toast("Tidak ada perubahan untuk disimpan.");
       return;
     }
-
     handleProfileUpdate({ updateData: payload });
   };
 
@@ -145,9 +158,7 @@ const ProfilePage = () => {
       const toastId = toast.loading("Menghapus foto...");
       try {
         const response = await userService.deleteProfilePicture(pictureId);
-
         updateStatesFromBackend(response.data);
-
         toast.success(response.message || "Foto berhasil dihapus!", { id: toastId });
       } catch (err) {
         toast.error(err.response?.data?.message || "Gagal menghapus foto.", { id: toastId });
@@ -174,9 +185,19 @@ const ProfilePage = () => {
 
         <form onSubmit={handleSubmit} className="space-y-8">
           <div className="flex flex-col items-center space-y-4">
-            <div className="w-32 h-32 rounded-full bg-gray-200 dark:bg-slate-700 overflow-hidden flex items-center justify-center">
-              {/* Foto profil utama selalu diambil dari user context yang sudah diperbarui */}
-              {user?.profilePictureUrl ? <img src={user.profilePictureUrl} alt="Profil" className="w-full h-full object-cover" /> : <FaUser className="text-6xl text-gray-400 dark:text-slate-500" />}
+            <div className="w-32 h-32 rounded-full bg-gray-200 dark:bg-slate-700 overflow-hidden flex items-center justify-center shadow-md">
+              {/* [FIX 4] Gunakan displayProfileUrl (State Lokal) alih-alih user.profilePictureUrl */}
+              {displayProfileUrl ? (
+                <img 
+                  src={displayProfileUrl} 
+                  alt="Profil" 
+                  className="w-full h-full object-cover"
+                  // Trik agar browser me-refresh gambar jika URL sama tapi konten beda (opsional)
+                  key={displayProfileUrl} 
+                />
+              ) : (
+                <FaUser className="text-6xl text-gray-400 dark:text-slate-500" />
+              )}
             </div>
             <button type="button" onClick={() => setShowModal(true)} className="text-sm font-semibold text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition-colors focus:outline-none">
               Ubah Foto Profil
@@ -209,8 +230,14 @@ const ProfilePage = () => {
         </form>
       </div>
 
-      {/* Modal sekarang menerima fungsi yang stabil, yang akan mencegah re-render yang tidak perlu */}
-      <ProfilePictureModal isOpen={showModal} onClose={() => setShowModal(false)} profilePictures={profilePictures} onUploadNew={handleUploadNew} onUseOld={handleUseOld} onDelete={handleDeletePicture} />
+      <ProfilePictureModal 
+        isOpen={showModal} 
+        onClose={() => setShowModal(false)} 
+        profilePictures={profilePictures} 
+        onUploadNew={handleUploadNew} 
+        onUseOld={handleUseOld} 
+        onDelete={handleDeletePicture} 
+      />
     </div>
   );
 };
