@@ -1,29 +1,28 @@
-import React from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
-import Footer from '../Footer/Footer';
+import React from "react";
+import { Outlet, useLocation } from "react-router-dom";
+import Footer from "../Footer/Footer";
 
 const MainLayout = () => {
   const location = useLocation();
-  const isHomePage = location.pathname === '/';
+  const isHomePage = location.pathname === "/";
 
   return (
-    <div className="relative flex flex-col min-h-screen text-gray-300 
-                     bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 
-                     dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 
-                     overflow-hidden">
-      
-      {/* Hapus baris kosong yang berlebihan di sini */}
-
+    <div
+      className="relative flex flex-col min-h-screen text-gray-300 
+                 bg-linear-to-br from-slate-50 via-blue-50 to-indigo-100 
+                 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 
+                 overflow-hidden"
+    >
       {/* Aurora / Glow Background */}
-      <div className="absolute inset-0 pt z-5 pointer-events-none">
-
+      <div className="absolute inset-0 z-5 pointer-events-none">
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-green-400/30 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-0 right-0 w-[28rem] h-[28rem] bg-blue-500/30 rounded-full blur-3xl animate-pulse delay-2000"></div>
+        <div className="absolute bottom-0 right-0 w-md h-112 bg-blue-500/30 rounded-full blur-3xl animate-pulse delay-2000"></div>
       </div>
 
       {/* Konten Utama */}
-      {/* Ganti -pt-10 menjadi pt-10 jika Anda ingin padding, atau hapus jika padding diatur oleh Header */}
-      <main className={`grow ${isHomePage ? '' : 'pt-10'}`}> 
+      <main
+        className={`grow pt-10`}   // ← Tambahkan padding atas agar konten sedikit turun
+      >
         <Outlet />
       </main>
 
