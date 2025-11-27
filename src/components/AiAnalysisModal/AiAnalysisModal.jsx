@@ -3,8 +3,6 @@ import { FaRobot, FaExclamationTriangle, FaCheckCircle, FaTimes, FaUserTie, FaFi
 
 const AiAnalysisModal = ({ isOpen, onClose, data, isLoading }) => {
   if (!isOpen) return null;
-
-  // Jika loading, tampilkan skeleton atau spinner
   if (isLoading) {
     return (
       <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
