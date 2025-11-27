@@ -1,12 +1,20 @@
 /**
  * @file apiClient.js
  * @description Konfigurasi Axios final: aman dari error JSON.parse,
- * stabil, mendukung sesi cookie, dan fitur "Silent Check" untuk 401.
+ * stabil, mendukung sesi cookie, link production/local otomatis,
+ * dan fitur "Silent Check" untuk 401.
  */
 
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:3000/api";
+/* ============================================================
+ * 1. KONFIGURASI BASE URL (DYNAMIC)
+ * ============================================================ */
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.MODE === "production"
+    ? "https://proyek-3digital-signature-production.up.railway.app/api"
+    : "http://localhost:3000/api");
 
 console.log(`[API Client] Base URL: ${API_BASE_URL}`);
 
@@ -30,7 +38,6 @@ export const apiFileClient = axios.create({
 
 /* ============================================================
  * REQUEST INTERCEPTOR — AMAN
- * Tidak membatalkan request, tidak redirect dalam interceptor.
  * ============================================================ */
 apiClient.interceptors.request.use(
   (config) => {
@@ -40,7 +47,6 @@ apiClient.interceptors.request.use(
       try {
         const user = JSON.parse(userString);
         if (user?.token) {
-          // Opsional: Jika backend masih support Bearer token selain Cookie
           config.headers.Authorization = `Bearer ${user.token}`;
         }
       } catch (parseError) {
@@ -67,10 +73,7 @@ apiClient.interceptors.response.use(
     }
 
     // 2. Cek apakah ini Request Khusus yang minta skip interceptor (Silent Check)
-    // Digunakan oleh authService.getMe() saat inisialisasi aplikasi
     if (error.config && error.config._skipSessionCheck) {
-        // Langsung lempar error ke pemanggil (try-catch di service),
-        // JANGAN trigger event modal global.
         return Promise.reject(error); 
     }
 
@@ -80,8 +83,6 @@ apiClient.interceptors.response.use(
 
       // 3. Handle 401 (Unauthorized) Global
       if (status === 401) {
-        // Trigger Modal HANYA jika pesannya tentang sesi habis/hilang
-        // DAN bukan request yang di-skip di atas
         if (msg.includes("Sesi") || msg.includes("berakhir")) {
           window.dispatchEvent(new CustomEvent("sessionExpired"));
         }
