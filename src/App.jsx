@@ -57,8 +57,6 @@ const UserManagementPage = () => (
   </div>
 );
 
-
-
 const AppWrapper = () => {
   const location = useLocation();
   const navigate = useNavigate();
