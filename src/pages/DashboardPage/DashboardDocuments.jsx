@@ -9,7 +9,7 @@ import DocumentManagementModal from "../../components/DocumentManagementModal/Do
 import ConfirmationModal from "../../components/ConfirmationModal/ConfirmationModal.jsx";
 
 import { Toaster, toast } from "react-hot-toast";
-// Tambahkan FaCheck di import
+
 import { FaPlus, FaCog, FaEye, FaTrashAlt, FaSpinner, FaSignature, FaFileAlt, FaCheck } from "react-icons/fa";
 
 const DashboardDocuments = () => {
@@ -187,7 +187,11 @@ const DashboardDocuments = () => {
   };
 
   return (
-    <div id="tab-documents" className="p-4 sm:p-6 max-w-full overflow-x-hidden">
+    <div
+  id="tab-documents"
+  className="pt-15 sm:pt-20 p-5 sm:p-6 max-w-full overflow-x-hidden"
+>
+
       <Toaster position="top-center" containerStyle={{ zIndex: 9999 }} />
 
       {/* Header */}
@@ -264,29 +268,22 @@ const DashboardDocuments = () => {
                   bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 transition-all duration-200
                   ${isSelected ? "ring-2 ring-blue-500 border-transparent shadow-lg" : "hover:shadow-md dark:hover:border-slate-600"}
                 `}
-                // Jika sudah completed, klik row tidak melakukan apa-apa (atau bisa diarahkan ke view)
-                // Jika belum completed, klik row akan memilih/unselect
                 onClick={!isCompleted ? () => handleSelectDocument(doc.id) : undefined}
                 aria-label={`Dokumen ${doc.title}`}
               >
                 {/* Left group: Button + icon + info */}
                 <div className="flex items-start sm:items-center gap-4 w-full sm:w-auto sm:flex-1 min-w-0">
-                  
                   {/* --- CUSTOM SELECTION BUTTON --- */}
                   <div className="flex-shrink-0 pt-1 sm:pt-0">
                     <button
                       onClick={(e) => {
-                        e.stopPropagation(); // Mencegah trigger row onClick
+                        e.stopPropagation();
                         if (!isCompleted) handleSelectDocument(doc.id);
                       }}
                       disabled={isCompleted}
                       className={`
                         flex items-center justify-center w-10 h-10 rounded-full border transition-all duration-200 focus:outline-none
-                        ${
-                          isSelected
-                            ? "bg-blue-500 border-blue-500 text-white shadow-md transform scale-105"
-                            : "bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-300 hover:border-blue-400 hover:text-blue-400"
-                        }
+                        ${isSelected ? "bg-blue-500 border-blue-500 text-white shadow-md transform scale-105" : "bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-300 hover:border-blue-400 hover:text-blue-400"}
                         ${isCompleted ? "opacity-30 cursor-not-allowed bg-slate-100 dark:bg-slate-800" : "cursor-pointer"}
                       `}
                       title={isSelected ? "Batalkan Pilihan" : isCompleted ? "Sudah Selesai" : "Pilih Dokumen"}

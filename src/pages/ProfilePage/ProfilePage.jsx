@@ -177,7 +177,8 @@ const updateStatesFromBackend = useCallback(
 
   return (
     <div className="bg-white dark:bg-slate-900 min-h-screen">
-      <div className="max-w-2xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-2xl mx-auto pt-10 sm:pt-14 pb-12 px-4 sm:px-6 lg:px-8">
+
         <div className="text-center mb-10">
           <h1 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-white">Profil Anda</h1>
           <p className="mt-3 text-lg text-gray-500 dark:text-gray-400">Jaga agar data diri Anda tetap terbaru.</p>

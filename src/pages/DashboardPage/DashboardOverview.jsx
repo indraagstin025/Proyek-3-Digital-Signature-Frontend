@@ -72,7 +72,8 @@ const DashboardOverview = ({ theme }) => {
     // px-4 (Kiri Kanan Mobile)
     // pt-8 (Jarak Atas Mobile diperbesar agar tidak mepet Navbar)
     // sm:pt-10 (Jarak Atas Desktop lebih besar lagi)
-    <div id="tab-overview" className="mx-auto max-w-screen-xl px-4 pt-8 pb-8 sm:px-6 sm:pt-10 space-y-6"> 
+    <div id="tab-overview" className="mx-auto max-w-screen-xl px-4 pt-14 pb-10 sm:px-6 sm:pt-16 space-y-8">
+
       
       {/* 1. GRID STATISTIK */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

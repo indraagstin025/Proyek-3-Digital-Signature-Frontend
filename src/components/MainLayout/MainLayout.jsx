@@ -20,9 +20,9 @@ const MainLayout = () => {
       </div>
 
       {/* Konten Utama */}
-      <main
-        className={`grow pt-10`}   // ← Tambahkan padding atas agar konten sedikit turun
-      >
+      
+        <main className={`grow ${isHomePage ? "pt-16" : "pt-6"}`}>
+
         <Outlet />
       </main>
 

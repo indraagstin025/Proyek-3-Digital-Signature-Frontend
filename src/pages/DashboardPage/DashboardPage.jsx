@@ -152,22 +152,22 @@ const DashboardPage = ({ theme, toggleTheme }) => {
 
         {/* 5. Konten Utama (Main) */}
         {/* Hapus p-4 dan pt-10 dari main, gunakan div p-4 di dalamnya untuk konsistensi */}
-        <main className="flex-1 overflow-y-auto">
-          {/* Kontainer untuk Padding/Gutter di dalam main */}
-          <div className="p-4 sm:p-6 lg:p-8">
-            {userError ? (
-              <div className="text-red-500 text-center font-medium">{userError}</div>
-            ) : (
-              // Outlet context menyediakan data pengguna ke nested routes
-              <Outlet 
-                context={{ 
-                  user: userData, 
-                  onProfileUpdate: handleProfileUpdate 
-                }} 
-              />
-            )}
-          </div>
-        </main>
+<main className="flex-1 overflow-y-auto">
+  {/* Kontainer untuk Padding/Gutter di dalam main */}
+  <div className="pt-15 p-5 sm:p-8 lg:p-8">   {/* ← Tambahkan pt-8 agar konten turun */}
+    {userError ? (
+      <div className="text-red-500 text-center font-medium">{userError}</div>
+    ) : (
+      <Outlet 
+        context={{ 
+          user: userData, 
+          onProfileUpdate: handleProfileUpdate 
+        }} 
+      />
+    )}
+  </div>
+</main>
+
 
       </div>
     </div>
