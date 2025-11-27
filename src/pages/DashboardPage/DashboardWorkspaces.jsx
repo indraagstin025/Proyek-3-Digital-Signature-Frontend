@@ -53,7 +53,11 @@ const DashboardWorkspaces = ({ theme }) => {
 
   return (
     <>
-      <div id="tab-overview" className="mx-auto max-w-screen-xl pt-4">
+      <div
+  id="tab-overview"
+  className="mx-auto max-w-screen-xl pt-10 sm:pt-20"
+>
+
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <div>
             <h3 className="text-xl font-bold text-slate-800 dark:text-white">Workspace Anda</h3>
