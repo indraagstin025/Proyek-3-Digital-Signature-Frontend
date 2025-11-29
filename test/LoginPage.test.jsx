@@ -2,7 +2,7 @@ import React from "react";
 import { vi, describe, test, beforeEach, afterEach, expect } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import LoginPage from "../src/pages/LoginPage/LoginPage.jsx";
+import LoginPage from "../src/pages/auth/LoginPage.jsx";
 
 /* ✅ Definisikan semua variabel mock SEBELUM vi.mock */
 const mockNavigate = vi.fn();

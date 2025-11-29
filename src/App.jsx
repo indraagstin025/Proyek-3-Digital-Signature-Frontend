@@ -7,42 +7,42 @@ import { ImSpinner9 } from "react-icons/im";
 import authService from "./services/authService.js";
 
 // --- IMPORT KOMPONEN ---
-import SplashScreen from "./components/SplashScreen/SplashScreen.jsx"; // Pastikan file ini sudah dibuat sesuai panduan sebelumnya
-import ConfirmationModal from "./components/ConfirmationModal/ConfirmationModal.jsx";
-import Header from "./components/Header/Header.jsx";
-import MainLayout from "./components/MainLayout/MainLayout.jsx";
-import CookieBanner from "./components/BannerCookie/BannerCookie.jsx";
-import ProtectedRoute from "./components/ProtectedRoute/ProtectedRoute.jsx";
+import SplashScreen from "./components/shared/SplashScreen.jsx"; // Pastikan file ini sudah dibuat sesuai panduan sebelumnya
+import ConfirmationModal from "./components/shared/ConfirmationModal.jsx";
+import Header from "./components/layout/Header.jsx";
+import MainLayout from "./components/layout/MainLayout.jsx";
+import CookieBanner from "./components/shared/BannerCookie.jsx";
+import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
 
 // Halaman Publik
-import HomePage from "./pages/HomePage/HomePage.jsx";
-import LoginPage from "./pages/LoginPage/LoginPage.jsx";
-import RegisterPage from "./pages/RegisterPage/RegisterPage.jsx";
-import ForgotPasswordPage from "./pages/ForgotPasswordPage/ForgotPasswordPage.jsx";
-import ResetPasswordPage from "./pages/ResetPasswordPage/ResetPasswordPage.jsx";
-import VerifyEmailPage from "./pages/VerifyEmailPage/VerifyEmailPage.jsx";
+import HomePage from "./pages/public/home/HomePage.jsx";
+import LoginPage from "./pages/auth/LoginPage.jsx";
+import RegisterPage from "./pages/auth/RegisterPage.jsx";
+import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage.jsx";
+import ResetPasswordPage from "./pages/auth/ResetPasswordPage.jsx";
+import VerifyEmailPage from "./pages/auth/VerifyEmailPage.jsx";
 
 // Halaman Dashboard Pengguna
-import DashboardPage from "./pages/DashboardPage/DashboardPage.jsx";
-import DashboardOverview from "./pages/DashboardPage/DashboardOverview.jsx";
-import DashboardDocuments from "./pages/DashboardPage/DashboardDocuments.jsx";
-import DashboardWorkspaces from "./pages/DashboardPage/DashboardWorkspaces.jsx";
-import DashboardHistory from "./pages/DashboardPage/DashboardHistory.jsx";
+import DashboardPage from "./pages/dashboard/DashboardPage.jsx";
+import DashboardOverview from "./pages/dashboard/DashboardOverview.jsx";
+import DashboardDocuments from "./pages/dashboard/DashboardDocuments.jsx";
+import DashboardWorkspaces from "./pages/dashboard/DashboardWorkspaces.jsx";
+import DashboardHistory from "./pages/dashboard/DashboardHistory.jsx";
 import ProfilePage from "./pages/ProfilePage/ProfilePage.jsx";
-import GroupDetailPage from "./pages/GroupPage/GroupDetailPage.jsx";
-import AcceptInvitePage from "./pages/AcceptInvitePage/AcceptInvitePage.jsx"; 
+import GroupDetailPage from "./pages/groups/GroupDetailPage.jsx";
+import AcceptInvitePage from "./pages/auth/AcceptInvitePage.jsx";
 
 // Halaman Fungsional
-import SignDocumentPage from "./pages/SignDocumentPage/SignDocumentPage.jsx";
-import ViewDocumentPage from "./pages/ViewDocumentPage/ViewDocumentPage.jsx";
-import VerificationPage from "./pages/VerificationPage/VerificationPage.jsx";
-import NotFoundPage from "./pages/NotFoundPage/NotFoundPage.jsx";
-import SignPackagePage from "./pages/SignPackagePage/SignPackagePage.jsx";
+import SignDocumentPage from "./pages/documents/SignDocumentPage.jsx";
+import ViewDocumentPage from "./pages/documents/ViewDocumentPage.jsx";
+import VerificationPage from "./pages/documents/VerificationPage.jsx";
+import NotFoundPage from "./pages/public/NotFoundPage.jsx";
+import SignPackagePage from "./pages/documents/SignPackagePage.jsx";
 
 // Halaman Dashboard Admin
-import AdminDashboardPage from "./pages/AdminPage/AdminDashboardPage.jsx";
-import AdminDashboardOverview from "./pages/AdminPage/AdminDashboardOverview.jsx";
-import AdminManageUser from "./pages/AdminPage/AdminManageUser.jsx"; 
+import AdminDashboardPage from "./pages/admin/AdminDashboardPage.jsx";
+import AdminDashboardOverview from "./pages/admin/AdminDashboardOverview.jsx";
+import AdminManageUser from "./pages/admin/AdminManageUser.jsx";
 import { pdfjs } from "react-pdf";
 
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.js";
