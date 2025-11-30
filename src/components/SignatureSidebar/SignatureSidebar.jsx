@@ -17,7 +17,7 @@ const SignatureSidebar = ({
   onAnalyze
 }) => {
   
-  // --- LOGIKA DRAG & DROP DARI SIDEBAR ---
+  // --- LOGIKA DRAG & DROP (TIDAK BERUBAH) ---
   useEffect(() => {
     if (!savedSignatureUrl) return;
 
@@ -26,54 +26,39 @@ const SignatureSidebar = ({
 
     interact(".draggable-signature").draggable({
       inertia: true,
-      autoScroll: false, // Matikan autoScroll native interactjs agar tidak konflik dengan sidebar scroll
+      autoScroll: false, 
       listeners: {
         start(event) {
           const original = event.target;
           const rect = original.getBoundingClientRect();
-
-          // 1. Simpan posisi awal mouse untuk kalkulasi delta yang akurat
           startPos = { x: event.clientX, y: event.clientY };
 
-          // 2. Buat Clone
           clone = original.cloneNode(true);
-          
-          // 3. Styling Kritis untuk Clone agar bisa "keluar" dari sidebar
-          clone.style.position = "fixed"; // Gunakan fixed agar relatif terhadap viewport
+          clone.style.position = "fixed"; 
           clone.style.left = `${rect.left}px`;
           clone.style.top = `${rect.top}px`;
           clone.style.width = `${rect.width}px`;
           clone.style.height = `${rect.height}px`;
-          clone.style.zIndex = "9999"; // Layer paling atas
+          clone.style.zIndex = "9999"; 
           clone.style.opacity = "0.8";
-          
-          // [FIX PENTING] Agar mouse bisa mendeteksi Dropzone di bawah clone
           clone.style.pointerEvents = "none"; 
 
-          // Tambahkan class bawaan dan tempel ke Body
           clone.classList.add("dragging-clone");
           document.body.appendChild(clone);
 
-          // Visual feedback pada elemen asli
           original.style.opacity = "0.4";
         },
         move(event) {
           if (!clone) return;
-          
-          // Hitung pergeseran berdasarkan posisi mouse viewport (karena clone fixed)
-          // Kita pakai event.client - startPos + offset awal (0)
           const dx = event.clientX - startPos.x;
           const dy = event.clientY - startPos.y;
-
           clone.style.transform = `translate(${dx}px, ${dy}px)`;
         },
         end(event) {
-          // Bersihkan Clone
           if (clone) {
              clone.remove();
              clone = null;
           }
-          // Kembalikan opacity elemen asli
           event.target.style.opacity = "1";
         },
       },
@@ -89,19 +74,30 @@ const SignatureSidebar = ({
         bg-slate-50 dark:bg-slate-900/70 backdrop-blur-sm
         flex flex-col flex-shrink-0 border-l border-slate-200/80
         dark:border-slate-700/50 shadow-2xl
-        fixed top-16 right-0 z-40
-        h-[calc(100vh-4rem)]
+        
+        /* --- PERBAIKAN UTAMA DI SINI --- */
+        fixed 
+        top-16       /* Mulai dari bawah header */
+        bottom-0     /* Paksa berhenti di paling bawah viewport visible */
+        right-0 
+        z-40
+        /* Hapus h-[calc(100vh-4rem)] karena ini penyebab bug di mobile */
+        
         transition-transform duration-300 ease-in-out
         ${isOpen ? "translate-x-0" : "translate-x-full"}
-        lg:relative lg:h-full lg:translate-x-0 lg:top-0
+        
+        /* Reset untuk Desktop (LG) */
+        lg:relative lg:h-full lg:translate-x-0 lg:top-0 lg:bottom-auto
+        
         landscape:lg:relative landscape:lg:h-full 
-        landscape:lg:translate-x-0 landscape:lg:top-0
-        portrait:fixed portrait:top-16 portrait:right-0
-        portrait:h-[calc(100vh-4rem)]
+        landscape:lg:translate-x-0 landscape:lg:top-0 landscape:lg:bottom-auto
+        
+        /* Pastikan portrait mobile mengikuti aturan fixed top-bottom */
+        portrait:fixed portrait:top-16 portrait:bottom-0 portrait:right-0
       `}
     >
       {/* Header */}
-      <div className="py-6 px-6 border-b border-slate-200/80 dark:border-slate-700/50 flex justify-between items-center">
+      <div className="py-6 px-6 border-b border-slate-200/80 dark:border-slate-700/50 flex justify-between items-center shrink-0">
         <div>
           <h2 className="text-xl font-bold text-slate-800 dark:text-white">Tanda Tangan</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">Panel kontrol dokumen.</p>
@@ -115,7 +111,8 @@ const SignatureSidebar = ({
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 p-6 space-y-6 overflow-y-auto">
+      {/* Tambahkan min-h-0 agar scroll berfungsi di dalam flex container */}
+      <div className="flex-1 p-6 space-y-6 overflow-y-auto min-h-0 custom-scrollbar">
         
         {/* --- 1. BAGIAN TANDA TANGAN --- */}
         <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-md border border-slate-200/80 dark:border-slate-700">
@@ -125,7 +122,6 @@ const SignatureSidebar = ({
           
           {savedSignatureUrl ? (
             <div className="group relative flex justify-center">
-              {/* [FIX] Tambahkan touch-none agar tidak scroll saat drag di mobile */}
               <div className="draggable-signature w-32 aspect-square p-2 border-2 border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 flex justify-center items-center cursor-grab touch-none shadow-sm hover:shadow-md hover:border-blue-400 transition-all active:cursor-grabbing">
                 <img
                   src={savedSignatureUrl}
@@ -222,7 +218,8 @@ const SignatureSidebar = ({
       </div>
 
       {/* Footer */}
-      <div className="p-6 border-t border-slate-200/80 dark:border-slate-700/50 mt-auto bg-slate-50/50 dark:bg-slate-800/30">
+      {/* Tambahkan shrink-0 agar footer tidak gepeng/hilang */}
+      <div className="p-6 border-t border-slate-200/80 dark:border-slate-700/50 mt-auto bg-slate-50/50 dark:bg-slate-800/30 shrink-0 z-20">
         <div className="flex items-center justify-between mb-4">
           <label
             htmlFor="qr-toggle"
