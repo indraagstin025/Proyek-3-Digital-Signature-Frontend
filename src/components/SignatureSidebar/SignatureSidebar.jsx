@@ -69,31 +69,31 @@ const SignatureSidebar = ({
 
   return (
     <aside
+      // PERBAIKAN 1: Gunakan 'h-[calc(100dvh-4rem)]'
+      // 100dvh (Dynamic Viewport Height) adalah satuan paling akurat untuk browser HP modern
+      // Ia otomatis menyesuaikan diri saat address bar browser muncul/hilang.
       className={`
         w-full max-w-xs lg:w-80 lg:max-w-md
         bg-slate-50 dark:bg-slate-900/70 backdrop-blur-sm
         flex flex-col flex-shrink-0 border-l border-slate-200/80
         dark:border-slate-700/50 shadow-2xl
         
-        /* --- PERBAIKAN UTAMA DI SINI --- */
         fixed 
-        top-16       /* Mulai dari bawah header */
-        bottom-0     /* Paksa berhenti di paling bawah viewport visible */
+        top-16 
         right-0 
         z-40
-        /* Hapus h-[calc(100vh-4rem)] karena ini penyebab bug di mobile */
+        
+        /* Tinggi dinamis dikurangi tinggi header (4rem) */
+        h-[calc(100dvh-4rem)]
         
         transition-transform duration-300 ease-in-out
         ${isOpen ? "translate-x-0" : "translate-x-full"}
         
-        /* Reset untuk Desktop (LG) */
-        lg:relative lg:h-full lg:translate-x-0 lg:top-0 lg:bottom-auto
+        /* Reset untuk Desktop */
+        lg:relative lg:h-full lg:translate-x-0 lg:top-0
+        landscape:lg:relative landscape:lg:h-full landscape:lg:translate-x-0 landscape:lg:top-0
         
-        landscape:lg:relative landscape:lg:h-full 
-        landscape:lg:translate-x-0 landscape:lg:top-0 landscape:lg:bottom-auto
-        
-        /* Pastikan portrait mobile mengikuti aturan fixed top-bottom */
-        portrait:fixed portrait:top-16 portrait:bottom-0 portrait:right-0
+        portrait:fixed portrait:top-16 portrait:right-0 portrait:h-[calc(100dvh-4rem)]
       `}
     >
       {/* Header */}
@@ -111,9 +111,9 @@ const SignatureSidebar = ({
       </div>
 
       {/* Main Content */}
-      {/* Tambahkan min-h-0 agar scroll berfungsi di dalam flex container */}
       <div className="flex-1 p-6 space-y-6 overflow-y-auto min-h-0 custom-scrollbar">
         
+        {/* ... Bagian Tanda Tangan, Auto Tag, dll (SAMA SEPERTI SEBELUMNYA) ... */}
         {/* --- 1. BAGIAN TANDA TANGAN --- */}
         <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-md border border-slate-200/80 dark:border-slate-700">
           <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-3">
@@ -123,28 +123,13 @@ const SignatureSidebar = ({
           {savedSignatureUrl ? (
             <div className="group relative flex justify-center">
               <div className="draggable-signature w-32 aspect-square p-2 border-2 border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 flex justify-center items-center cursor-grab touch-none shadow-sm hover:shadow-md hover:border-blue-400 transition-all active:cursor-grabbing">
-                <img
-                  src={savedSignatureUrl}
-                  alt="Tanda Tangan"
-                  className="w-full h-full object-contain pointer-events-none select-none"
-                />
+                <img src={savedSignatureUrl} alt="Tanda Tangan" className="w-full h-full object-contain pointer-events-none select-none" />
               </div>
-              
-              <button
-                onClick={onOpenSignatureModal}
-                className="absolute -top-2 -right-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 py-1.5 px-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all transform hover:scale-105"
-              >
-                Ubah
-              </button>
+              <button onClick={onOpenSignatureModal} className="absolute -top-2 -right-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 py-1.5 px-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all transform hover:scale-105">Ubah</button>
             </div>
           ) : (
-            <button
-              onClick={onOpenSignatureModal}
-              className="w-full py-8 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg flex flex-col items-center justify-center text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-blue-500 hover:text-blue-500 transition-all duration-300 group"
-            >
-              <div className="p-3 rounded-full bg-slate-100 dark:bg-slate-700 group-hover:bg-blue-50 dark:group-hover:bg-slate-600 mb-3 transition-colors">
-                 <FaPenNib size={20} />
-              </div>
+            <button onClick={onOpenSignatureModal} className="w-full py-8 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg flex flex-col items-center justify-center text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-blue-500 hover:text-blue-500 transition-all duration-300 group">
+              <div className="p-3 rounded-full bg-slate-100 dark:bg-slate-700 group-hover:bg-blue-50 dark:group-hover:bg-slate-600 mb-3 transition-colors"><FaPenNib size={20} /></div>
               <span className="text-sm font-semibold">Buat Tanda Tangan</span>
             </button>
           )}
@@ -152,79 +137,37 @@ const SignatureSidebar = ({
 
         {/* Separator */}
         <div className="relative text-center">
-          <div className="absolute inset-0 flex items-center" aria-hidden="true">
-            <div className="w-full border-t border-slate-300 dark:border-slate-700" />
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-slate-50 dark:bg-slate-900/70 text-slate-500 font-medium">Asisten Cerdas</span>
-          </div>
+            <div className="absolute inset-0 flex items-center" aria-hidden="true"><div className="w-full border-t border-slate-300 dark:border-slate-700" /></div>
+            <div className="relative flex justify-center text-sm"><span className="px-2 bg-slate-50 dark:bg-slate-900/70 text-slate-500 font-medium">Asisten Cerdas</span></div>
         </div>
         
-        {/* --- 2. BAGIAN AI AUTO TAG --- */}
+        {/* AI Buttons Placeholders (SAMA) */}
         <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-slate-800 dark:to-slate-800 p-4 rounded-xl shadow-sm border border-purple-100 dark:border-slate-700">
-           <div className="flex items-center gap-2 mb-3">
-              <div className="p-1.5 bg-purple-100 text-purple-600 rounded-lg dark:bg-slate-700 dark:text-purple-400">
-                 <FaMagic size={14} />
-              </div>
-              <p className="text-sm font-bold text-slate-700 dark:text-white">Auto Placement</p>
-           </div>
-           
-           <button
-             onClick={onAutoTag}
-             disabled={isLoading}
-             className="w-full py-2.5 px-4 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg border border-slate-200 dark:border-slate-600 shadow-sm hover:shadow hover:border-purple-300 dark:hover:border-slate-500 transition-all flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
-           >
-             {isLoading ? (
-               <span className="animate-pulse">Memproses...</span>
-             ) : (
-               <>
-                 <span>Otomatis Pasang TTD</span>
-               </>
-             )}
+           <div className="flex items-center gap-2 mb-3"><div className="p-1.5 bg-purple-100 text-purple-600 rounded-lg dark:bg-slate-700 dark:text-purple-400"><FaMagic size={14} /></div><p className="text-sm font-bold text-slate-700 dark:text-white">Auto Placement</p></div>
+           <button onClick={onAutoTag} disabled={isLoading} className="w-full py-2.5 px-4 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg border border-slate-200 dark:border-slate-600 shadow-sm hover:shadow hover:border-purple-300 dark:hover:border-slate-500 transition-all flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed">
+             {isLoading ? <span className="animate-pulse">Memproses...</span> : <span>Otomatis Pasang TTD</span>}
            </button>
         </div>
 
-        {/* --- 3. BAGIAN AI LEGAL CHECK --- */}
         <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-slate-800 dark:to-slate-800 p-4 rounded-xl shadow-sm border border-indigo-100 dark:border-slate-700">
-           <div className="flex items-center gap-2 mb-3">
-              <div className="p-1.5 bg-indigo-100 text-indigo-600 rounded-lg dark:bg-slate-700 dark:text-indigo-400">
-                 <FaRobot size={14} />
-              </div>
-              <p className="text-sm font-bold text-slate-700 dark:text-white">Legal Assistant</p>
-           </div>
-           
-           <button
-             onClick={onAnalyze} 
-             disabled={isLoading}
-             className="w-full py-2.5 px-4 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg border border-slate-200 dark:border-slate-600 shadow-sm hover:shadow hover:border-indigo-300 dark:hover:border-slate-500 transition-all flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
-           >
-             {isLoading ? (
-               <span className="animate-pulse">Menganalisis...</span>
-             ) : (
-               <>
-                 <span>Cek Risiko Dokumen</span>
-               </>
-             )}
+           <div className="flex items-center gap-2 mb-3"><div className="p-1.5 bg-indigo-100 text-indigo-600 rounded-lg dark:bg-slate-700 dark:text-indigo-400"><FaRobot size={14} /></div><p className="text-sm font-bold text-slate-700 dark:text-white">Legal Assistant</p></div>
+           <button onClick={onAnalyze} disabled={isLoading} className="w-full py-2.5 px-4 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg border border-slate-200 dark:border-slate-600 shadow-sm hover:shadow hover:border-indigo-300 dark:hover:border-slate-500 transition-all flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed">
+             {isLoading ? <span className="animate-pulse">Menganalisis...</span> : <span>Cek Risiko Dokumen</span>}
            </button>
         </div>
-
-        {/* Placeholder QR */}
-        <button
-          className="w-full flex items-center justify-center gap-3 text-slate-400 text-sm font-semibold p-3 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 cursor-not-allowed opacity-70"
-        >
-          <FaQrcode />
-          <span>QR Verification (Coming Soon)</span>
-        </button>
+        
+        <button className="w-full flex items-center justify-center gap-3 text-slate-400 text-sm font-semibold p-3 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 cursor-not-allowed opacity-70"><FaQrcode /><span>QR Verification (Coming Soon)</span></button>
       </div>
 
       {/* Footer */}
-      {/* Tambahkan shrink-0 agar footer tidak gepeng/hilang */}
-      <div className="p-6 border-t border-slate-200/80 dark:border-slate-700/50 mt-auto bg-slate-50/50 dark:bg-slate-800/30 shrink-0 z-20">
+      {/* PERBAIKAN 2: Padding Super Besar di Bawah (pb-24) 
+         Saya menambahkan 'pb-24' (6rem/96px) khusus untuk mobile.
+         Ini akan memaksa tombol naik jauh ke atas, menjauhi area "gesture bar" HP.
+         Di desktop (lg:), kita kembalikan ke normal (lg:pb-6).
+      */}
+      <div className="p-6 border-t border-slate-200/80 dark:border-slate-700/50 mt-auto bg-slate-50/50 dark:bg-slate-800/30 shrink-0 z-20 pb-24 lg:pb-6">
         <div className="flex items-center justify-between mb-4">
-          <label
-            htmlFor="qr-toggle"
-            className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer select-none"
-          >
+          <label htmlFor="qr-toggle" className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer select-none">
             Sertakan QR Code
           </label>
           <button
@@ -232,13 +175,9 @@ const SignatureSidebar = ({
             role="switch"
             aria-checked={includeQrCode}
             onClick={() => setIncludeQrCode(!includeQrCode)}
-            className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-slate-900
-              ${includeQrCode ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-600"}`}
+            className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-slate-900 ${includeQrCode ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-600"}`}
           >
-            <span
-              className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform duration-200 shadow-sm
-                ${includeQrCode ? "translate-x-6" : "translate-x-1"}`}
-            />
+            <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform duration-200 shadow-sm ${includeQrCode ? "translate-x-6" : "translate-x-1"}`} />
           </button>
         </div>
 
@@ -249,10 +188,7 @@ const SignatureSidebar = ({
         >
           {isLoading ? (
             <>
-              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
               Memproses...
             </>
           ) : (
