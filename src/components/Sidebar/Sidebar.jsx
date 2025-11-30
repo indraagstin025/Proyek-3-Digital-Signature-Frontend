@@ -36,10 +36,19 @@ const Sidebar = ({ userName, userEmail, userAvatar, isOpen, activePage, onClose,
       )}
 
       <div
-        className={`w-64 bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-white/10 flex flex-col justify-between h-screen fixed top-0 left-0 z-50 transition-transform duration-300 ease-in-out
+        // PERBAIKAN DI SINI:
+        // 1. Hapus 'h-[100dvh]' dan 'max-h-[100dvh]'
+        // 2. Gunakan 'fixed inset-y-0 left-0'
+        //    Ini artinya: "Tempel ke Atas (0), Bawah (0), dan Kiri (0)"
+        className={`w-64 bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-white/10 flex flex-col fixed inset-y-0 left-0 z-50 transition-transform duration-300 ease-in-out
           ${isOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
-        <div>
+        
+        {/* 'flex-1' akan mengisi ruang yang tersisa antara logo dan footer
+            'min-h-0' memastikan area ini BISA mengecil (shrink) dan memunculkan scrollbar 
+             jika layar terlalu pendek */}
+        <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
+          
           <div className="px-4 pt-6 mb-4">
             <img 
               src={theme === 'dark' ? logoDark : logoWhite} 
@@ -47,7 +56,8 @@ const Sidebar = ({ userName, userEmail, userAvatar, isOpen, activePage, onClose,
               className="h-30 w-auto ml-2" 
             />
           </div>
-          <div className="px-4 space-y-2">
+          
+          <div className="px-4 space-y-2 pb-4">
             {navLinks.map((link) => (
               <button
                 key={link.id}
@@ -70,14 +80,15 @@ const Sidebar = ({ userName, userEmail, userAvatar, isOpen, activePage, onClose,
           </div>
         </div>
 
-        <div className="p-4 border-t border-slate-200/80 dark:border-white/10">
+        {/* 'shrink-0' mencegah footer gepeng */}
+        <div className="p-4 border-t border-slate-200/80 dark:border-white/10 shrink-0 z-20 bg-white dark:bg-slate-900">
           <div className="flex items-center gap-3 mb-4">
             <img
               src={userAvatar || `https://i.pravatar.cc/40?u=${userEmail}`}
               alt="User Avatar"
               className="w-10 h-10 rounded-full object-cover bg-slate-200 dark:bg-slate-700"
             />
-            <div>
+            <div className="min-w-0">
               <p className="font-semibold text-slate-800 dark:text-white truncate">{userName || 'Loading...'}</p>
               <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{userEmail || '...'}</p>
             </div>
@@ -106,4 +117,3 @@ const Sidebar = ({ userName, userEmail, userAvatar, isOpen, activePage, onClose,
 };
 
 export default Sidebar;
-
