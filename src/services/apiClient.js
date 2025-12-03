@@ -13,7 +13,7 @@ import axios from "axios";
 const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
   (import.meta.env.MODE === "production"
-    ? "https://proyek-3digital-signature-production.up.railway.app/api"
+    ? "https://api.moodvis.my.id/api"
     : "http://localhost:3000/api");
 
 console.log(`[API Client] Base URL: ${API_BASE_URL}`);
