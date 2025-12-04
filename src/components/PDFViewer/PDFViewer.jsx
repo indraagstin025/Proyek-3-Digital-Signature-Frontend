@@ -35,8 +35,6 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
     if (!containerRef.current) return;
 
     const innerWidth = window.innerWidth;
-    const innerHeight = window.innerHeight;
-
     const isPortrait = window.matchMedia("(orientation: portrait)").matches;
     const isMobile = innerWidth < 768;
 
@@ -56,13 +54,10 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
       setContainerWidth(newContainerWidth);
       setPageHeight(0);
     }
-
-    console.log("Width:", innerWidth, "Height:", innerHeight, "isPortrait:", isPortrait);
   }, []);
 
   useEffect(() => {
     const debouncedUpdateWidth = debounce(checkResponsiveness, 150);
-
     debouncedUpdateWidth();
     window.addEventListener("resize", debouncedUpdateWidth);
     return () => window.removeEventListener("resize", debouncedUpdateWidth);
@@ -70,14 +65,7 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
 
   useEffect(() => {
     if (isMobileOrPortrait) {
-      if (observerRef.current) {
-        try {
-          observerRef.current.disconnect();
-        } catch (e) {
-          console.error("Failed to disconnect observer:", e);
-        }
-        observerRef.current = null;
-      }
+      if (observerRef.current) observerRef.current.disconnect();
       return;
     }
 
@@ -96,28 +84,70 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
     );
 
     observerRef.current = observer;
-
     const refs = pageRefs.current;
-    refs.forEach((pageElement) => {
-      if (pageElement) observer.observe(pageElement);
-    });
+    refs.forEach((pageElement) => { if (pageElement) observer.observe(pageElement); });
 
     return () => {
-      if (observerRef.current) {
-        try {
-          refs.forEach((pageElement) => {
-            if (pageElement) observerRef.current.unobserve(pageElement);
-          });
-          observerRef.current.disconnect();
-        } catch (e) {
-          console.error("Failed to disconnect observer:", e);
-        }
-        observerRef.current = null;
-      }
+      if (observerRef.current) observerRef.current.disconnect();
     };
   }, [numPages, isMobileOrPortrait]);
 
-useEffect(() => {
+  // [FITUR] Tap to Sign (Ketuk untuk Tanda Tangan)
+  const handleCanvasClick = (event, pageNumber) => {
+    if (!savedSignatureUrl) return;
+    if (!event.target.classList.contains("dropzone-overlay")) return;
+
+    const overlayElement = event.target;
+    const rect = overlayElement.getBoundingClientRect();
+
+    const x_display = event.clientX - rect.left;
+    const y_display = event.clientY - rect.top;
+
+    // [LOGIKA UKURAN KONSISTEN]
+    // Rumus: Ambil 25% lebar dokumen, tapi MINIMAL 140px.
+    const MIN_PIXEL_SIZE = 140; 
+    const IDEAL_RATIO = 0.25; // 25%
+    
+    let calculatedWidth = Math.max(rect.width * IDEAL_RATIO, MIN_PIXEL_SIZE);
+    // Safety check: Jangan biarkan melebihi 60% lebar halaman HP agar tidak overflow
+    calculatedWidth = Math.min(calculatedWidth, rect.width * 0.6);
+
+    const DEFAULT_WIDTH = calculatedWidth;
+    const DEFAULT_HEIGHT = DEFAULT_WIDTH * 0.5; // Rasio 2:1
+    const PADDING = 12;
+
+    const centeredX = x_display - (DEFAULT_WIDTH / 2);
+    const centeredY = y_display - (DEFAULT_HEIGHT / 2);
+
+    // Hitung posisi relatif (inner content setelah padding)
+    const realImageX = centeredX + PADDING;
+    const realImageY = centeredY + PADDING;
+    const realWidth = DEFAULT_WIDTH - (PADDING * 2);
+    const realHeight = DEFAULT_HEIGHT - (PADDING * 2);
+
+    const newSignature = {
+        id: `sig-tap-${Date.now()}`,
+        signatureImageUrl: savedSignatureUrl,
+        pageNumber,
+        
+        // Data Tampilan (Outer Box)
+        x_display: centeredX,
+        y_display: centeredY,
+        width_display: DEFAULT_WIDTH,
+        height_display: DEFAULT_HEIGHT,
+
+        // Data Database (Persentase Relatif)
+        positionX: realImageX / rect.width,
+        positionY: realImageY / rect.height,
+        width: realWidth / rect.width,
+        height: realHeight / rect.height,
+    };
+
+    onAddSignature(newSignature);
+    if (navigator.vibrate) navigator.vibrate(50);
+  };
+
+  useEffect(() => {
     interact(".dropzone-overlay").dropzone({
       ondropactivate(event) {
         event.target.classList.remove("pointer-events-none");
@@ -127,8 +157,6 @@ useEffect(() => {
         event.target.classList.remove("pointer-events-auto");
         event.target.classList.add("pointer-events-none");
       },
-// PDFViewer.jsx (Sekitar baris 110-140)
-
       ondrop: (event) => {
         const overlayElement = event.target;
         const pageNumber = parseInt(overlayElement.dataset.pageNumber, 10);
@@ -137,37 +165,35 @@ useEffect(() => {
         const x_display = event.dragEvent.clientX - pageRect.left;
         const y_display = event.dragEvent.clientY - pageRect.top;
 
-        const DEFAULT_WIDTH_DISPLAY = Math.min(pageRect.width * 0.15, 150);
-        const DEFAULT_HEIGHT_DISPLAY = DEFAULT_WIDTH_DISPLAY; // Square default
+        // [LOGIKA UKURAN KONSISTEN - SAMA DENGAN TAP]
+        const MIN_PIXEL_SIZE = 140; 
+        const IDEAL_RATIO = 0.25;
+        
+        let calculatedWidth = Math.max(pageRect.width * IDEAL_RATIO, MIN_PIXEL_SIZE);
+        calculatedWidth = Math.min(calculatedWidth, pageRect.width * 0.6);
 
-        // Konstanta Padding (Sesuai dengan PlacedSignature)
+        const DEFAULT_WIDTH_DISPLAY = calculatedWidth;
+        const DEFAULT_HEIGHT_DISPLAY = DEFAULT_WIDTH_DISPLAY * 0.5;
+        
         const PADDING = 12;
         const TOTAL_PADDING = 24;
 
         const existingId = event.relatedTarget?.getAttribute("data-id");
 
         if (existingId) {
-          // UPDATE POSISI
-          // Saat drag, kita punya x_display (kotak luar).
-          // Kita harus simpan positionX gambar asli (inner).
           const realImageX = x_display + PADDING;
           const realImageY = y_display + PADDING;
-
           onUpdateSignature({
             id: existingId,
             pageNumber,
             x_display,
             y_display,
-            // Hitung persentase berdasarkan posisi gambar asli
             positionX: realImageX / pageRect.width,
             positionY: realImageY / pageRect.height,
           });
         } else {
-          // TAMBAH BARU
-          // Hitung dimensi inner (gambar asli)
           const realWidth = DEFAULT_WIDTH_DISPLAY - TOTAL_PADDING;
           const realHeight = DEFAULT_HEIGHT_DISPLAY - TOTAL_PADDING;
-          
           const realImageX = x_display + PADDING;
           const realImageY = y_display + PADDING;
 
@@ -175,35 +201,26 @@ useEffect(() => {
             id: `sig-${Date.now()}`,
             signatureImageUrl: savedSignatureUrl,
             pageNumber,
-            
-            // Data Tampilan (Outer Box)
             x_display,
             y_display,
             width_display: DEFAULT_WIDTH_DISPLAY,
             height_display: DEFAULT_HEIGHT_DISPLAY,
-
-            // Data Database (Inner Image - Bersih)
             positionX: realImageX / pageRect.width,
             positionY: realImageY / pageRect.height,
             width: realWidth / pageRect.width,
             height: realHeight / pageRect.height,
           };
-
           onAddSignature(newSignature);
         }
       },
     });
-
     return () => interact(".dropzone-overlay").unset();
   }, [savedSignatureUrl, onAddSignature, onUpdateSignature]);
 
   const scrollToPage = (pageNum) => {
     const pageElement = pageRefs.current.get(pageNum);
     if (pageElement) {
-      pageElement.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
+      pageElement.scrollIntoView({ behavior: "smooth", block: "start" });
       setPageNumber(pageNum);
     }
   };
@@ -211,23 +228,20 @@ useEffect(() => {
   return (
     <div className="w-full h-full relative bg-white dark:bg-slate-800/50 shadow-lg rounded-xl flex flex-col">
       {/* Header */}
-      <div
-        className={`flex-shrink-0 h-16 flex justify-between items-center p-4 border-b border-slate-200/80 dark:border-slate-700/50 z-10 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm ${
-          !isMobileOrPortrait ? "rounded-t-xl" : "rounded-none"
-        }`}
-      >
+      <div className={`flex-shrink-0 h-16 flex justify-between items-center p-4 border-b border-slate-200/80 dark:border-slate-700/50 z-10 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm ${!isMobileOrPortrait ? "rounded-t-xl" : "rounded-none"}`}>
         <div className="flex items-baseline gap-3 min-w-0">
           {!isMobileOrPortrait && <span className="text-sm font-medium text-slate-500 dark:text-slate-400 flex-shrink-0">Nama Dokumen:</span>}
           <h2 className="font-bold text-base md:text-lg text-slate-800 dark:text-white truncate">{documentTitle}</h2>
         </div>
+        
         <p className="font-semibold text-sm text-slate-500 dark:text-slate-400 flex-shrink-0 ml-4">
-          Halaman {pageNumber} dari {numPages || "--"}
+          Hal {pageNumber} / {numPages || "--"}
         </p>
       </div>
 
       {/* Konten Utama */}
       <div className="flex-grow flex overflow-hidden">
-        {/* Sidebar Thumbnail (Hanya tampil di Desktop/Non-Portrait) */}
+        {/* Sidebar Thumbnail (Desktop Only) */}
         {!isMobileOrPortrait && (
           <div className="w-48 overflow-y-auto bg-slate-100/50 dark:bg-slate-900/50 border-r border-slate-200/80 dark:border-slate-700 p-2 flex-shrink-0">
             <Document file={fileUrl} loading="">
@@ -245,7 +259,7 @@ useEffect(() => {
         )}
 
         {/* Area PDF Utama */}
-        <div ref={containerRef} className={`flex-grow overflow-auto ${isMobileOrPortrait ? "p-2" : "p-4"} flex justify-center`}>
+        <div ref={containerRef} className={`flex-grow overflow-auto ${isMobileOrPortrait ? "p-2 pb-24" : "p-4"} flex justify-center`}> 
           <Document file={fileUrl} onLoadSuccess={onDocumentLoadSuccess} loading={<p className="text-center mt-8">Memuat dokumen...</p>} error={<p className="text-center mt-8 text-red-500">Gagal memuat dokumen.</p>}>
             {Array.from(new Array(numPages || 0), (el, index) => (
               <div
@@ -259,9 +273,13 @@ useEffect(() => {
                 style={isMobileOrPortrait ? { width: `${containerWidth}px` } : {}}
               >
                 <div className="bg-white shadow-lg rounded-md border border-gray-200 overflow-hidden">
-                  <Page pageNumber={index + 1} width={containerWidth > 0 ? containerWidth : 600} height={isMobileOrPortrait && pageHeight > 0 ? pageHeight : undefined} renderTextLayer={false} renderAnnotationLayer={false} />
+                  <Page pageNumber={index + 1} width={containerWidth > 0 ? containerWidth : 600} height={isMobileOrPortrait && pageHeight > 0 ? pageHeight : undefined} renderTextLayer={false} renderAnnotationLayer={false} className="pointer-events-none" />
                 </div>
-                <div className="dropzone-overlay absolute top-0 left-0 w-full h-full z-10" data-page-number={index + 1} />
+                <div 
+                    className="dropzone-overlay absolute top-0 left-0 w-full h-full z-10 cursor-crosshair" 
+                    data-page-number={index + 1}
+                    onClick={(e) => handleCanvasClick(e, index + 1)}
+                />
                 {signatures
                   .filter((sig) => sig.pageNumber === index + 1)
                   .map((sig) => (
@@ -272,25 +290,6 @@ useEffect(() => {
           </Document>
         </div>
       </div>
-
-      {/* Footer Navigasi Halaman (Hanya di mode mobile/portrait) */}
-      {isMobileOrPortrait && (
-        <div className="flex-shrink-0 p-3 flex justify-center items-center gap-4 border-t border-slate-200/80 dark:border-slate-700/50 bg-white dark:bg-slate-800/80">
-          <button onClick={() => scrollToPage(Math.max(1, pageNumber - 1))} disabled={pageNumber <= 1} className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed hover:bg-blue-600 transition">
-            &larr; Sebelumnya
-          </button>
-          <span className="font-medium text-sm text-slate-700 dark:text-slate-300">
-            Halaman {pageNumber} dari {numPages || "--"}
-          </span>
-          <button
-            onClick={() => scrollToPage(Math.min(numPages, pageNumber + 1))}
-            disabled={pageNumber >= numPages}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed hover:bg-blue-600 transition"
-          >
-            Berikutnya &rarr;
-          </button>
-        </div>
-      )}
     </div>
   );
 };

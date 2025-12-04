@@ -17,7 +17,11 @@ const SignatureSidebar = ({
   onAnalyze
 }) => {
   
-  // --- LOGIKA DRAG & DROP (TIDAK BERUBAH) ---
+// src/components/SignatureSidebar/SignatureSidebar.jsx
+
+  // ... (kode atas tetap sama)
+
+  // --- LOGIKA DRAG & DROP DARI SIDEBAR ---
   useEffect(() => {
     if (!savedSignatureUrl) return;
 
@@ -33,7 +37,13 @@ const SignatureSidebar = ({
           const rect = original.getBoundingClientRect();
           startPos = { x: event.clientX, y: event.clientY };
 
+          // [HAPUS BAGIAN INI DARI START]
+          // if (window.innerWidth < 1024) onClose(); <--- HAPUS INI
+          // Alasan: Kalau ditutup di sini, elemen induknya "kabur", drag jadi putus.
+
           clone = original.cloneNode(true);
+          
+          // Optimasi performa & visual clone
           clone.style.position = "fixed"; 
           clone.style.left = `${rect.left}px`;
           clone.style.top = `${rect.top}px`;
@@ -41,7 +51,8 @@ const SignatureSidebar = ({
           clone.style.height = `${rect.height}px`;
           clone.style.zIndex = "9999"; 
           clone.style.opacity = "0.8";
-          clone.style.pointerEvents = "none"; 
+          clone.style.pointerEvents = "none"; // PENTING: Agar event tembus ke dropzone di bawahnya
+          clone.style.touchAction = "none";   // PENTING: Mencegah scroll layar saat drag
 
           clone.classList.add("dragging-clone");
           document.body.appendChild(clone);
@@ -55,17 +66,27 @@ const SignatureSidebar = ({
           clone.style.transform = `translate(${dx}px, ${dy}px)`;
         },
         end(event) {
+          // 1. Hapus Clone
           if (clone) {
              clone.remove();
              clone = null;
           }
           event.target.style.opacity = "1";
+
+          // 2. [PINDAHKAN KE SINI] Auto-Close Sidebar (Khusus Mobile)
+          // Sidebar baru menutup SETELAH user selesai menaruh tanda tangan.
+          // Ini mencegah drag terputus di tengah jalan.
+          if (window.innerWidth < 1024) { 
+             onClose();
+          }
         },
       },
     });
 
     return () => interact(".draggable-signature").unset();
-  }, [savedSignatureUrl]);
+  }, [savedSignatureUrl, onClose]);
+
+  // ... (sisa kode return tetap sama)
 
   return (
     <aside

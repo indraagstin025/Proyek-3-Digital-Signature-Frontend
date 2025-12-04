@@ -1,13 +1,7 @@
 import React from "react";
 import { HiSun, HiMoon } from "react-icons/hi";
 
-const DashboardHeader = ({
-  activePage,
-  onToggleSidebar,
-  isSidebarOpen = false,
-  theme,
-  toggleTheme,
-}) => {
+const DashboardHeader = ({ activePage, onToggleSidebar, isSidebarOpen = false, theme, toggleTheme }) => {
   const key = String(activePage || "").toLowerCase();
   const getTitle = () => {
     switch (key) {
@@ -36,11 +30,6 @@ const DashboardHeader = ({
     </button>
   );
 
-  // Perhitungan dinamis ini tidak diperlukan jika sidebar-nya 'fixed'
-  // Mari kita sederhanakan agar lebih konsisten
-  // const leftOffset = isSidebarOpen ? "16rem" : "0px";
-  // const computedWidth = isSidebarOpen ? "calc(100% - 16rem)" : "100%";
-
   return (
     <header
       className={`fixed top-0 z-40 flex items-center justify-between h-20 px-4 
@@ -49,34 +38,21 @@ const DashboardHeader = ({
                 dark:bg-gradient-to-r dark:from-slate-900/95 dark:to-slate-800/95 dark:border-white/10 
                 transition-all duration-300
                 
-                // ✅ INI BAGIAN PENTINGNYA
-                // Jika sidebar terbuka, geser header ini ke kanan
-                // dan perkecil lebarnya agar tidak tumpang tindih dengan sidebar.
                 ${isSidebarOpen ? "lg:left-64" : "left-0"} 
                 ${isSidebarOpen ? "lg:w-[calc(100%-16rem)]" : "w-full"}
                 `}
-      // Hapus style inline
-      // style={{ left: leftOffset, width: computedWidth }}
     >
       {/* Left section */}
       <div className="flex items-center gap-4">
-        <button
-          onClick={onToggleSidebar}
-          className="text-gray-600 hover:text-black dark:text-gray-300 dark:hover:text-white transition-colors"
-          aria-label="Toggle sidebar"
-        >
+        <button onClick={onToggleSidebar} className="text-gray-600 hover:text-black dark:text-gray-300 dark:hover:text-white transition-colors" aria-label="Toggle sidebar">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
 
         <div className="flex flex-col">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white transition-colors">
-            Dashboard
-          </h1>
-          <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
-            {getTitle()}
-          </span>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white transition-colors">Dashboard</h1>
+          <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{getTitle()}</span>
         </div>
       </div>
 

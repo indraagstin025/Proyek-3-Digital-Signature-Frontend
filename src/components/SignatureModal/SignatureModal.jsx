@@ -24,7 +24,6 @@ const SignatureModal = ({ onSave, onClose }) => {
         switch (activeTab) {
             case 'draw':
                 if (signaturePadRef.current && !signaturePadRef.current.isEmpty()) {
-                    // Trim canvas agar tidak terlalu banyak whitespace transparan
                     onSave(signaturePadRef.current.toDataURL('image/png'));
                 } else {
                     toast.error('Silakan gambar tanda tangan Anda.');
@@ -70,10 +69,10 @@ const SignatureModal = ({ onSave, onClose }) => {
     ];
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 transition-all">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 transition-all">
             <div className="w-full max-w-lg bg-white dark:bg-slate-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden transform transition-all">
                 
-                {/* HEADER: Clean & Simple */}
+                {/* HEADER */}
                 <div className="relative p-5 text-center border-b border-slate-100 dark:border-slate-700">
                     <h3 className="text-lg font-bold text-slate-800 dark:text-white">Buat Tanda Tangan</h3>
                     <button 
@@ -97,31 +96,32 @@ const SignatureModal = ({ onSave, onClose }) => {
                     {/* --- TAB: DRAW --- */}
                     {activeTab === 'draw' && (
                         <div className="w-full flex flex-col gap-3">
-                            {/* Canvas Area: Landscape & Clean Border */}
+                            {/* Canvas Area */}
                             <div className="relative w-full h-64 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-600 shadow-sm overflow-hidden hover:border-blue-400 transition-colors group">
                                 <SignaturePad
                                     ref={signaturePadRef}
                                     options={{
                                         backgroundColor: 'rgba(255, 255, 255, 0)',
-                                        penColor: 'black', // Bisa dibuat dinamis jika mau (dark mode issue handle later)
+                                        penColor: 'black',
                                         minWidth: 1.5,
                                         maxWidth: 3.5,
                                     }}
                                     canvasProps={{
-                                        className: 'w-full h-full cursor-crosshair block'
+                                        className: 'w-full h-full cursor-crosshair block touch-none' // Tambahkan touch-none agar tidak scroll saat menggambar di HP
                                     }}
                                 />
+                                
                                 <div className="absolute bottom-3 right-4 text-[10px] text-slate-300 select-none pointer-events-none">
                                     Sign Here
                                 </div>
                                 
-                                {/* Floating Clear Button inside Canvas */}
+                                {/* [FIX 1] Tombol Hapus Selalu Terlihat (Hapus opacity-0) */}
                                 <button 
                                     onClick={handleClear}
-                                    className="absolute top-3 right-3 p-2 bg-white/80 dark:bg-slate-700/80 text-slate-500 hover:text-red-500 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-all"
-                                    title="Bersihkan"
+                                    className="absolute top-3 right-3 p-2 bg-slate-100 dark:bg-slate-700 text-slate-500 hover:text-red-500 rounded-full shadow-sm border border-slate-200 dark:border-slate-600 transition-all hover:bg-red-50"
+                                    title="Hapus / Ulangi"
                                 >
-                                    <FaEraser />
+                                    <FaEraser size={14} />
                                 </button>
                             </div>
                             <p className="text-center text-xs text-slate-400">Gunakan mouse atau jari Anda untuk menggambar</p>
@@ -140,15 +140,18 @@ const SignatureModal = ({ onSave, onClose }) => {
                                 autoFocus
                             />
 
-                            <div className="w-full max-w-sm h-40 flex items-center justify-center bg-white dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-600 rounded-xl">
+                            {/* Preview Area */}
+                            <div className="w-full max-w-sm h-40 flex items-center justify-center bg-white dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-600 rounded-xl overflow-hidden">
                                 <div ref={typedSignatureRef} className="p-6 bg-transparent">
-                                    <p className={`text-5xl text-black dark:text-white leading-tight ${selectedFont}`}>
+                                    {/* [FIX 2] Paksa warna hitam (text-slate-900) agar terlihat di kertas putih nanti */}
+                                    <p className={`text-5xl text-slate-900 leading-tight ${selectedFont} whitespace-nowrap`}>
                                         {typedName || 'Pratinjau'}
                                     </p>
                                 </div>
                             </div>
 
-                            <div className="flex gap-2">
+                            {/* Font Selection */}
+                            <div className="flex gap-2 flex-wrap justify-center">
                                 {fonts.map(font => (
                                     <button 
                                         key={font.className} 
@@ -162,7 +165,7 @@ const SignatureModal = ({ onSave, onClose }) => {
                         </div>
                     )}
 
-                    {/* --- TAB: UPLOAD --- */}
+                    {/* --- TAB: UPLOAD (Tetap Sama) --- */}
                     {activeTab === 'upload' && (
                         <div className="w-full h-64">
                             {uploadedImage ? (
@@ -191,7 +194,7 @@ const SignatureModal = ({ onSave, onClose }) => {
                     )}
                 </div>
 
-                {/* FOOTER: Minimalist Actions */}
+                {/* FOOTER */}
                 <div className="p-5 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3 bg-white dark:bg-slate-800">
                     <button 
                         onClick={onClose} 
@@ -211,7 +214,7 @@ const SignatureModal = ({ onSave, onClose }) => {
     );
 };
 
-// Minimalist Tab Button (No background, just text & active color)
+// Minimalist Tab Button
 const TabButton = ({ icon, label, isActive, onClick }) => (
     <button
         onClick={onClick}

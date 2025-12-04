@@ -3,15 +3,16 @@ import { useParams, useNavigate } from "react-router-dom";
 import { packageService } from "../../services/packageService";
 import { toast, Toaster } from "react-hot-toast";
 import { documentService } from "../../services/documentService.js";
-import { signatureService } from "../../services/signatureService"; // [BARU] Import Signature Service
-import SigningHeader from "../../components/SigningHeader/SigningHeader"; 
+import { signatureService } from "../../services/signatureService";
+import SigningHeader from "../../components/SigningHeader/SigningHeader";
 import PDFViewer from "../../components/PDFViewer/PDFViewer";
 import SignatureSidebar from "../../components/SignatureSidebar/SignatureSidebar";
 import SignatureModal from "../../components/SignatureModal/SignatureModal";
 
-import { FaSpinner, FaChevronRight, FaChevronLeft } from "react-icons/fa";
+// [UX FIX] Tambahkan import ikon baru (FaPenNib, FaSave, FaTools)
+import { FaSpinner, FaChevronRight, FaChevronLeft, FaPenNib, FaSave, FaTools } from "react-icons/fa";
 
-const SignPackagePage = ({ theme, toggleTheme }) => { 
+const SignPackagePage = ({ theme, toggleTheme }) => {
   const { packageId } = useParams();
   const navigate = useNavigate();
 
@@ -38,7 +39,23 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
   const totalDocs = packageDetails?.documents?.length || 0;
   const isLastDocument = totalDocs > 0 && currentIndex === totalDocs - 1;
 
-  // Logika Orientasi
+  // [UX FIX] Onboarding Hint saat masuk halaman (Khusus Mobile)
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+      setTimeout(() => {
+        toast("💡 Tips: Ketuk ikon Pensil untuk tanda tangan, atau ketuk layar dokumen secara langsung.", {
+          duration: 5000,
+          icon: "👇",
+          style: {
+            borderRadius: '10px',
+            background: '#333',
+            color: '#fff',
+          },
+        });
+      }, 1000);
+    }
+  }, []);
+
   useEffect(() => {
     const handleResize = () => setIsLandscape(window.innerWidth > window.innerHeight);
     handleResize();
@@ -149,30 +166,30 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
     setCurrentSignatures((prev) => prev.filter((sig) => sig.id !== signatureId));
   }, []);
 
-  const navigateDocument = useCallback((direction) => {
-    const nextIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
-    if (nextIndex < 0 || nextIndex >= totalDocs) return;
+  const navigateDocument = useCallback(
+    (direction) => {
+      const nextIndex = direction === "next" ? currentIndex + 1 : currentIndex - 1;
+      if (nextIndex < 0 || nextIndex >= totalDocs) return;
 
-    // Simpan signature halaman saat ini ke Map global sebelum pindah
-    if (currentPackageDocument) {
+      if (currentPackageDocument) {
         const newAllSignatures = new Map(allSignatures).set(currentPackageDocument.id, currentSignatures);
         setAllSignatures(newAllSignatures);
-    }
-    
-    setCurrentIndex(nextIndex);
-    
-    // Load signature halaman berikutnya (jika ada di Map)
-    const nextDocId = packageDetails.documents[nextIndex].id;
-    setCurrentSignatures(allSignatures.get(nextDocId) || []);
+      }
 
-    toast.success(`Memuat dokumen: ${packageDetails.documents[nextIndex].docVersion?.document?.title || `Dokumen ${nextIndex + 1}`}`);
-  }, [currentIndex, allSignatures, currentSignatures, currentPackageDocument, packageDetails, totalDocs]);
+      setCurrentIndex(nextIndex);
 
-  // --- [FITUR BARU] Handler Auto Tag Paket ---
+      const nextDocId = packageDetails.documents[nextIndex].id;
+      setCurrentSignatures(allSignatures.get(nextDocId) || []);
+
+      toast.success(`Memuat dokumen: ${packageDetails.documents[nextIndex].docVersion?.document?.title || `Dokumen ${nextIndex + 1}`}`);
+    },
+    [currentIndex, allSignatures, currentSignatures, currentPackageDocument, packageDetails, totalDocs]
+  );
+
   const handleAutoTag = useCallback(async () => {
     if (!currentPackageDocument) {
-        toast.error("Tidak ada dokumen yang aktif.");
-        return;
+      toast.error("Tidak ada dokumen yang aktif.");
+      return;
     }
 
     const docId = currentPackageDocument.docVersion?.document?.id;
@@ -184,37 +201,34 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
     const toastId = toast.loading("🤖 AI sedang membaca dokumen ini...");
 
     try {
-      // Panggil AI untuk dokumen yang sedang aktif
       const result = await signatureService.autoTagDocument(docId);
-      
+
       if (result.data && result.data.length > 0) {
-        const aiSignatures = result.data.map(sig => ({
+        const aiSignatures = result.data.map((sig) => ({
           id: sig.id,
           pageNumber: sig.pageNumber,
           positionX: sig.positionX,
           positionY: sig.positionY,
           width: sig.width,
           height: sig.height,
-          // Gunakan gambar user jika sudah ada, atau null (jadi placeholder)
-          signatureImageUrl: savedSignatureUrl || null, 
-          type: 'placeholder',
-          // Data display dummy (nanti dihitung ulang oleh PlacedSignature)
-          x_display: 0, 
-          y_display: 0 
+
+          signatureImageUrl: savedSignatureUrl || null,
+          type: "placeholder",
+
+          x_display: 0,
+          y_display: 0,
         }));
 
-        // Tambahkan ke currentSignatures (Halaman aktif)
-        setCurrentSignatures(prev => [...prev, ...aiSignatures]);
-        
-        // Update juga ke Map global allSignatures agar tersimpan di memori paket
-        setAllSignatures(prevMap => {
-            const newMap = new Map(prevMap);
-            const existing = newMap.get(currentPackageDocument.id) || [];
-            // Gabungkan existing dengan hasil AI baru
-            newMap.set(currentPackageDocument.id, [...existing, ...aiSignatures]);
-            return newMap;
+        setCurrentSignatures((prev) => [...prev, ...aiSignatures]);
+
+        setAllSignatures((prevMap) => {
+          const newMap = new Map(prevMap);
+          const existing = newMap.get(currentPackageDocument.id) || [];
+
+          newMap.set(currentPackageDocument.id, [...existing, ...aiSignatures]);
+          return newMap;
         });
-        
+
         toast.success(`Berhasil! ${result.data.length} lokasi ditemukan.`, { id: toastId });
       } else {
         toast.success("AI tidak menemukan kata kunci di dokumen ini.", { id: toastId });
@@ -235,7 +249,6 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
       return;
     }
 
-    // Simpan state halaman ini ke Map global
     const newAllSignatures = new Map(allSignatures).set(currentPackageDocument.id, currentSignatures);
     setAllSignatures(newAllSignatures);
 
@@ -246,26 +259,25 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
       const finalSignaturesPayload = [];
       newAllSignatures.forEach((signatures, packageDocId) => {
         signatures.forEach((sig) => {
-          // HANYA KIRIM YANG SUDAH ADA GAMBARNYA
           if (sig.signatureImageUrl) {
             finalSignaturesPayload.push({
-                packageDocId: packageDocId,
-                signatureImageUrl: sig.signatureImageUrl,
-                pageNumber: sig.pageNumber,
-                positionX: sig.positionX,
-                positionY: sig.positionY,
-                width: sig.width,
-                height: sig.height,
-                displayQrCode: includeQrCode,
+              packageDocId: packageDocId,
+              signatureImageUrl: sig.signatureImageUrl,
+              pageNumber: sig.pageNumber,
+              positionX: sig.positionX,
+              positionY: sig.positionY,
+              width: sig.width,
+              height: sig.height,
+              displayQrCode: includeQrCode,
             });
           }
         });
       });
 
       if (finalSignaturesPayload.length === 0) {
-          setIsSubmitting(false);
-          toast.error("Tidak ada tanda tangan yang valid untuk disimpan.", { id: toastId });
-          return;
+        setIsSubmitting(false);
+        toast.error("Tidak ada tanda tangan yang valid untuk disimpan.", { id: toastId });
+        return;
       }
 
       try {
@@ -284,7 +296,7 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
         toast.error(err.message || "Gagal menyimpan paket.", { id: toastId });
       }
     } else {
-      navigateDocument('next');
+      navigateDocument("next");
     }
   };
 
@@ -305,48 +317,43 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
       <Toaster position="top-center" containerStyle={{ zIndex: 9999 }} />
       {isSignatureModalOpen && <SignatureModal onClose={() => setIsSignatureModalOpen(false)} onSave={handleSignatureSave} />}
 
-      {/* 1. SIGNING HEADER (Tinggi 64px) */}
+      {/* 1. SIGNING HEADER */}
       <header className="fixed top-0 left-0 w-full h-16 z-50">
         <SigningHeader theme={theme} toggleTheme={toggleTheme} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
       </header>
-      
-      {/* 2. WRAPPER NAVIGASI DOKUMEN (Tinggi 48px, Posisi di bawah h-16) */}
+
+      {/* 2. WRAPPER NAVIGASI DOKUMEN */}
       <div className={`fixed top-16 left-0 w-full h-12 z-40 bg-white dark:bg-slate-900 shadow-sm border-b border-slate-200/80 dark:border-white/10`}>
         <div className="flex items-center justify-center h-full px-4">
-            
-            <button
-                onClick={() => navigateDocument('prev')}
-                disabled={currentIndex === 0}
-                className="p-2 rounded-full text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 transition"
-                title="Dokumen Sebelumnya"
-            >
-                <FaChevronLeft className="w-5 h-5" />
-            </button>
+          <button
+            onClick={() => navigateDocument("prev")}
+            disabled={currentIndex === 0}
+            className="p-2 rounded-full text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 transition"
+            title="Dokumen Sebelumnya"
+          >
+            <FaChevronLeft className="w-5 h-5" />
+          </button>
 
-            <div className="text-center mx-4 flex-1 min-w-0 max-w-lg"> 
-                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                    Paket: {packageDetails?.title}
-                </p>
-                <h3 className="font-semibold text-base text-slate-800 dark:text-white truncate" title={currentDocumentTitle}>
-                    {currentDocumentTitle} ({currentIndex + 1} dari {totalDocs})
-                </h3>
-            </div>
-            
-            <button
-                onClick={() => navigateDocument('next')}
-                disabled={isLastDocument}
-                className="p-2 rounded-full text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 transition"
-                title="Dokumen Berikutnya"
-            >
-                <FaChevronRight className="w-5 h-5" />
-            </button>
+          <div className="text-center mx-4 flex-1 min-w-0 max-w-lg">
+            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">Paket: {packageDetails?.title}</p>
+            <h3 className="font-semibold text-base text-slate-800 dark:text-white truncate" title={currentDocumentTitle}>
+              {currentDocumentTitle} ({currentIndex + 1} dari {totalDocs})
+            </h3>
+          </div>
+
+          <button
+            onClick={() => navigateDocument("next")}
+            disabled={isLastDocument}
+            className="p-2 rounded-full text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 transition"
+            title="Dokumen Berikutnya"
+          >
+            <FaChevronRight className="w-5 h-5" />
+          </button>
         </div>
       </div>
 
-
-      {/* 3. WRAPPER KONTEN UTAMA (Dimulai dari top-[112px]) */}
+      {/* 3. WRAPPER KONTEN UTAMA */}
       <div className="absolute top-[112px] bottom-0 left-0 w-full flex overflow-hidden">
-        
         <main className="flex-1 overflow-hidden">
           {currentPdfBlobUrl && (
             <PDFViewer
@@ -361,27 +368,61 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
             />
           )}
         </main>
-        
+
         {/* Sidebar Alat TTD */}
         <SignatureSidebar
           savedSignatureUrl={savedSignatureUrl}
           onOpenSignatureModal={() => setIsSignatureModalOpen(true)}
           onSave={handleNextOrSubmit}
-          
-          // [FIX] Passing Handler AI Auto-Tag
           onAutoTag={handleAutoTag}
-          
           isLoading={isSubmitting}
           includeQrCode={includeQrCode}
           setIncludeQrCode={setIncludeQrCode}
-          isOpen={sidebarOpen} 
+          isOpen={sidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
         />
       </div>
 
+{/* ======================================================= */}
+      {/* [UX FIX] FLOATING ACTION BUTTONS (KHUSUS MOBILE)        */}
+      {/* POSISI: Kanan Atas                                      */}
+      {/* ======================================================= */}
+      
+      <div className="fixed top-32 right-4 z-50 md:hidden flex flex-col items-end gap-3 pointer-events-none">
+        
+        {currentSignatures.length > 0 && (
+            <button
+              onClick={handleNextOrSubmit}
+              disabled={isSubmitting}
+              className="pointer-events-auto w-10 h-10 rounded-full bg-green-600 text-white shadow-lg flex items-center justify-center hover:bg-green-700 focus:ring-4 focus:ring-green-300 transition-all transform hover:scale-110 active:scale-90"
+            >
+               {isSubmitting ? (
+                 <FaSpinner className="animate-spin text-xs"/> 
+               ) : (
+                 isLastDocument ? <FaSave size={16} /> : <FaChevronRight size={16} />
+               )}
+            </button>
+        )}
+
+        <button
+          onClick={() => setIsSidebarOpen(true)}
+          className="pointer-events-auto w-10 h-10 rounded-full bg-slate-700 text-white shadow-lg flex items-center justify-center hover:bg-slate-800 transition-all transform hover:scale-110 active:scale-90"
+        >
+          <FaTools size={14} />
+        </button>
+
+ <button
+          onClick={() => setIsSignatureModalOpen(true)}
+          className="pointer-events-auto w-12 h-12 rounded-full bg-blue-600 text-white shadow-xl flex items-center justify-center hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 transition-all transform hover:scale-105 active:scale-95"
+          title="Buat Tanda Tangan Baru"
+        >
+          <FaPenNib size={16} />
+        </button>
+      </div>
+      {/* ======================================================= */}
+
       {/* Overlay untuk Mobile/Portrait */}
       {isSidebarOpen && !isLandscape && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/40 z-30 md:hidden"></div>}
-      
     </div>
   );
 };

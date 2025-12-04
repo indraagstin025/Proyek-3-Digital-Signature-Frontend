@@ -1,15 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-
 import { documentService } from "../../services/documentService.js";
 import { packageService } from "../../services/packageService.js";
-
 import ViewDocumentModal from "../../components/ViewDocumentModal/ViewDocumentModal.jsx";
 import DocumentManagementModal from "../../components/DocumentManagementModal/DocumentManagementModal.jsx";
 import ConfirmationModal from "../../components/ConfirmationModal/ConfirmationModal.jsx";
-
 import { Toaster, toast } from "react-hot-toast";
-
 import { FaPlus, FaCog, FaEye, FaTrashAlt, FaSpinner, FaSignature, FaFileAlt, FaCheck } from "react-icons/fa";
 
 const DashboardDocuments = () => {
@@ -187,11 +183,7 @@ const DashboardDocuments = () => {
   };
 
   return (
-    <div
-  id="tab-documents"
-  className="pt-15 sm:pt-20 p-5 sm:p-6 max-w-full overflow-x-hidden"
->
-
+    <div id="tab-documents" className="pt-15 sm:pt-20 p-5 sm:p-6 max-w-full overflow-x-hidden">
       <Toaster position="top-center" containerStyle={{ zIndex: 9999 }} />
 
       {/* Header */}

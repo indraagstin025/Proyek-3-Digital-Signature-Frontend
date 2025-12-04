@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FaSpinner } from "react-icons/fa";
+import {FaSpinner, FaPenNib, FaSave, FaTools } from "react-icons/fa";
 import { Toaster, toast } from "react-hot-toast";
 import { documentService } from "../../services/documentService";
 import { signatureService } from "../../services/signatureService";
@@ -47,6 +47,49 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+// [UX FIX] Onboarding Hint (Mobile Only)
+  // Perbaikan: Menambahkan ID unik dan Cleanup agar tidak nyangkut/duplikat
+  useEffect(() => {
+    let timeoutId;
+    const TOAST_ID = "mobile-onboarding-hint"; // ID ini mencegah toast muncul double
+
+    const showHint = () => {
+      if (window.innerWidth < 768) {
+        // Cek session storage agar tidak muncul terus setiap refresh (Opsional)
+        // Jika ingin muncul setiap saat, hapus baris 'if' di bawah ini
+        const hasSeen = sessionStorage.getItem("seen_mobile_hint");
+        if (hasSeen) return;
+
+        timeoutId = setTimeout(() => {
+          toast("💡 Tips: Ketuk ikon Pensil untuk tanda tangan, atau ketuk layar dokumen secara langsung.", {
+            id: TOAST_ID, // PENTING: Mencegah duplikat
+            duration: 5000,
+            icon: "👇",
+            style: {
+              borderRadius: '10px',
+              background: '#333',
+              color: '#fff',
+              fontSize: '13px',
+              maxWidth: '300px'
+            },
+          });
+          
+          // Set flag bahwa user sudah melihat hint di sesi ini
+          sessionStorage.setItem("seen_mobile_hint", "true"); 
+        }, 1000);
+      }
+    };
+
+    showHint();
+
+    // CLEANUP FUNCTION (PENTING)
+    // Dijalankan saat komponen hilang (unmount) atau refresh
+    return () => {
+      clearTimeout(timeoutId); // Batalkan timer jika user keburu pindah
+      toast.dismiss(TOAST_ID); // Paksa hilangkan toast ini saat halaman diganti/refresh
+    };
   }, []);
 
   useEffect(() => {
@@ -223,6 +266,8 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
     );
   }
 
+// ... (Bagian atas kode tetap sama)
+
   return (
     <div className="absolute inset-0 bg-slate-200 dark:bg-slate-900 overflow-hidden">
       <Toaster position="top-center" containerStyle={{ zIndex: 9999 }} />
@@ -250,12 +295,9 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
           savedSignatureUrl={savedSignatureUrl}
           onOpenSignatureModal={() => setIsSignatureModalOpen(true)}
           onSave={handleFinalSave}
-          
-          // Pass Handler & Loading States yang Benar
           onAutoTag={handleAutoTag}
           onAnalyze={handleAnalyzeDocument}
-          isLoading={isAnalyzing || isSaving} // Disable tombol jika salah satu sedang jalan
-          
+          isLoading={isAnalyzing || isSaving}
           isPortrait={isPortrait}
           includeQrCode={includeQrCode}
           setIncludeQrCode={setIncludeQrCode}
@@ -263,7 +305,6 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
           onClose={() => setIsSidebarOpen(false)}
         />
 
-        {/* Modal AI */}
         <AiAnalysisModal 
           isOpen={isAiModalOpen} 
           onClose={() => setIsAiModalOpen(false)} 
@@ -271,6 +312,44 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
           isLoading={isAnalyzing}
         />
       </div>
+
+{/* ======================================================= */}
+      {/* [UX FIX] FLOATING ACTION BUTTONS (KHUSUS MOBILE)        */}
+      {/* POSISI: Kanan Atas (Sesuai Request)                     */}
+      {/* ======================================================= */}
+      
+      {/* PERUBAHAN: */}
+      {/* 1. Ganti 'bottom-40' menjadi 'top-32' (jarak dari atas) */}
+      {/* 2. 'right-4' agar ada jarak sedikit dari pinggir kanan */}
+      <div className="fixed top-32 right-4 z-50 md:hidden flex flex-col items-end gap-3 pointer-events-none">
+        
+        {/* Tombol-tombol di dalamnya TETAP SAMA */}
+        {signatures.length > 0 && (
+            <button
+              onClick={handleFinalSave}
+              disabled={isSaving}
+              className="pointer-events-auto w-10 h-10 rounded-full bg-green-600 text-white shadow-lg flex items-center justify-center hover:bg-green-700 focus:ring-4 focus:ring-green-300 transition-all transform hover:scale-110 active:scale-90"
+            >
+               {isSaving ? <FaSpinner className="animate-spin text-xs"/> : <FaSave size={16} />}
+            </button>
+        )}
+
+        <button
+          onClick={() => setIsSidebarOpen(true)}
+          className="pointer-events-auto w-10 h-10 rounded-full bg-slate-700 text-white shadow-lg flex items-center justify-center hover:bg-slate-800 transition-all transform hover:scale-110 active:scale-90"
+        >
+          <FaTools size={14} />
+        </button>
+
+  <button
+          onClick={() => setIsSignatureModalOpen(true)}
+          className="pointer-events-auto w-12 h-12 rounded-full bg-blue-600 text-white shadow-xl flex items-center justify-center hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 transition-all transform hover:scale-105 active:scale-95"
+          title="Buat Tanda Tangan Baru"
+        >
+          <FaPenNib size={16} />
+        </button>
+      </div>
+      {/* ======================================================= */}
 
       {isSidebarOpen && !isLandscape && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/40 z-30 md:hidden"></div>}
       {isSignatureModalOpen && <SignatureModal onSave={handleSaveSignature} onClose={() => setIsSignatureModalOpen(false)} />}
