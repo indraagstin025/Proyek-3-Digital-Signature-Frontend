@@ -8,14 +8,14 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
  */
 const ProtectedRoute = ({ requireAdmin = false }) => {
   const location = useLocation();
-
-  const user = JSON.parse(localStorage.getItem("authUser"));
+  const storedData = JSON.parse(localStorage.getItem("authUser"));
+  const user = storedData?.user ? storedData.user : storedData;
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (requireAdmin && !user.isSuperAdmin) {
+  if (requireAdmin && !user?.isSuperAdmin) {
     return <Navigate to="/dashboard" replace />;
   }
 

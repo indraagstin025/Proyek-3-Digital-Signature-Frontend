@@ -2,61 +2,82 @@ import React, { useEffect, useRef, useState } from "react";
 import interact from "interactjs";
 import { FaTimes } from "react-icons/fa";
 
-// --- KONFIGURASI PIXEL PERFECT ---
-const CSS_PADDING = 12; 
+// Konstanta Ukuran (Harus sesuai dengan CSS Padding)
+const CSS_PADDING = 12;
 const CSS_BORDER = 1;
 const CONTENT_OFFSET = CSS_PADDING + CSS_BORDER; // 13px
-const TOTAL_REDUCTION = CONTENT_OFFSET * 2;      // 26px
+const TOTAL_REDUCTION = CONTENT_OFFSET * 2; // 26px
 
-const PlacedSignature = ({ signature, onUpdate, onDelete }) => {
-  const ref = useRef(null);
+const PlacedSignature = ({ signature, onUpdate, onDelete, readOnly = false, documentId }) => {
+  const elementRef = useRef(null);
+
+  
+  const positionRef = useRef({
+    x: signature.x_display || 0,
+    y: signature.y_display || 0,
+    w: signature.width_display || 0,
+    h: signature.height_display || 0,
+  });
+
+  // State Interaction
   const [isActive, setIsActive] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
 
-  // [FIX BARU] STATE LOKAL UNTUK POSISI DISPLAY
-  // Kita gunakan state lokal agar bisa update UI tanpa menunggu round-trip ke parent state
-  const [localX, setLocalX] = useState(signature.x_display || 0);
-  const [localY, setLocalY] = useState(signature.y_display || 0);
-  const [localW, setLocalW] = useState(signature.width_display || 0);
-  const [localH, setLocalH] = useState(signature.height_display || 0);
-
-  // [FIX BARU] INIT POSISI DARI PERSENTASE (AI) KE PIXEL
+  // -----------------------------------------------------------------------
+  // INIT POSITION (Saat pertama kali load halaman)
+  // -----------------------------------------------------------------------
   useEffect(() => {
-    const element = ref.current;
+    const element = elementRef.current;
     if (!element || !element.parentElement) return;
 
-    const parentRect = element.parentElement.getBoundingClientRect();
-    
-    // Jika x_display/y_display masih 0 (baru dari AI), tapi positionX/Y ada isinya
-    // Maka kita hitung pixelnya sekarang.
-    if (signature.x_display === 0 && signature.positionX > 0) {
-        // Rumus: (Persen * LebarParent) - Offset Padding
-        const calculatedX = (signature.positionX * parentRect.width) - CONTENT_OFFSET;
-        const calculatedY = (signature.positionY * parentRect.height) - CONTENT_OFFSET;
-        
-        const calculatedW = (signature.width * parentRect.width) + TOTAL_REDUCTION;
-        const calculatedH = (signature.height * parentRect.height) + TOTAL_REDUCTION;
+    const calculatePosition = () => {
+      const parentRect = element.parentElement.getBoundingClientRect();
+      if (parentRect.width < 50) return;
 
-        setLocalX(calculatedX);
-        setLocalY(calculatedY);
-        setLocalW(calculatedW);
-        setLocalH(calculatedH);
+      const isMine = !readOnly;
+      // Jika punya kita, sudah ada posisi di layar, dan sedang aktif -> Jangan reset
+      if (isMine && positionRef.current.w > 0 && (isDragging || isResizing || isActive)) {
+        return;
+      }
 
-        // Update balik ke parent agar data sinkron
-        onUpdate({
-            ...signature,
-            x_display: calculatedX,
-            y_display: calculatedY,
-            width_display: calculatedW,
-            height_display: calculatedH
-        });
-    }
-  }, [signature.id]); // Jalankan sekali saat komponen mount/ID berubah
+      // Gunakan data props (dari DB) jika valid
+      if (signature.positionX !== null && !isNaN(signature.positionX)) {
+        const calculatedX = signature.positionX * parentRect.width - CONTENT_OFFSET;
+        const calculatedY = signature.positionY * parentRect.height - CONTENT_OFFSET;
+        const calculatedW = signature.width * parentRect.width + TOTAL_REDUCTION;
+        const calculatedH = signature.height * parentRect.height + TOTAL_REDUCTION;
 
-  // Effect untuk handle klik luar
+        positionRef.current = { x: calculatedX, y: calculatedY, w: calculatedW, h: calculatedH };
+        element.style.transform = `translate(${calculatedX}px, ${calculatedY}px)`;
+        element.style.width = `${calculatedW}px`;
+        element.style.height = `${calculatedH}px`;
+      }
+    };
+
+    const resizeObserver = new ResizeObserver(() => calculatePosition());
+    resizeObserver.observe(element.parentElement);
+    calculatePosition(); // Run once immediately
+
+    return () => resizeObserver.disconnect();
+  }, [
+    signature.id,
+    signature.positionX,
+    signature.positionY,
+    signature.width,
+    signature.height,
+    readOnly,
+    isDragging,
+    isResizing,
+    isActive, // Dependencies
+  ]);
+
+  // -----------------------------------------------------------------------
+  // HANDLE CLICK OUTSIDE
+  // -----------------------------------------------------------------------
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) {
+      if (elementRef.current && !elementRef.current.contains(e.target)) {
         setIsActive(false);
       }
     };
@@ -64,11 +85,14 @@ const PlacedSignature = ({ signature, onUpdate, onDelete }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // -----------------------------------------------------------------------
+  // INTERACT.JS CONFIGURATION (Drag & Resize Lokal)
+  // -----------------------------------------------------------------------
   useEffect(() => {
-    const element = ref.current;
-    if (!element) return;
+    const element = elementRef.current;
+    if (!element || readOnly) return;
 
-    interact(element)
+    const interactable = interact(element)
       .draggable({
         listeners: {
           start(event) {
@@ -77,112 +101,31 @@ const PlacedSignature = ({ signature, onUpdate, onDelete }) => {
             event.target.style.cursor = "grabbing";
           },
           move(event) {
-            // Gunakan state lokal untuk performa drag yang smooth
-            setLocalX((prev) => prev + event.dx);
-            setLocalY((prev) => prev + event.dy);
+            // Update posisi ref lokal
+            positionRef.current.x += event.dx;
+            positionRef.current.y += event.dy;
+            event.target.style.transform = `translate(${positionRef.current.x}px, ${positionRef.current.y}px)`;
           },
           end(event) {
             setIsDragging(false);
             event.target.style.cursor = "grab";
 
-            const parentRect = event.target.parentElement.getBoundingClientRect();
-            
-            // Ambil nilai akhir dari state lokal
-            // Kita butuh akses nilai terbaru, karena state di dalam closure event listener mungkin stale,
-            // kita baca dari atribut data-x/y yang diupdate manual atau gunakan logic ref.
-            // Tapi cara paling aman di interactjs adalah hitung delta total.
-            
-            // Simplifikasi: Baca current transform dari DOM atau hitung ulang
-            // Cara terbaik: passing nilai calculated ke onUpdate
-            
-            // Kita hitung ulang based on event target position (interactjs keeps track)
-            const target = event.target;
-            // Parsing transform manually is hard, so we rely on our managed state logic correction below:
-            
-            // FIX: InteractJS move listener updates local state.
-            // We need to pass THAT final local state to onUpdate.
-            // Since accessing state inside this closure is tricky, we rely on reading DOM attributes if we sync them,
-            // OR we recalculate based on `signature.x_display + totalDelta`.
-            
-            // Let's stick to the reading data-attributes pattern which works reliably
-            const x = (parseFloat(target.getAttribute("data-x")) || 0) + event.dx; 
-            const y = (parseFloat(target.getAttribute("data-y")) || 0) + event.dy;
-            
-            // Re-calculate DB Data
-            const realImageX = x + CONTENT_OFFSET;
-            const realImageY = y + CONTENT_OFFSET;
+            // Update ke Parent React State (untuk save ke DB nanti)
+            const parent = event.target.parentElement;
+            if (!parent) return;
+            const parentRect = parent.getBoundingClientRect();
+
+            const realImageW = positionRef.current.w - TOTAL_REDUCTION;
+            const realImageH = positionRef.current.h - TOTAL_REDUCTION;
+            const realImageX = positionRef.current.x + CONTENT_OFFSET;
+            const realImageY = positionRef.current.y + CONTENT_OFFSET;
 
             onUpdate({
               ...signature,
-              x_display: x,
-              y_display: y,
-              positionX: realImageX / parentRect.width,
-              positionY: realImageY / parentRect.height,
-            });
-          },
-        },
-        inertia: true,
-        modifiers: [
-          interact.modifiers.restrictRect({
-            restriction: "parent",
-            endOnly: true,
-          }),
-        ],
-      })
-      .resizable({
-        edges: { left: true, right: true, bottom: true, top: true },
-        listeners: {
-          move(event) {
-            const target = event.target;
-            let newX = parseFloat(target.getAttribute("data-x")) || 0;
-            let newY = parseFloat(target.getAttribute("data-y")) || 0;
-
-            const imgRatio = parseFloat(target.dataset.ratio);
-            let newWidth = event.rect.width;
-            let newHeight = event.rect.height;
-
-            if (imgRatio) {
-                const innerWidth = newWidth - TOTAL_REDUCTION;
-                const idealInnerHeight = innerWidth / imgRatio; 
-                newHeight = idealInnerHeight + TOTAL_REDUCTION;
-            }
-
-            newX += event.deltaRect.left;
-            newY += event.deltaRect.top;
-
-            // Update Local State Visual
-            setLocalW(newWidth);
-            setLocalH(newHeight);
-            setLocalX(newX);
-            setLocalY(newY);
-          },
-          end(event) {
-            const parentRect = event.target.parentElement.getBoundingClientRect();
-            // Baca nilai akhir dari local state (yang tersinkron dengan DOM attribute di render)
-            // Di sini kita ambil dari event.rect dan posisi akhir
-            
-            // Karena logika resize interactjs kompleks, kita ambil final rect
-            // Note: kita harus hati-hati dengan x/y yang berubah saat resize left/top
-            
-            // Kita ambil dari DOM attributes yang diset di render loop
-            const target = event.target;
-            const finalX = parseFloat(target.getAttribute("data-x"));
-            const finalY = parseFloat(target.getAttribute("data-y"));
-            const finalW = parseFloat(target.style.width);
-            const finalH = parseFloat(target.style.height);
-
-            const realImageX = finalX + CONTENT_OFFSET;
-            const realImageY = finalY + CONTENT_OFFSET;
-            const realImageW = finalW - TOTAL_REDUCTION;
-            const realImageH = finalH - TOTAL_REDUCTION;
-
-            onUpdate({
-              ...signature,
-              width_display: finalW,
-              height_display: finalH,
-              x_display: finalX,
-              y_display: finalY,
-              
+              x_display: positionRef.current.x,
+              y_display: positionRef.current.y,
+              width_display: positionRef.current.w,
+              height_display: positionRef.current.h,
               positionX: realImageX / parentRect.width,
               positionY: realImageY / parentRect.height,
               width: realImageW / parentRect.width,
@@ -190,73 +133,149 @@ const PlacedSignature = ({ signature, onUpdate, onDelete }) => {
             });
           },
         },
-        modifiers: [
-          interact.modifiers.restrictSize({
-            min: { width: 80, height: 50 },
-          }),
-        ],
+        inertia: true,
+        modifiers: [interact.modifiers.restrictRect({ restriction: "parent", endOnly: true })],
+      })
+      .resizable({
+        edges: { left: true, right: true, bottom: true, top: true },
+        listeners: {
+          start() {
+            setIsResizing(true);
+          },
+          move(event) {
+            const { x: oldX, y: oldY, w: oldW, h: oldH } = positionRef.current;
+            const { deltaRect, edges } = event;
+
+            // Hitung ukuran baru
+            let newWidth = oldW - (deltaRect.left || 0) + (deltaRect.right || 0);
+            let newHeight = oldH - (deltaRect.top || 0) + (deltaRect.bottom || 0);
+            newWidth = Math.max(newWidth, 80); // Min size outer
+            newHeight = Math.max(newHeight, 50);
+
+            // Maintain Aspect Ratio (jika ada)
+            const imgRatio = parseFloat(event.target.dataset.ratio) || (oldW > TOTAL_REDUCTION && oldH > TOTAL_REDUCTION ? (oldW - TOTAL_REDUCTION) / (oldH - TOTAL_REDUCTION) : null);
+
+            if (imgRatio) {
+              let innerW = newWidth - TOTAL_REDUCTION;
+              let innerH = newHeight - TOTAL_REDUCTION;
+              if (edges.top || edges.bottom) {
+                innerW = innerH * imgRatio;
+              } else {
+                innerH = innerW / imgRatio;
+              }
+              newWidth = innerW + TOTAL_REDUCTION;
+              newHeight = innerH + TOTAL_REDUCTION;
+            }
+
+            // Adjust posisi jika resize dari kiri/atas
+            let x = oldX;
+            let y = oldY;
+            if (edges.left) x = oldX + oldW - newWidth;
+            if (edges.top) y = oldY + oldH - newHeight;
+
+            // Apply ke DOM & Ref
+            positionRef.current = { x, y, w: newWidth, h: newHeight };
+            Object.assign(event.target.style, {
+              width: `${newWidth}px`,
+              height: `${newHeight}px`,
+              transform: `translate(${x}px, ${y}px)`,
+            });
+
+            // Kirim Socket
+            if (documentId) {
+              const parent = event.target.parentElement;
+              if (!parent) return;
+              const parentRect = parent.getBoundingClientRect();
+            }
+          },
+          end(event) {
+            setIsResizing(false);
+            const parent = event.target.parentElement;
+            if (!parent) return;
+            const parentRect = parent.getBoundingClientRect();
+
+            const { x, y, w, h } = positionRef.current;
+            const realImageW = w - TOTAL_REDUCTION;
+            const realImageH = h - TOTAL_REDUCTION;
+            const realImageX = x + CONTENT_OFFSET;
+            const realImageY = y + CONTENT_OFFSET;
+
+            onUpdate({
+              ...signature,
+              width_display: w,
+              height_display: h,
+              x_display: x,
+              y_display: y,
+              positionX: realImageX / parentRect.width,
+              positionY: realImageY / parentRect.height,
+              width: realImageW / parentRect.width,
+              height: realImageH / parentRect.height,
+            });
+          },
+        },
+        modifiers: [interact.modifiers.restrictSize({ min: { width: 80, height: 50 } })],
       });
 
-    return () => interact(element).unset();
-  }, [signature, onUpdate]);
+    return () => interactable.unset();
+  }, [readOnly, signature.id, onUpdate, documentId]);
 
-  // Sync Prop changes to Local State (Penting saat undo/redo atau external update)
-  useEffect(() => {
-      if (signature.x_display !== 0) {
-          setLocalX(signature.x_display);
-          setLocalY(signature.y_display);
-          setLocalW(signature.width_display);
-          setLocalH(signature.height_display);
-      }
-  }, [signature.x_display, signature.y_display, signature.width_display, signature.height_display]);
+  // -----------------------------------------------------------------------
+  // RENDER JSX
+  // -----------------------------------------------------------------------
+  const handleStyle = "absolute w-3 h-3 bg-white border border-blue-600 rounded-full z-[60] pointer-events-auto";
 
-
-  const handleStyle = "absolute w-3 h-3 bg-white border border-blue-600 rounded-full z-30";
+  // Style border dinamis
+  let borderClass = "";
+  if (isActive && !readOnly) borderClass = "border border-blue-500";
+  else if (!readOnly) borderClass = "hover:border hover:border-blue-300 hover:border-dashed";
 
   return (
     <div
-      ref={ref}
+      ref={elementRef}
       data-ratio={signature.ratio || ""}
-      // PENTING: Gunakan atribut data-x/y agar interactjs bisa baca posisi terakhir saat start drag
-      data-x={localX} 
-      data-y={localY}
-      
-      className={`absolute select-none touch-none group flex flex-col ${
-        isActive ? "z-50" : "z-10"
-      }`}
+      className={`absolute select-none touch-none group flex flex-col ${isActive ? "z-50" : "z-10"}`}
       style={{
         left: 0,
         top: 0,
-        // Gunakan Local State untuk render
-        transform: `translate(${localX}px, ${localY}px)`,
-        width: localW ? `${localW}px` : "auto",
-        height: localH ? `${localH}px` : "auto",
-        cursor: isDragging ? "grabbing" : "grab",
+        // Gunakan posisi dari REF untuk render awal, selanjutnya dimanipulasi DOM
+        transform: `translate(${positionRef.current.x}px, ${positionRef.current.y}px)`,
+        // Transisi halus hanya jika bukan drag (agar responsif saat drag)
+        transition: isDragging || isResizing ? "none" : "transform 0.1s linear",
+        width: positionRef.current.w ? `${positionRef.current.w}px` : "auto",
+        height: positionRef.current.h ? `${positionRef.current.h}px` : "auto",
+        cursor: readOnly ? "default" : isDragging ? "grabbing" : "grab",
       }}
       data-id={signature.id}
-      onMouseDown={() => setIsActive(true)}
-      onTouchStart={() => setIsActive(true)}
+      onMouseDown={(e) => {
+        if (!readOnly) {
+          e.stopPropagation();
+          setIsActive(true);
+        }
+      }}
+      onTouchStart={(e) => {
+        if (!readOnly) {
+          e.stopPropagation();
+          setIsActive(true);
+        }
+      }}
     >
-      <div
-        style={{ padding: `${CSS_PADDING}px` }}
-        className={`relative w-full h-full flex items-center justify-center transition-all duration-100 ${
-          isActive ? "border border-blue-500" : "hover:border hover:border-blue-300 hover:border-dashed"
-        }`}
-      >
-        {isActive && (
+      <div style={{ padding: `${CSS_PADDING}px` }} className={`relative w-full h-full flex items-center justify-center transition-all duration-100 ${borderClass}`}>
+        {/* Tombol Hapus (Hanya muncul jika aktif & milik sendiri) */}
+        {isActive && !readOnly && (
           <button
             onClick={(e) => {
               e.stopPropagation();
               onDelete(signature.id);
             }}
-            className="absolute -top-3 -right-3 w-6 h-6 bg-blue-600 text-white rounded-md flex items-center justify-center shadow-sm hover:bg-blue-700 z-40"
+            className="absolute -top-3 -right-3 w-6 h-6 bg-blue-600 text-white rounded-md flex items-center justify-center shadow-sm hover:bg-blue-700 z-[70] pointer-events-auto"
             title="Hapus"
           >
             <FaTimes size={12} />
           </button>
         )}
 
-        {isActive && (
+        {/* Resize Handles */}
+        {isActive && !readOnly && (
           <>
             <div className={`${handleStyle} -top-1.5 -left-1.5 cursor-nw-resize`}></div>
             <div className={`${handleStyle} -top-1.5 -right-1.5 cursor-ne-resize`}></div>
@@ -265,21 +284,21 @@ const PlacedSignature = ({ signature, onUpdate, onDelete }) => {
           </>
         )}
 
-        <div
-          className={`w-full h-full border relative overflow-hidden transition-colors duration-200 ${
-            isActive ? "border-red-400" : "border-transparent group-hover:border-red-400"
-          }`}
-        >
+        {/* Konten Gambar Tanda Tangan */}
+        <div className={`w-full h-full relative overflow-hidden transition-colors duration-200 ${isActive && !readOnly ? "border-red-400 border" : "border-transparent"}`}>
           {signature.signatureImageUrl ? (
             <img
               src={signature.signatureImageUrl}
               alt="Signature"
+              style={{ imageRendering: "high-quality", WebkitFontSmoothing: "antialiased" }}
               className="w-full h-full object-contain pointer-events-none select-none"
+              // Handler onLoad untuk set rasio awal (sama seperti kode lama)
               onLoad={(e) => {
-                // Logika OnLoad (hanya jalankan jika belum ada dimensi)
-                if (localW > 0) return; 
+                const hasDbSize = signature.width && signature.width > 0;
+                const hasDisplaySize = positionRef.current.w > 0;
+                if (hasDbSize || hasDisplaySize) return;
 
-                const parentRect = ref.current?.parentElement?.getBoundingClientRect();
+                const parentRect = elementRef.current?.parentElement?.getBoundingClientRect();
                 if (!parentRect) return;
 
                 const naturalWidth = e.target.naturalWidth;
@@ -287,38 +306,38 @@ const PlacedSignature = ({ signature, onUpdate, onDelete }) => {
                 const aspectRatio = naturalWidth / naturalHeight;
 
                 const defaultWidthDisplay = Math.max(parentRect.width * 0.2, 150);
-                const defaultHeightDisplay = defaultWidthDisplay / aspectRatio; 
-                
+                const defaultHeightDisplay = defaultWidthDisplay / aspectRatio;
+
                 const innerW = defaultWidthDisplay - TOTAL_REDUCTION;
-                const innerH = innerW / aspectRatio; 
-                
+                const innerH = innerW / aspectRatio;
                 const finalDisplayW = innerW + TOTAL_REDUCTION;
                 const finalDisplayH = innerH + TOTAL_REDUCTION;
 
-                // Update Local
-                setLocalW(finalDisplayW);
-                setLocalH(finalDisplayH);
+                positionRef.current.w = finalDisplayW;
+                positionRef.current.h = finalDisplayH;
 
-                // Sync Parent
-                const realX = localX + CONTENT_OFFSET;
-                const realY = localY + CONTENT_OFFSET;
+                elementRef.current.style.width = `${finalDisplayW}px`;
+                elementRef.current.style.height = `${finalDisplayH}px`;
 
-                onUpdate({
-                  ...signature,
-                  width_display: finalDisplayW,
-                  height_display: finalDisplayH,
-                  ratio: aspectRatio,
-                  width: innerW / parentRect.width,
-                  height: innerH / parentRect.height,
-                  positionX: realX / parentRect.width,
-                  positionY: realY / parentRect.height,
-                });
+                if (!readOnly) {
+                  const realX = positionRef.current.x + CONTENT_OFFSET;
+                  const realY = positionRef.current.y + CONTENT_OFFSET;
+                  onUpdate({
+                    ...signature,
+                    width_display: finalDisplayW,
+                    height_display: finalDisplayH,
+                    ratio: aspectRatio,
+                    width: innerW / parentRect.width,
+                    height: innerH / parentRect.height,
+                    positionX: realX / parentRect.width,
+                    positionY: realY / parentRect.height,
+                  });
+                }
               }}
             />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center bg-yellow-100/50 border-2 border-dashed border-yellow-500 text-yellow-700 rounded">
-               <span className="text-xs font-bold text-center px-1">Sign Here</span>
-               <span className="text-[10px] opacity-75">(AI Detected)</span>
+              <span className="text-xs font-bold text-center px-1">Sign Here</span>
             </div>
           )}
         </div>

@@ -1,15 +1,30 @@
 import React from 'react';
-import { FaRobot, FaExclamationTriangle, FaCheckCircle, FaTimes, FaUserTie, FaFileContract } from 'react-icons/fa';
+import { 
+  FaRobot, 
+  FaExclamationTriangle, 
+  FaCheckCircle, 
+  FaTimes, 
+  FaFingerprint, 
+  FaListUl, 
+  FaShieldAlt,
+  FaFileSignature,
+  FaTag // [BARU] Icon untuk Label Database
+} from 'react-icons/fa';
 
-const AiAnalysisModal = ({ isOpen, onClose, data, isLoading }) => {
+// [UPDATE] Terima prop 'dbDocumentType'
+const AiAnalysisModal = ({ isOpen, onClose, data, isLoading, dbDocumentType }) => {
   if (!isOpen) return null;
+
+  // Tampilan Loading
   if (isLoading) {
     return (
       <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-        <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-2xl flex flex-col items-center animate-pulse">
-          <FaRobot className="text-6xl text-blue-200 dark:text-slate-600 mb-4 animate-bounce" />
-          <h3 className="text-lg font-semibold text-slate-600 dark:text-slate-300">AI sedang membaca dokumen...</h3>
-          <p className="text-sm text-slate-400">Mohon tunggu sebentar.</p>
+        <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-2xl flex flex-col items-center animate-pulse border border-slate-200 dark:border-slate-700">
+          <FaRobot className="text-6xl text-blue-500 mb-6 animate-bounce" />
+          <h3 className="text-xl font-bold text-slate-700 dark:text-white">AI Sedang Menganalisis...</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 text-center max-w-xs">
+            Menggunakan konteks: <span className="font-semibold text-blue-500">{dbDocumentType || "Umum"}</span>
+          </p>
         </div>
       </div>
     );
@@ -17,110 +32,133 @@ const AiAnalysisModal = ({ isOpen, onClose, data, isLoading }) => {
 
   if (!data) return null;
 
-  // Tentukan warna berdasarkan Risk Level
-// Update Logika Warna untuk Bahasa Indonesia
-  const getRiskColor = (level) => {
-    if (!level) return 'bg-slate-100 text-slate-700 border-slate-200';
-    
-    const safeLevel = level.toLowerCase();
-    
-    // Merah: High / Tinggi
-    if (safeLevel === 'high' || safeLevel === 'tinggi') {
-        return 'bg-red-100 text-red-700 border-red-200';
-    }
-    // Oranye: Medium / Sedang
-    if (safeLevel === 'medium' || safeLevel === 'sedang') {
-        return 'bg-orange-100 text-orange-700 border-orange-200';
-    }
-    // Hijau: Low / Rendah
-    if (safeLevel === 'low' || safeLevel === 'rendah') {
-        return 'bg-green-100 text-green-700 border-green-200';
-    }
-    
-    return 'bg-slate-100 text-slate-700 border-slate-200';
+  // Logic Warna Risiko
+  const getRiskAnalysisInfo = (analysisText) => {
+    if (!analysisText) return { color: 'bg-slate-100 text-slate-600 border-slate-200', label: 'INFO', icon: <FaShieldAlt /> };
+    const textLower = analysisText.toLowerCase();
+    if (textLower.includes('tinggi') || textLower.includes('high') || textLower.includes('berbahaya')) 
+      return { color: 'bg-red-50 text-red-700 border-red-200 ring-1 ring-red-200', label: 'RISIKO TINGGI', icon: <FaExclamationTriangle /> };
+    if (textLower.includes('sedang') || textLower.includes('medium')) 
+      return { color: 'bg-orange-50 text-orange-700 border-orange-200 ring-1 ring-orange-200', label: 'RISIKO SEDANG', icon: <FaExclamationTriangle /> };
+    if (textLower.includes('rendah') || textLower.includes('low') || textLower.includes('aman')) 
+      return { color: 'bg-emerald-50 text-emerald-700 border-emerald-200 ring-1 ring-emerald-200', label: 'AMAN / RENDAH', icon: <FaCheckCircle /> };
+    return { color: 'bg-blue-50 text-blue-700 border-blue-200', label: 'ANALISIS UMUM', icon: <FaShieldAlt /> };
   };
 
+  const riskInfo = getRiskAnalysisInfo(data.risk_analysis);
+  const entities = data.key_entities || data.parties || [];
+  const points = data.critical_points || data.key_points || [];
+
+  // [BARU] Helper Warna Label Database
+  const getTypeColor = (type) => {
+    if (!type || type === 'General') return "bg-gray-100 text-gray-600 border-gray-200";
+    if (type.includes("SK")) return "bg-purple-100 text-purple-700 border-purple-200";
+    if (type.includes("Perjanjian") || type.includes("MoU")) return "bg-indigo-100 text-indigo-700 border-indigo-200";
+    return "bg-teal-100 text-teal-700 border-teal-200";
+  };
+
+  // Label final: Gunakan prop dari DB, jika kosong fallback ke hasil AI
+  const displayLabel = dbDocumentType || data.document_type || "Dokumen Umum";
+
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-2xl bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col max-h-[85vh] overflow-hidden">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-fade-in">
+      <div className="w-full max-w-3xl bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col max-h-[90vh] overflow-hidden">
         
         {/* HEADER */}
-        <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-gradient-to-r from-blue-50 to-purple-50 dark:from-slate-800 dark:to-slate-800">
+        <div className="p-5 flex justify-between items-center bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-white dark:bg-slate-700 rounded-lg shadow-sm text-purple-600">
-              <FaRobot size={20} />
+            <div className="p-2.5 bg-blue-600 rounded-xl shadow-lg shadow-blue-500/30 text-white">
+              <FaRobot size={22} />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-800 dark:text-white">Analisis Cerdas AI</h3>
+              <h3 className="text-lg font-extrabold text-slate-800 dark:text-white tracking-tight">
+                Hasil Analisis AI
+              </h3>
+              
+              {/* --- [BARU] MENAMPILKAN LABEL DATABASE --- */}
+              <div className={`mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold uppercase border tracking-wide ${getTypeColor(displayLabel)}`}>
+                <FaTag className="w-2.5 h-2.5" />
+                <span>Kategori: {displayLabel}</span>
+              </div>
+              {/* ----------------------------------------- */}
+
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
-            <FaTimes size={20} />
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 transition-all">
+            <FaTimes size={18} />
           </button>
         </div>
 
-        {/* CONTENT (Scrollable) */}
-        <div className="p-6 overflow-y-auto space-y-6">
+        {/* CONTENT */}
+        <div className="p-6 overflow-y-auto space-y-6 custom-scrollbar bg-slate-50/50 dark:bg-slate-900/20">
           
-          {/* 1. Document Type & Risk Badge */}
-          <div className="flex justify-between items-start">
+          {/* RISIKO */}
+          <div className={`p-4 rounded-xl border flex flex-col sm:flex-row gap-4 items-start shadow-sm ${riskInfo.color}`}>
+            <div className="text-2xl mt-1 opacity-90">{riskInfo.icon}</div>
             <div>
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Jenis Dokumen</span>
-              <div className="flex items-center gap-2 mt-1">
-                <FaFileContract className="text-blue-500" />
-                <h4 className="text-xl font-bold text-slate-800 dark:text-white">{data.document_type || "Dokumen Umum"}</h4>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xs font-black uppercase tracking-wider opacity-70">Status Risiko</span>
+                <span className="font-bold text-sm bg-white/60 px-2 py-0.5 rounded shadow-sm backdrop-blur-sm">{riskInfo.label}</span>
               </div>
-            </div>
-            <div className={`px-3 py-1 rounded-full border text-xs font-bold flex items-center gap-2 ${getRiskColor(data.risk_level)}`}>
-              {data.risk_level === 'High' ? <FaExclamationTriangle /> : <FaCheckCircle />}
-              RISIKO: {data.risk_level?.toUpperCase()}
+              <p className="text-sm font-medium leading-relaxed opacity-90">
+                {data.risk_analysis || "Tidak ada risiko signifikan terdeteksi."}
+              </p>
             </div>
           </div>
 
-          {/* 2. Summary */}
-          <div className="bg-slate-50 dark:bg-slate-700/30 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
-            <h5 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">Ringkasan Eksekutif</h5>
-            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+          {/* SUMMARY */}
+          <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+            <h5 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3 flex items-center gap-2">
+              <FaFileSignature className="text-blue-500" /> Ringkasan Eksekutif
+            </h5>
+            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed text-justify">
               {data.summary}
             </p>
           </div>
 
-          {/* 3. Parties Involved */}
-          <div>
-            <h5 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3 flex items-center gap-2">
-              <FaUserTie className="text-slate-400" /> Pihak Terkait
-            </h5>
-            <div className="flex flex-wrap gap-2">
-              {data.parties?.map((party, idx) => (
-                <span key={idx} className="px-3 py-1 bg-blue-50 dark:bg-slate-700 text-blue-700 dark:text-blue-300 text-sm rounded-lg font-medium border border-blue-100 dark:border-slate-600">
-                  {party}
-                </span>
-              ))}
+          {/* GRID: ENTITAS & POIN */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Entitas */}
+            <div className="flex flex-col h-full">
+              <h5 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+                <FaFingerprint className="text-purple-500" /> Entitas Utama
+              </h5>
+              <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 flex-1 shadow-sm">
+                {entities.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {entities.map((item, idx) => (
+                      <span key={idx} className="px-3 py-1 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 text-xs font-medium rounded-md border border-purple-100 dark:border-purple-800">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                ) : <span className="text-xs text-slate-400">Tidak ada entitas spesifik.</span>}
+              </div>
+            </div>
+
+            {/* Poin Kritis */}
+            <div className="flex flex-col h-full">
+              <h5 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+                <FaListUl className="text-teal-500" /> Poin Analisis
+              </h5>
+              <ul className="space-y-2 flex-1">
+                {points.length > 0 ? points.map((point, idx) => (
+                  <li key={idx} className="flex gap-3 items-start text-xs sm:text-sm text-slate-600 dark:text-slate-300 p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <span className="text-teal-500 font-bold mt-0.5">•</span>
+                    <span className="leading-snug">{point}</span>
+                  </li>
+                )) : <li className="text-xs text-slate-400">Tidak ada poin kritis.</li>}
+              </ul>
             </div>
           </div>
-
-          {/* 4. Key Points (Risiko/Kewajiban) */}
-          <div>
-            <h5 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3">Poin Penting & Risiko</h5>
-            <ul className="space-y-2">
-              {data.key_points?.map((point, idx) => (
-                <li key={idx} className="flex gap-3 items-start text-sm text-slate-600 dark:text-slate-300 p-3 rounded-lg border border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-                  <span className="text-orange-500 mt-0.5">•</span>
-                  <span>{point}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
         </div>
 
         {/* FOOTER */}
-        <div className="p-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-center">
-          <button onClick={onClose} className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-lg shadow-blue-500/30 transition-all">
-            Saya Mengerti
+        <div className="p-4 border-t border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800">
+          <button onClick={onClose} className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold transition-all">
+            Tutup
           </button>
         </div>
-
       </div>
     </div>
   );

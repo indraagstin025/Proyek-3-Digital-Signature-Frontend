@@ -19,9 +19,23 @@ export const signatureService = {
       return response.data;
     } catch (error) {
       console.error("❌ Error addPersonalSignature:", error);
-
       const message = error.response?.data?.message || "Gagal menandatangani dokumen. Silakan coba lagi.";
+      throw new Error(message);
+    }
+  },
 
+  /**
+   * Mengirim data tanda tangan untuk dokumen GRUP (Finalisasi).
+   * Endpoint: POST /api/signatures/group
+   * @param {object} payload
+   */
+  addGroupSignature: async (payload) => {
+    try {
+      const response = await apiClient.post("signatures/group", payload);
+      return response.data; // Mengembalikan { status, message, data: { isComplete, remainingSigners } }
+    } catch (error) {
+      console.error("❌ Error addGroupSignature:", error);
+      const message = error.response?.data?.message || "Gagal menandatangani dokumen grup.";
       throw new Error(message);
     }
   },
@@ -29,7 +43,6 @@ export const signatureService = {
   /**
    * Mengambil detail verifikasi dari sebuah tanda tangan berdasarkan ID uniknya.
    * @param {string} signatureId - ID unik dari tanda tangan (dari URL QR Code).
-   * @returns {Promise<object} Detail data untuk halaman verifikasi.
    */
   getVerificationDetails: async (signatureId) => {
     try {
@@ -37,19 +50,13 @@ export const signatureService = {
       return response.data;
     } catch (error) {
       console.error("❌ Error getVerificationDetails:", error);
-
       const message = error.response?.data?.message || "Gagal mengambil detail verifikasi tanda tangan.";
-
       throw new Error(message);
     }
   },
 
   /**
    * @description Mengirim file PDF yang diunggah untuk diverifikasi integritasnya (Hash Check).
-   * Digunakan untuk menguji dokumen yang telah diedit di luar sistem.
-   * @param {string} signatureId - ID unik dari tanda tangan yang dicari.
-   * @param {File} file - Objek File PDF yang akan diunggah (dari input type="file").
-   * @returns {Promise<object} Detail hasil verifikasi kriptografi.
    */
   verifyUploadedFile: async (signatureId, file) => {
     const formData = new FormData();
@@ -59,24 +66,19 @@ export const signatureService = {
     try {
       const response = await apiClient.post("signatures/verify-file", formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          "Content-Type": "multipart/form-data",
         },
       });
       return response.data;
     } catch (error) {
       console.error(" Error verifyUploadedFile:", error);
-
       const message = error.response?.data?.message || "Gagal memverifikasi file yang diunggah.";
-
       throw new Error(message);
     }
   },
 
   /**
    * Meminta AI untuk mendeteksi posisi tanda tangan secara otomatis.
-   * Backend akan menganalisis PDF dan menyimpan placeholder di database.
-   * @param {string} documentId - ID dokumen yang sedang dibuka.
-   * @returns {Promise<object>} Response sukses dari backend berisi jumlah lokasi yang ditemukan
    */
   autoTagDocument: async (documentId) => {
     try {
@@ -89,17 +91,77 @@ export const signatureService = {
   },
 
   /**
-   * [BARU] Meminta AI untuk menganalisis isi dokumen (Legal Check).
-   * @param {string} documentId
+   * Meminta AI untuk menganalisis isi dokumen (Legal Check).
    */
   async analyzeDocument(documentId) {
     try {
-      // Endpoint baru di Node.js
       const response = await apiClient.post(`documents/${documentId}/analyze`);
-      return response.data; // Mengembalikan { status: 'success', data: { ...JSON Gemini... } }
+      return response.data;
     } catch (error) {
       console.error("❌ Error analyzeDocument:", error);
       throw new Error(error.response?.data?.message || "Gagal menganalisis dokumen.");
     }
   },
+
+  /**
+   * [BARU] Menyimpan draft tanda tangan ke Database saat User melakukan Drop.
+   * @param {string} documentId
+   * @param {object} payload - { signatureImageUrl, pageNumber, positionX, positionY, width, height }
+   * @param {boolean} isGroupDoc - [BARU] Status apakah ini dokumen grup
+   * @param {boolean} includeQrCode - [BARU] Status apakah perlu QR Code (Opsional)
+   */
+  async saveDraft(documentId, payload, isGroupDoc, includeQrCode) {
+    try {
+      // Kirim semua data yang diperlukan, termasuk isGroupDoc dan includeQrCode jika backend memprosesnya
+      // ASUMSI: Backend Anda hanya menerima 'documentId' di URL dan semua data lain di body
+      const fullPayload = { 
+        ...payload, 
+        isGroupDoc, 
+        includeQrCode 
+      };
+      
+      const response = await apiClient.post(`signatures/draft/${documentId}`, fullPayload);
+      
+      return response.data.data;
+    } catch (error) {
+      console.error("❌ Error saveDraft:", error);
+      const message = error.response?.data?.message || "Gagal menyimpan posisi tanda tangan.";
+      throw new Error(message);
+    }
+},
+
+  /**
+   * [BARU] Mengupdate posisi tanda tangan saat digeser (Drag) atau diubah ukuran (Resize).
+   * * @param {string} signatureId - ID Asli Database (Bukan 'sig-temp...')
+   * @param {object} payload - { positionX, positionY, width, height, pageNumber }
+   */
+  async updatePosition(signatureId, payload) {
+    try {
+      const response = await apiClient.patch(`signatures/${signatureId}/position`, payload);
+      return response.data.data;
+    } catch (error) {
+      console.error("❌ Error updatePosition:", error);
+      // Tidak perlu throw error blocking agar UX dragging tidak patah-patah
+      console.warn("Gagal update posisi di server (mungkin koneksi lambat).");
+    }
+  },
+
+  /**
+   * [BARU] Menghapus draft tanda tangan dari database.
+   * @param {string} signatureId - ID Asli Database
+   */
+  async deleteSignature(signatureId) {
+    try {
+      await apiClient.delete(`signatures/${signatureId}`);
+      return true;
+    } catch (error) {
+      console.error("❌ Error deleteSignature:", error);
+      const message = error.response?.data?.message || "Gagal menghapus tanda tangan.";
+      throw new Error(message);
+    }
+  },
 };
+
+
+
+  

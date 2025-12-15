@@ -25,9 +25,16 @@ export const documentService = {
   /**
    * Mengambil daftar semua dokumen.
    */
-  getAllDocuments: async () => {
+// src/services/documentService.js (Frontend)
+
+  getAllDocuments: async (search = "") => {
     try {
-      const response = await apiClient.get("/documents");
+      // [PERBAIKAN] Tambahkan object 'params' agar Axios mengirimkan query string
+      // Hasilnya nanti URL menjadi: /documents?search=keyword
+      const response = await apiClient.get("/documents", {
+        params: { search: search } 
+      });
+      
       return response.data.data;
     } catch (error) {
       handleError(error, "Gagal mengambil daftar dokumen.");

@@ -1,7 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
 
-// Import logo untuk light & dark mode
 import logoLight from "../../assets/images/LogoLightMode.jpg";
 import logoDark from "../../assets/images/LogoDarkMode.jpg";
 
@@ -23,14 +22,9 @@ const HeroSection = () => {
         {/* Kolom Kiri: Teks dan Tombol */}
         <div className="md:w-1/2 text-center md:text-left space-y-6">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-tight text-slate-900 dark:text-white">
-            Tandatangani Dokumen dengan{" "}
-            <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Signify
-            </span>
+            Tandatangani Dokumen dengan <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Signify</span>
           </h1>
-          <p className="text-lg sm:text-xl text-slate-600 dark:text-slate-300 max-w-xl mx-auto md:mx-0">
-            Buat tanda tangan digital yang aman, cepat, dan dapat diverifikasi kapan saja.
-          </p>
+          <p className="text-lg sm:text-xl text-slate-600 dark:text-slate-300 max-w-xl mx-auto md:mx-0">Buat tanda tangan digital yang aman, cepat, dan dapat diverifikasi kapan saja.</p>
 
           <div className="flex flex-col sm:flex-row justify-center md:justify-start items-center gap-4 pt-4">
             <Link
@@ -63,17 +57,9 @@ const HeroSection = () => {
         <div className="md:w-1/2 flex justify-center items-center">
           <div className="relative animate-float">
             {/* Logo Light Mode */}
-            <img
-              src={logoLight}
-              alt="Logo Signify Light"
-              className="w-[460px] md:w-[480px] h-auto drop-shadow-2xl block dark:hidden transform scale-110 transition-transform duration-300"
-            />
+            <img src={logoLight} alt="Logo Signify Light" className="w-[460px] md:w-[480px] h-auto drop-shadow-2xl block dark:hidden transform scale-110 transition-transform duration-300" />
             {/* Logo Dark Mode */}
-            <img
-              src={logoDark}
-              alt="Logo Signify Dark"
-              className="w-[460px] md:w-[480px] h-auto drop-shadow-2xl hidden dark:block transform scale-110 transition-transform duration-300"
-            />
+            <img src={logoDark} alt="Logo Signify Dark" className="w-[460px] md:w-[480px] h-auto drop-shadow-2xl hidden dark:block transform scale-110 transition-transform duration-300" />
           </div>
         </div>
       </div>

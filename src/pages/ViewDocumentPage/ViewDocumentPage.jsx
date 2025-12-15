@@ -11,7 +11,6 @@ import { userService } from "../../services/userService";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
-// Pastikan path worker ini benar sesuai setup public folder Anda
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.js";
 
 const LOCAL_TEST_FILE = "/mnt/data/6959bd64-4ea7-4a80-bd84-55d5d6c94467.png";
@@ -58,7 +57,9 @@ const ViewDocumentPage = ({ theme = "light", toggleTheme }) => {
         } else {
           setUserData(fresh);
         }
-      } catch (err) {}
+      } catch {
+        // Sync failed silently
+      }
     }
     syncUser();
     return () => {
@@ -66,22 +67,17 @@ const ViewDocumentPage = ({ theme = "light", toggleTheme }) => {
     };
   }, []);
 
-  const [pageAspect, setPageAspect] = useState(null);
   const [pageWidth, setPageWidth] = useState(800);
   const [pagesRendered, setPagesRendered] = useState([]);
 
-  // Menggunakan default scale yang lebih baik untuk ketajaman
   const [zoom, setZoom] = useState(1);
   const ZOOM_STEP = 0.1;
   const ZOOM_MIN = 0.5;
   const ZOOM_MAX = 3.0;
 
-  // Dapatkan Device Pixel Ratio untuk ketajaman
-  const getDPR = () => {
-    if (typeof window === "undefined") return 1;
-    // Batasi maks 2.5 agar tidak terlalu berat render di layar 4K/5K
-    return Math.min(window.devicePixelRatio || 1, 2.5);
-  };
+  // Metadata Fetching
+  const [signatures, setSignatures] = useState([]);
+  const [isMetaLoading, setIsMetaLoading] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -106,7 +102,42 @@ const ViewDocumentPage = ({ theme = "light", toggleTheme }) => {
     return () => controller.abort();
   }, [documentId]);
 
-  // Fungsi kalkulasi ukuran halaman yang lebih robust
+  // Fetch Metadata
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      if (!documentId || !userData?.id) return;
+      try {
+        setIsMetaLoading(true);
+        const doc = await documentService.getDocumentById(documentId, userData.id);
+        const isCompleted = doc.status === "completed" || doc.status === "archived";
+
+        if (!isCompleted && doc.currentVersion) {
+          const groupSigs = doc.currentVersion.signaturesGroup || [];
+          const personalSigs = doc.currentVersion.signaturesPersonal || [];
+          const rawSignatures = [...groupSigs, ...personalSigs];
+
+          const overlays = rawSignatures.map((sig) => ({
+            uniqueId: sig.id,
+            signatureImageUrl: sig.signatureImageUrl,
+            pageNumber: sig.pageNumber,
+            positionX: parseFloat(sig.positionX),
+            positionY: parseFloat(sig.positionY),
+            width: parseFloat(sig.width),
+            height: parseFloat(sig.height),
+          }));
+          setSignatures(overlays);
+        } else {
+          setSignatures([]);
+        }
+      } catch (error) {
+        console.error("Meta error", error);
+      } finally {
+        setIsMetaLoading(false);
+      }
+    };
+    fetchMetadata();
+  }, [documentId, userData]);
+
   const computePageSize = useCallback(() => {
     const screenW = window.innerWidth;
     const mobile = screenW < 640;
@@ -115,33 +146,29 @@ const ViewDocumentPage = ({ theme = "light", toggleTheme }) => {
     const left = !mobile && mainSidebarOpen ? MAIN_SIDEBAR_WIDTH : 0;
     const right = !mobile && previewOpen ? PREVIEW_PANEL_WIDTH : 0;
 
-    // Padding horizontal viewer container
     const containerPadding = mobile ? 32 : 60;
 
-    // Width yang tersedia di layar dikurangi sidebar dan panel
     const availableWidth = screenW - left - right - containerPadding;
 
-    // Tentukan lebar ideal:
-    // Di mobile hampir full width, di desktop dibatasi agar nyaman dibaca (max 1000px base)
     const idealWidth = Math.min(availableWidth, mobile ? availableWidth : 1000);
 
-    // Pastikan tidak negatif dan tidak terlalu kecil
     const finalWidth = Math.max(280, idealWidth);
 
-    setPageWidth(Math.floor(finalWidth)); // Gunakan floor agar angka bulat (tajam)
+    setPageWidth(Math.floor(finalWidth));
   }, [mainSidebarOpen, previewOpen]);
 
   useEffect(() => {
     computePageSize();
     window.addEventListener("resize", computePageSize);
     let ro;
-    if (viewerRef.current && window.ResizeObserver) {
+    const ref = viewerRef.current;
+    if (ref && window.ResizeObserver) {
       ro = new ResizeObserver(() => computePageSize());
-      ro.observe(viewerRef.current);
+      ro.observe(ref);
     }
     return () => {
       window.removeEventListener("resize", computePageSize);
-      if (ro && viewerRef.current) ro.disconnect();
+      if (ro && ref) ro.disconnect();
     };
   }, [computePageSize]);
 
@@ -198,13 +225,12 @@ const ViewDocumentPage = ({ theme = "light", toggleTheme }) => {
     });
   };
 
-  const handlePageLoadSuccess = (pdfPage, index) => {
+  const handlePageLoadSuccess = (pdfPage) => {
     try {
       if (!pdfPage || !pdfPage.getViewport) return;
-      const vp = pdfPage.getViewport({ scale: 1 });
-      const asp = vp.width / vp.height;
-      setPageAspect((prev) => prev || asp);
-    } catch (err) {}
+    } catch {
+      // Handle load error silently
+    }
   };
 
   const scrollToPage = useCallback(
@@ -278,7 +304,6 @@ const ViewDocumentPage = ({ theme = "light", toggleTheme }) => {
     return () => window.removeEventListener("keydown", onKey);
   }, [numPages, previewOpen, isMobile, scrollToPage]);
 
-  // Observer untuk update page number saat scroll (fallback)
   useEffect(() => {
     const root = viewerRef.current;
     if (!root || !window.IntersectionObserver) return;
@@ -304,7 +329,7 @@ const ViewDocumentPage = ({ theme = "light", toggleTheme }) => {
   const togglePreview = () => setPreviewOpen((v) => !v);
   const toggleMainSidebar = () => setMainSidebarOpen((v) => !v);
   const btnSizeClass = isMobile ? "w-12 h-12" : "w-9 h-9";
-  // Shadow dibuat lebih subtle agar fokus ke dokumen
+
   const pageShadowStyle = theme === "dark" ? "0 4px 20px rgba(0,0,0,0.5)" : "0 4px 15px rgba(0,0,0,0.08)";
 
   if (isLoading) {
@@ -338,7 +363,7 @@ const ViewDocumentPage = ({ theme = "light", toggleTheme }) => {
           transition: "left 300ms ease, width 300ms ease",
         }}
       >
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
           <button onClick={() => navigate("/dashboard/documents")} className={`p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${btnSizeClass}`} title="Kembali">
             <FaArrowLeft className="text-slate-700 dark:text-slate-200" />
           </button>
@@ -413,7 +438,7 @@ const ViewDocumentPage = ({ theme = "light", toggleTheme }) => {
                       className={`relative group rounded-lg overflow-hidden border-2 transition-all ${pageNumber === i + 1 ? "border-blue-500 ring-2 ring-blue-200 dark:ring-blue-900" : "border-transparent hover:border-slate-300"}`}
                     >
                       <Page pageNumber={i + 1} width={100} renderAnnotationLayer={false} renderTextLayer={false} />
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 to-transparent p-1">
+                      <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/50 to-transparent p-1">
                         <span className="text-xs text-white font-medium">{i + 1}</span>
                       </div>
                     </button>
@@ -508,9 +533,9 @@ const ViewDocumentPage = ({ theme = "light", toggleTheme }) => {
                     className="relative bg-white transition-all duration-200 ease-out"
                     style={{
                       width: displayWidth,
-                      maxWidth: "100%", // Responsive constraint
+                      maxWidth: "100%",
                       boxShadow: isActive ? (theme === "dark" ? "0 0 0 2px #3b82f6, 0 10px 30px rgba(0,0,0,0.5)" : "0 0 0 2px #3b82f6, 0 10px 30px rgba(0,0,0,0.15)") : pageShadowStyle,
-                      borderRadius: 2, // Ujung kertas biasanya tajam/sedikit round
+                      borderRadius: 2,
                     }}
                   >
                     {/* Header Halaman (floating) */}
@@ -526,29 +551,38 @@ const ViewDocumentPage = ({ theme = "light", toggleTheme }) => {
                     )}
 
                     {/* PDF Page Render - Tanpa padding internal agar tajam */}
-<Page
-  pageNumber={i + 1}
-  // 1. RESPONSIF: Gunakan width dinamis sesuai perhitungan layar
-  width={displayWidth} 
-  
-  onRenderSuccess={() => onPageRenderSuccess(i)}
-  onLoadSuccess={(pdfPage) => handlePageLoadSuccess(pdfPage, i)}
-  renderAnnotationLayer={true}
-  renderTextLayer={true}
-  className="pdf-page-render"
-  
-  // 2. KETAJAMAN:
-  // Jangan gunakan window.devicePixelRatio bawaan (kadang return 1 di HP tertentu)
-  // Kita PAKSA minimal 2.0 di mobile. Ini akan membuat teks tajam/crisp.
-  // Tapi dibatasi max 3.0 agar HP kentang tidak crash/lag.
-  devicePixelRatio={isMobile ? 2.0 : Math.min(window.devicePixelRatio || 1, 3.0)}
-  
-  // 3. HAPUS SCALE:
-  // Jangan pakai scale={...} jika sudah pakai width={...} agar layout tidak rusak.
-  scale={1}
-  
-  loading=""
-/>
+                    <Page
+                      pageNumber={i + 1}
+                      width={displayWidth}
+                      onRenderSuccess={() => onPageRenderSuccess(i)}
+                      onLoadSuccess={(pdfPage) => handlePageLoadSuccess(pdfPage, i)}
+                      renderAnnotationLayer={true}
+                      renderTextLayer={true}
+                      className="pdf-page-render"
+                      devicePixelRatio={isMobile ? 2.0 : Math.min(window.devicePixelRatio || 1, 3.0)}
+                      scale={1}
+                      loading=""
+                    />
+
+                    {/* OVERLAY SIGNATURES */}
+                    {signatures
+                      .filter((sig) => sig.pageNumber === i + 1)
+                      .map((sig) => (
+                        <img
+                          key={sig.uniqueId}
+                          src={sig.signatureImageUrl}
+                          alt="Signature"
+                          className="absolute select-none pointer-events-none"
+                          style={{
+                            left: `${sig.positionX * 100}%`,
+                            top: `${sig.positionY * 100}%`,
+                            width: `${sig.width * 100}%`,
+                            height: `${sig.height * 100}%`,
+                            zIndex: 20,
+                            objectFit: "contain",
+                          }}
+                        />
+                      ))}
                   </div>
                 </div>
               );

@@ -10,7 +10,6 @@ export const groupService = {
    * @async
    * @param {string} name - Nama grup yang akan dibuat.
    * @returns {Promise<Object>} Data grup yang berhasil dibuat.
-   * @throws {Error} Jika terjadi kegagalan saat membuat grup.
    */
   async createGroup(name) {
     try {
@@ -22,10 +21,33 @@ export const groupService = {
   },
 
   /**
+   * @description Mengupload dokumen baru ke grup dan menentukan penanda tangan.
+   * Endpoint: POST /api/groups/:groupId/documents/upload
+   * @param {string} groupId - ID Grup
+   * @param {File} file - File PDF
+   * @param {string} title - Judul Dokumen
+   * @param {string[]} signerUserIds - Array ID user yang wajib tanda tangan
+   */
+  async uploadGroupDocument(groupId, file, title, signerUserIds) {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("title", title);
+    // Mengirim array via FormData harus di-stringify agar terbaca sebagai satu field JSON oleh backend
+    // Backend (Controller) harus mem-parse ini kembali menjadi Array.
+    formData.append("signerUserIds", JSON.stringify(signerUserIds));
+
+    try {
+      const response = await apiClient.post(`/groups/${groupId}/documents/upload`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data.data;
+    } catch (error) {
+      handleError(error, "Gagal mengupload dokumen grup.");
+    }
+  },
+
+  /**
    * Mengambil semua grup yang dimiliki user.
-   * @async
-   * @returns {Promise<Array>} Daftar grup milik user.
-   * @throws {Error} Jika terjadi kesalahan saat pengambilan data grup.
    */
   async getAllUserGroups() {
     try {
@@ -38,10 +60,6 @@ export const groupService = {
 
   /**
    * Mengambil detail grup berdasarkan ID.
-   * @async
-   * @param {string} groupId - ID grup yang ingin diambil.
-   * @returns {Promise<Object>} Detail grup.
-   * @throws {Error} Jika gagal mengambil detail grup.
    */
   async getGroupById(groupId) {
     try {
@@ -54,11 +72,6 @@ export const groupService = {
 
   /**
    * Membuat undangan untuk bergabung dalam grup.
-   * @async
-   * @param {string} groupId - ID grup tempat undangan dibuat.
-   * @param {string} role - Role yang diberikan kepada penerima undangan.
-   * @returns {Promise<Object>} Token atau detail undangan.
-   * @throws {Error} Jika gagal membuat undangan.
    */
   async createInvitation(groupId, role) {
     try {
@@ -71,9 +84,6 @@ export const groupService = {
 
   /**
    * Menerima undangan menggunakan token.
-   * @async
-   * @param {string} token - Token undangan.
-   * @returns {Promise<Object>} Data keanggotaan atau grup yang berhasil di-join.
    */
   async acceptInvitation(token) {
     const response = await apiClient.post("/groups/invitations/accept", { token });
@@ -81,29 +91,54 @@ export const groupService = {
   },
 
   /**
-   * Menghubungkan dokumen ke grup tertentu.
+   * Menghubungkan dokumen (yang sudah ada di draft) ke grup tertentu.
    * @async
    * @param {string} groupId - ID grup.
    * @param {string} documentId - ID dokumen yang akan ditambahkan.
-   * @returns {Promise<Object>} Data hasil penghubungan dokumen.
-   * @throws {Error} Jika gagal menghubungkan dokumen.
+   * @param {string[]} signerUserIds - Array ID User yang harus tanda tangan.
    */
-  async assignDocumentToGroup(groupId, documentId) {
+  async assignDocumentToGroup(groupId, documentId, signerUserIds = []) {
     try {
-      const response = await apiClient.put(`/groups/${groupId}/documents`, { documentId });
+      const response = await apiClient.put(`/groups/${groupId}/documents`, {
+        documentId,
+        signerUserIds, // Mengirim daftar signer ke backend
+      });
       return response.data.data;
     } catch (error) {
       handleError(error, "Gagal menghubungkan dokumen ke grup.");
     }
   },
 
+  async finalizeDocument(groupId, documentId) {
+    try {
+      const response = await apiClient.post(`/groups/${groupId}/documents/${documentId}/finalize`);
+      return response.data.data;
+    } catch (error) {
+      handleError(error, "Gagal memfinalisasi dokumen.");
+    }
+  },
+
+  /**
+   * [BARU] Memperbarui daftar penanda tangan (Checklist) untuk dokumen yang sudah ada.
+   * Digunakan untuk fitur Edit Signers jika Admin lupa mencentang anggota.
+   * @param {string} groupId
+   * @param {string} documentId
+   * @param {string[]} signerUserIds - Daftar ID user terbaru
+   */
+  async updateDocumentSigners(groupId, documentId, signerUserIds) {
+    try {
+      const response = await apiClient.put(
+        `/groups/${groupId}/documents/${documentId}/signers`,
+        { signerUserIds }
+      );
+      return response.data.data;
+    } catch (error) {
+      handleError(error, "Gagal memperbarui daftar penanda tangan.");
+    }
+  },
+
   /**
    * Menghapus anggota dari grup.
-   * @async
-   * @param {string} groupId - ID grup.
-   * @param {string} userIdToRemove - ID user yang akan dihapus.
-   * @returns {Promise<Object>} Response dari server.
-   * @throws {Error} Jika gagal menghapus anggota.
    */
   async removeMember(groupId, userIdToRemove) {
     try {
@@ -116,11 +151,6 @@ export const groupService = {
 
   /**
    * Memperbarui data grup.
-   * @async
-   * @param {string} groupId - ID grup yang akan diperbarui.
-   * @param {Object} data - Data perubahan grup.
-   * @returns {Promise<Object>} Data grup setelah diperbarui.
-   * @throws {Error} Jika gagal memperbarui grup.
    */
   async updateGroup(groupId, data) {
     try {
@@ -133,10 +163,6 @@ export const groupService = {
 
   /**
    * Menghapus grup berdasarkan ID.
-   * @async
-   * @param {string} groupId - ID grup yang akan dihapus.
-   * @returns {Promise<Object>} Response penghapusan.
-   * @throws {Error} Jika gagal menghapus grup.
    */
   async deleteGroup(groupId) {
     try {
@@ -148,12 +174,7 @@ export const groupService = {
   },
 
   /**
-   * Melepaskan dokumen dari grup.
-   * @async
-   * @param {string} groupId - ID grup.
-   * @param {string} documentId - ID dokumen yang akan dilepaskan.
-   * @returns {Promise<Object>} Response pelepasan dokumen.
-   * @throws {Error} Jika gagal melepaskan dokumen.
+   * Melepaskan dokumen dari grup (Unassign).
    */
   async unassignDocumentFromGroup(groupId, documentId) {
     try {

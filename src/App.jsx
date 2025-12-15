@@ -1,13 +1,15 @@
+/* eslint-disable no-unused-vars */
 /* eslint-disable no-irregular-whitespace */
 import "./index.css";
 import React, { useState, useEffect, useMemo } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
-import { ImSpinner9 } from "react-icons/im"; 
+import { ImSpinner9 } from "react-icons/im";
 import authService from "./services/authService.js";
+import { socketService } from "./services/socketService.js";
 
 // --- IMPORT KOMPONEN ---
-import SplashScreen from "./components/SplashScreen/SplashScreen.jsx"; // Pastikan file ini sudah dibuat sesuai panduan sebelumnya
+import SplashScreen from "./components/SplashScreen/SplashScreen.jsx";
 import ConfirmationModal from "./components/ConfirmationModal/ConfirmationModal.jsx";
 import Header from "./components/Header/Header.jsx";
 import MainLayout from "./components/MainLayout/MainLayout.jsx";
@@ -30,19 +32,22 @@ import DashboardWorkspaces from "./pages/DashboardPage/DashboardWorkspaces.jsx";
 import DashboardHistory from "./pages/DashboardPage/DashboardHistory.jsx";
 import ProfilePage from "./pages/ProfilePage/ProfilePage.jsx";
 import GroupDetailPage from "./pages/GroupPage/GroupDetailPage.jsx";
-import AcceptInvitePage from "./pages/AcceptInvitePage/AcceptInvitePage.jsx"; 
+import AcceptInvitePage from "./pages/AcceptInvitePage/AcceptInvitePage.jsx";
 
 // Halaman Fungsional
 import SignDocumentPage from "./pages/SignDocumentPage/SignDocumentPage.jsx";
 import ViewDocumentPage from "./pages/ViewDocumentPage/ViewDocumentPage.jsx";
 import VerificationPage from "./pages/VerificationPage/VerificationPage.jsx";
+import SignGroupPage from "./pages/SignGroupPages/SignGroupPage.jsx";
 import NotFoundPage from "./pages/NotFoundPage/NotFoundPage.jsx";
 import SignPackagePage from "./pages/SignPackagePage/SignPackagePage.jsx";
 
 // Halaman Dashboard Admin
 import AdminDashboardPage from "./pages/AdminPage/AdminDashboardPage.jsx";
 import AdminDashboardOverview from "./pages/AdminPage/AdminDashboardOverview.jsx";
-import AdminManageUser from "./pages/AdminPage/AdminManageUser.jsx"; 
+import AdminManageUser from "./pages/AdminPage/AdminManageUser.jsx";
+import AdminManageDocuments from "./pages/AdminPage/AdminManageDocuments.jsx";
+import AdminAuditLogs from "./pages/AdminPage/AdminAuditLogs.jsx";
 import { pdfjs } from "react-pdf";
 
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.js";
@@ -55,7 +60,7 @@ const AppWrapper = () => {
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
   const [isSessionModalOpen, setSessionModalOpen] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
-  
+
   // State Loading Awal
   const [isCheckingSession, setIsCheckingSession] = useState(true);
 
@@ -78,43 +83,44 @@ const AppWrapper = () => {
   // 3. LOGIKA UTAMA: Smart Session Check
   useEffect(() => {
     const initSession = async () => {
-      // Cek apakah aplikasi sudah pernah dimuat di tab ini (untuk mendeteksi refresh)
       const isRefresh = sessionStorage.getItem("app_loaded");
-      
-      // Cek apakah user sedang mengakses Halaman Utama (Root)
       const isRoot = location.pathname === "/";
-
-      // KONDISI SPLASH SCREEN:
-      // Tampil HANYA JIKA: (Bukan Refresh) DAN (Halaman adalah Root '/')
       const shouldShowSplash = !isRefresh && isRoot;
-      
-      // Jika Splash tampil -> Delay 2 detik (Branding)
-      // Jika tidak (Refresh / Halaman lain) -> Delay 0 detik (Cepat)
       const delayDuration = shouldShowSplash ? 2000 : 0;
-      
+
       const minLoadingTime = new Promise((resolve) => setTimeout(resolve, delayDuration));
-      const sessionCheck = authService.getMe(); 
+      const sessionCheck = authService.getMe();
 
       try {
         await Promise.all([sessionCheck, minLoadingTime]);
-        
-        // Jika sukses Login, redirect dari halaman public ke dashboard
+
         const publicPaths = ["/login", "/register", "/"];
         if (publicPaths.includes(location.pathname)) {
-             navigate("/dashboard", { replace: true });
+          navigate("/dashboard", { replace: true });
         }
       } catch (error) {
-        // Jika gagal (User Tamu) & Splash aktif, tetap tunggu timer selesai agar animasi mulus
         if (shouldShowSplash) await minLoadingTime;
       } finally {
-        // Tandai app sudah dimuat agar refresh berikutnya tidak memunculkan splash
         sessionStorage.setItem("app_loaded", "true");
         setIsCheckingSession(false);
       }
     };
 
     initSession();
-  }, []); // Array kosong: Jalan sekali saat mount
+  }, []);
+
+  // 4. INITIALIZE SOCKET CONNECTION
+  useEffect(() => {
+    if (!isCheckingSession) {
+      // Connect socket hanya setelah session check selesai dan user terauth
+      try {
+        socketService.connect();
+        console.log("🔌 Socket initialized");
+      } catch (error) {
+        console.error("❌ Failed to initialize socket:", error);
+      }
+    }
+  }, [isCheckingSession]);
 
   const handleAcceptCookie = () => {
     localStorage.setItem("cookie_consent", "true");
@@ -144,34 +150,32 @@ const AppWrapper = () => {
   const isDashboard = location.pathname.startsWith("/dashboard");
   const isAdmin = location.pathname.startsWith("/admin");
 
-  const toastOptions = useMemo(() => ({
-    style: {
+  const toastOptions = useMemo(
+    () => ({
+      style: {
         background: theme === "dark" ? "#1F2937" : "#FFFFFF",
         color: theme === "dark" ? "#D1D5DB" : "#111827",
         border: theme === "dark" ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid #E5E7EB",
       },
       error: { iconTheme: { primary: "#F87171", secondary: theme === "dark" ? "#1F2937" : "#FFFFFF" } },
       success: { iconTheme: { primary: "#34D399", secondary: theme === "dark" ? "#1F2937" : "#FFFFFF" } },
-    }), [theme]);
+    }),
+    [theme]
+  );
 
-  // 4. RENDER LOADING STATE (KONDISIONAL)
+  // 4. RENDER LOADING STATE
   if (isCheckingSession) {
     const isRefresh = sessionStorage.getItem("app_loaded");
     const isRoot = location.pathname === "/";
 
-    // TAMPILAN 1: SPLASH SCREEN BRANDING
-    // Hanya muncul jika User baru buka browser DAN akses ke Root URL
     if (isRoot && !isRefresh) {
       return <SplashScreen />;
     }
 
-    // TAMPILAN 2: SPINNER MINIMALIS
-    // Muncul saat Refresh atau akses langsung ke URL dalam (misal /login, /dashboard)
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-slate-50 dark:bg-slate-900">
+      <div className="flex h-screen w-full items-center justify-center bg-slate-50 dark:bg-slate-900 transition-colors">
         <div className="text-center">
-           <ImSpinner9 className="animate-spin h-10 w-10 text-blue-600 mx-auto mb-4" />
-           {/* Teks loading dihapus agar lebih bersih saat transisi cepat */}
+          <ImSpinner9 className="animate-spin h-10 w-10 text-blue-600 mx-auto mb-4" />
         </div>
       </div>
     );
@@ -179,10 +183,18 @@ const AppWrapper = () => {
 
   // 5. RENDER APLIKASI UTAMA
   return (
-    <div className="flex-1 overflow-auto">
-      <Toaster position="top-center" reverseOrder={false} toastOptions={toastOptions} />
+    // FIX PENTING:
+    // 1. Hapus 'overflow-auto' agar Dashboard & MainLayout bisa handle scroll sendiri.
+    // 2. Tambahkan 'bg-slate-50 dark:bg-slate-900' sebagai warna dasar (canvas) agar tidak ada flash putih.
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-300">
+      <Toaster position="top-center" reverseOrder={false} toastOptions={toastOptions} containerStyle={{ zIndex: 99999 }} />
 
-      {!isDashboard && !isAdmin && !location.pathname.includes("/sign") && !location.pathname.includes("/view") && <Header theme={theme} toggleTheme={toggleTheme} />}
+      {/* Header Publik */}
+      {!isDashboard &&
+        !isAdmin &&
+        !location.pathname.includes("/sign") &&
+        !location.pathname.includes("/group-sign") && // <--- Tambahkan Eksplisit Ini
+        !location.pathname.includes("/view") && <Header theme={theme} toggleTheme={toggleTheme} />}
 
       <Routes>
         <Route element={<MainLayout />}>
@@ -193,12 +205,15 @@ const AppWrapper = () => {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/verify/:signatureId" element={<VerificationPage />} />
           <Route path="/join" element={<AcceptInvitePage />} />
-          <Route path="/verify-email" element={<VerifyEmailPage/>} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
         </Route>
 
+        {/* Halaman Standalone (Sign/View) */}
         <Route path="/documents/:documentId/sign" element={<SignDocumentPage theme={theme} toggleTheme={toggleTheme} onSessionExpired={() => setSessionModalOpen(true)} />} />
         <Route path="/documents/:documentId/view" element={<ViewDocumentPage theme={theme} toggleTheme={toggleTheme} />} />
+        <Route path="/documents/:documentId/group-sign" element={<SignGroupPage theme={theme} toggleTheme={toggleTheme} />} />
 
+        {/* Dashboard User */}
         <Route element={<ProtectedRoute />}>
           <Route path="/packages/sign/:packageId" element={<SignPackagePage theme={theme} toggleTheme={toggleTheme} onSessionExpired={() => setSessionModalOpen(true)} />} />
           <Route path="/dashboard" element={<DashboardPage theme={theme} toggleTheme={toggleTheme} onSessionExpired={() => setSessionModalOpen(true)} />}>
@@ -208,15 +223,18 @@ const AppWrapper = () => {
             <Route path="workspaces" element={<DashboardWorkspaces theme={theme} />} />
             <Route path="history" element={<DashboardHistory theme={theme} />} />
             <Route path="group/:groupId" element={<GroupDetailPage theme={theme} />} />
-            <Route path="*" element={<NotFoundPage />} /> 
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Route>
-        
+
+        {/* Dashboard Admin */}
         <Route element={<ProtectedRoute requireAdmin={true} />}>
           <Route path="/admin" element={<AdminDashboardPage theme={theme} toggleTheme={toggleTheme} />}>
-            <Route index element={<Navigate to="dashboard" replace />} /> 
+            <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboardOverview />} />
-            <Route path="users" element={<AdminManageUser theme={theme} />} /> 
+            <Route path="users" element={<AdminManageUser theme={theme} />} />
+            <Route path="documents" element={<AdminManageDocuments theme={theme} />} />
+            <Route path="audit-logs" element={<AdminAuditLogs />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Route>
@@ -234,7 +252,7 @@ const AppWrapper = () => {
         cancelText=""
         confirmButtonColor="bg-blue-600 hover:bg-blue-700"
       />
-      {showBanner && <CookieBanner onAccept={handleAcceptCookie} onDecline={handleDeclineCookie}/>} 
+      {showBanner && <CookieBanner onAccept={handleAcceptCookie} onDecline={handleDeclineCookie} />}
     </div>
   );
 };

@@ -9,9 +9,33 @@ const AdminSidebar = ({ userName, userEmail, userAvatar, isOpen, activePage, onC
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
   
-  const navLinks = [
-    { id: "dashboard", path: "/admin/dashboard", label: "Dashboard", icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a1 1 0 00-1-1H3a1 1 0 00-1 1v16a1 1 0 001 1h6a1 1 0 001-1V2zm4 18a1 1 0 001-1V9a1 1 0 00-1-1h-2a1 1 0 00-1 1v10a1 1 0 001 1h2z" /></svg> },
-    { id: "users", path: "/admin/users", label: "Manajemen Pengguna", icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zm-1.518 6.94a5.002 5.002 0 00-2.964 0A5 5 0 001 16.5V18a1 1 0 001 1h6a1 1 0 001-1v-1.5a5 5 0 00-4.518-4.56zM15.5 6a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm2 6a2 2 0 11-4 0 2 2 0 014 0zM15 13a5 5 0 00-2.48 1.002a5.987 5.987 0 00-1.02 0A5.002 5.002 0 0113 18v1h3.5v-1.5a5 5 0 00-1.5-3.5z" /></svg> },
+const navLinks = [
+    { 
+      id: "dashboard", 
+      path: "/admin/dashboard", 
+      label: "Dashboard", 
+      icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a1 1 0 00-1-1H3a1 1 0 00-1 1v16a1 1 0 001 1h6a1 1 0 001-1V2zm4 18a1 1 0 001-1V9a1 1 0 00-1-1h-2a1 1 0 00-1 1v10a1 1 0 001 1h2z" /></svg> 
+    },
+    { 
+      id: "users", 
+      path: "/admin/users", 
+      label: "Manajemen Pengguna", 
+      icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zm-1.518 6.94a5.002 5.002 0 00-2.964 0A5 5 0 001 16.5V18a1 1 0 001 1h6a1 1 0 001-1v-1.5a5 5 0 00-4.518-4.56zM15.5 6a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm2 6a2 2 0 11-4 0 2 2 0 014 0zM15 13a5 5 0 00-2.48 1.002a5.987 5.987 0 00-1.02 0A5.002 5.002 0 0113 18v1h3.5v-1.5a5 5 0 00-1.5-3.5z" /></svg> 
+    },
+    // [BARU] Menu Dokumen
+    { 
+      id: "documents", 
+      path: "/admin/documents", 
+      label: "Moderasi Dokumen", 
+      icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" /></svg> 
+    },
+
+    {
+       id: "audit-logs", 
+      path: "/admin/audit-logs", 
+      label: "Log", 
+      icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" /></svg> 
+    },
   ];
 
   const handleLogoutClick = () => setIsModalOpen(true);

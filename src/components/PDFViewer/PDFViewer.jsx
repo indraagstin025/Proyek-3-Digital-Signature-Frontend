@@ -3,8 +3,10 @@ import { Document, Page, pdfjs } from "react-pdf";
 import interact from "interactjs";
 import PlacedSignature from "../PlacedSignature/PlacedSignature";
 
+// Konfigurasi Worker PDF.js
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.js";
 
+// Helper Debounce untuk Resize
 function debounce(func, delay) {
   let timeout;
   return function (...args) {
@@ -15,7 +17,18 @@ function debounce(func, delay) {
 
 const MAX_PDF_WIDTH = 768;
 
-const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdateSignature, onDeleteSignature, savedSignatureUrl }) => {
+const PDFViewer = ({
+  documentTitle,
+  fileUrl,
+  signatures,
+  onAddSignature,
+  onUpdateSignature,
+  onDeleteSignature,
+  savedSignatureUrl,
+  readOnly = false, // Default false
+  // documentId, currentUser // (Opsional: Bisa dihapus jika PlacedSignature benar-benar tidak butuh lagi)
+  // Untuk saat ini saya biarkan props lain standard
+}) => {
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -31,6 +44,7 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
     setNumPages(nextNumPages);
   }
 
+  // --- RESPONSIVE LOGIC ---
   const checkResponsiveness = useCallback(() => {
     if (!containerRef.current) return;
 
@@ -63,6 +77,7 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
     return () => window.removeEventListener("resize", debouncedUpdateWidth);
   }, [checkResponsiveness]);
 
+  // --- INTERSECTION OBSERVER (Detect Page Scroll) ---
   useEffect(() => {
     if (isMobileOrPortrait) {
       if (observerRef.current) observerRef.current.disconnect();
@@ -85,15 +100,18 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
 
     observerRef.current = observer;
     const refs = pageRefs.current;
-    refs.forEach((pageElement) => { if (pageElement) observer.observe(pageElement); });
+    refs.forEach((pageElement) => {
+      if (pageElement) observer.observe(pageElement);
+    });
 
     return () => {
       if (observerRef.current) observerRef.current.disconnect();
     };
   }, [numPages, isMobileOrPortrait]);
 
-  // [FITUR] Tap to Sign (Ketuk untuk Tanda Tangan)
+  // --- INTERACTION LOGIC (Tap to Sign) ---
   const handleCanvasClick = (event, pageNumber) => {
+    if (readOnly) return; // Proteksi ReadOnly
     if (!savedSignatureUrl) return;
     if (!event.target.classList.contains("dropzone-overlay")) return;
 
@@ -103,51 +121,46 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
     const x_display = event.clientX - rect.left;
     const y_display = event.clientY - rect.top;
 
-    // [LOGIKA UKURAN KONSISTEN]
-    // Rumus: Ambil 25% lebar dokumen, tapi MINIMAL 140px.
-    const MIN_PIXEL_SIZE = 140; 
-    const IDEAL_RATIO = 0.25; // 25%
-    
+    const MIN_PIXEL_SIZE = 140;
+    const IDEAL_RATIO = 0.25;
+
     let calculatedWidth = Math.max(rect.width * IDEAL_RATIO, MIN_PIXEL_SIZE);
-    // Safety check: Jangan biarkan melebihi 60% lebar halaman HP agar tidak overflow
     calculatedWidth = Math.min(calculatedWidth, rect.width * 0.6);
 
     const DEFAULT_WIDTH = calculatedWidth;
-    const DEFAULT_HEIGHT = DEFAULT_WIDTH * 0.5; // Rasio 2:1
+    const DEFAULT_HEIGHT = DEFAULT_WIDTH * 0.5;
     const PADDING = 12;
 
-    const centeredX = x_display - (DEFAULT_WIDTH / 2);
-    const centeredY = y_display - (DEFAULT_HEIGHT / 2);
+    const centeredX = x_display - DEFAULT_WIDTH / 2;
+    const centeredY = y_display - DEFAULT_HEIGHT / 2;
 
-    // Hitung posisi relatif (inner content setelah padding)
     const realImageX = centeredX + PADDING;
     const realImageY = centeredY + PADDING;
-    const realWidth = DEFAULT_WIDTH - (PADDING * 2);
-    const realHeight = DEFAULT_HEIGHT - (PADDING * 2);
+    const realWidth = DEFAULT_WIDTH - PADDING * 2;
+    const realHeight = DEFAULT_HEIGHT - PADDING * 2;
 
     const newSignature = {
-        id: `sig-tap-${Date.now()}`,
-        signatureImageUrl: savedSignatureUrl,
-        pageNumber,
-        
-        // Data Tampilan (Outer Box)
-        x_display: centeredX,
-        y_display: centeredY,
-        width_display: DEFAULT_WIDTH,
-        height_display: DEFAULT_HEIGHT,
-
-        // Data Database (Persentase Relatif)
-        positionX: realImageX / rect.width,
-        positionY: realImageY / rect.height,
-        width: realWidth / rect.width,
-        height: realHeight / rect.height,
+      id: `sig-tap-${Date.now()}`,
+      signatureImageUrl: savedSignatureUrl,
+      pageNumber,
+      x_display: centeredX,
+      y_display: centeredY,
+      width_display: DEFAULT_WIDTH,
+      height_display: DEFAULT_HEIGHT,
+      positionX: realImageX / rect.width,
+      positionY: realImageY / rect.height,
+      width: realWidth / rect.width,
+      height: realHeight / rect.height,
     };
 
     onAddSignature(newSignature);
     if (navigator.vibrate) navigator.vibrate(50);
   };
 
+  // --- INTERACTION LOGIC (Drag & Drop from Outside/Modal) ---
   useEffect(() => {
+    if (readOnly) return; // Proteksi ReadOnly
+
     interact(".dropzone-overlay").dropzone({
       ondropactivate(event) {
         event.target.classList.remove("pointer-events-none");
@@ -165,16 +178,14 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
         const x_display = event.dragEvent.clientX - pageRect.left;
         const y_display = event.dragEvent.clientY - pageRect.top;
 
-        // [LOGIKA UKURAN KONSISTEN - SAMA DENGAN TAP]
-        const MIN_PIXEL_SIZE = 140; 
+        const MIN_PIXEL_SIZE = 140;
         const IDEAL_RATIO = 0.25;
-        
+
         let calculatedWidth = Math.max(pageRect.width * IDEAL_RATIO, MIN_PIXEL_SIZE);
         calculatedWidth = Math.min(calculatedWidth, pageRect.width * 0.6);
 
         const DEFAULT_WIDTH_DISPLAY = calculatedWidth;
         const DEFAULT_HEIGHT_DISPLAY = DEFAULT_WIDTH_DISPLAY * 0.5;
-        
         const PADDING = 12;
         const TOTAL_PADDING = 24;
 
@@ -215,7 +226,7 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
       },
     });
     return () => interact(".dropzone-overlay").unset();
-  }, [savedSignatureUrl, onAddSignature, onUpdateSignature]);
+  }, [savedSignatureUrl, onAddSignature, onUpdateSignature, readOnly]);
 
   const scrollToPage = (pageNum) => {
     const pageElement = pageRefs.current.get(pageNum);
@@ -230,10 +241,16 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
       {/* Header */}
       <div className={`flex-shrink-0 h-16 flex justify-between items-center p-4 border-b border-slate-200/80 dark:border-slate-700/50 z-10 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm ${!isMobileOrPortrait ? "rounded-t-xl" : "rounded-none"}`}>
         <div className="flex items-baseline gap-3 min-w-0">
-          {!isMobileOrPortrait && <span className="text-sm font-medium text-slate-500 dark:text-slate-400 flex-shrink-0">Nama Dokumen:</span>}
-          <h2 className="font-bold text-base md:text-lg text-slate-800 dark:text-white truncate">{documentTitle}</h2>
+          {!isMobileOrPortrait && (
+            <span className="text-sm font-medium text-slate-500 dark:text-slate-400 flex-shrink-0">
+              Nama Dokumen:
+            </span>
+          )}
+          <h2 className="font-bold text-base md:text-lg text-slate-800 dark:text-white truncate">
+            {documentTitle}
+          </h2>
         </div>
-        
+
         <p className="font-semibold text-sm text-slate-500 dark:text-slate-400 flex-shrink-0 ml-4">
           Hal {pageNumber} / {numPages || "--"}
         </p>
@@ -248,10 +265,19 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
               {Array.from(new Array(numPages || 0), (el, index) => (
                 <div
                   key={`thumb_${index + 1}`}
-                  className={`mb-2 cursor-pointer rounded-md overflow-hidden border-2 transition-all ${pageNumber === index + 1 ? "border-blue-500 shadow-md" : "border-transparent hover:border-blue-300 dark:hover:border-blue-700"}`}
+                  className={`mb-2 cursor-pointer rounded-md overflow-hidden border-2 transition-all ${
+                    pageNumber === index + 1
+                      ? "border-blue-500 shadow-md"
+                      : "border-transparent hover:border-blue-300 dark:hover:border-blue-700"
+                  }`}
                   onClick={() => scrollToPage(index + 1)}
                 >
-                  <Page pageNumber={index + 1} width={150} renderAnnotationLayer={false} renderTextLayer={false} />
+                  <Page
+                    pageNumber={index + 1}
+                    width={150}
+                    renderAnnotationLayer={false}
+                    renderTextLayer={false}
+                  />
                 </div>
               ))}
             </Document>
@@ -259,8 +285,18 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
         )}
 
         {/* Area PDF Utama */}
-        <div ref={containerRef} className={`flex-grow overflow-auto ${isMobileOrPortrait ? "p-2 pb-24" : "p-4"} flex justify-center`}> 
-          <Document file={fileUrl} onLoadSuccess={onDocumentLoadSuccess} loading={<p className="text-center mt-8">Memuat dokumen...</p>} error={<p className="text-center mt-8 text-red-500">Gagal memuat dokumen.</p>}>
+        <div
+          ref={containerRef}
+          className={`flex-grow overflow-auto ${
+            isMobileOrPortrait ? "p-2 pb-24" : "p-4"
+          } flex justify-center`}
+        >
+          <Document
+            file={fileUrl}
+            onLoadSuccess={onDocumentLoadSuccess}
+            loading={<p className="text-center mt-8">Memuat dokumen...</p>}
+            error={<p className="text-center mt-8 text-red-500">Gagal memuat dokumen.</p>}
+          >
             {Array.from(new Array(numPages || 0), (el, index) => (
               <div
                 key={`page_${index + 1}`}
@@ -269,21 +305,42 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
                   else pageRefs.current.delete(index + 1);
                 }}
                 data-page-number={index + 1}
-                className={`mb-6 ${isMobileOrPortrait ? "mx-auto" : "mb-8 flex justify-center"} relative`}
+                className={`mb-6 ${
+                  isMobileOrPortrait ? "mx-auto" : "mb-8 flex justify-center"
+                } relative`}
                 style={isMobileOrPortrait ? { width: `${containerWidth}px` } : {}}
               >
                 <div className="bg-white shadow-lg rounded-md border border-gray-200 overflow-hidden">
-                  <Page pageNumber={index + 1} width={containerWidth > 0 ? containerWidth : 600} height={isMobileOrPortrait && pageHeight > 0 ? pageHeight : undefined} renderTextLayer={false} renderAnnotationLayer={false} className="pointer-events-none" />
+                  <Page
+                    pageNumber={index + 1}
+                    width={containerWidth > 0 ? containerWidth : 600}
+                    height={
+                      isMobileOrPortrait && pageHeight > 0 ? pageHeight : undefined
+                    }
+                    renderTextLayer={false}
+                    renderAnnotationLayer={false}
+                    className="pointer-events-none"
+                  />
                 </div>
-                <div 
-                    className="dropzone-overlay absolute top-0 left-0 w-full h-full z-10 cursor-crosshair" 
-                    data-page-number={index + 1}
-                    onClick={(e) => handleCanvasClick(e, index + 1)}
+                
+                {/* Layer Interaksi (Klik & Drop) */}
+                <div
+                  className="dropzone-overlay absolute top-0 left-0 w-full h-full z-10 cursor-crosshair"
+                  data-page-number={index + 1}
+                  onClick={(e) => handleCanvasClick(e, index + 1)}
                 />
+
+                {/* Render Tanda Tangan */}
                 {signatures
                   .filter((sig) => sig.pageNumber === index + 1)
                   .map((sig) => (
-                    <PlacedSignature key={sig.id} signature={sig} onUpdate={onUpdateSignature} onDelete={onDeleteSignature} />
+                    <PlacedSignature
+                      key={sig.id}
+                      signature={sig}
+                      onUpdate={onUpdateSignature}
+                      onDelete={onDeleteSignature}
+                      readOnly={readOnly}
+                    />
                   ))}
               </div>
             ))}

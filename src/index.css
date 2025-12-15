@@ -1,40 +1,45 @@
-/* 1. Impor Font dan Tailwind v4 (Sesuai Konfigurasi Anda) */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Caveat&family=Dancing+Script&family=Sacramento&display=swap');
+/* 1. Impor Font dan Tailwind v4 */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Caveat&family=Dancing+Script&family=Sacramento&display=swap");
 
 @import "tailwindcss";
 
-/* 2. Tambahkan Custom Variant untuk Dark Mode */
+/* 2. Custom Variant */
 @custom-variant dark (&:where(.dark, .dark *));
 
-html, 
-body, 
+html,
+body,
 #root {
-    margin: 0 !important;
-    padding: 0 !important;
-    height: 100% !important; /* Tambahkan !important pada height juga */
-    width: 100% !important;
-    /* Opsional, untuk mencegah bug scroll horizontal dari luar */
-    overflow-x: hidden; 
+  margin: 0 !important;
+  padding: 0 !important;
+  height: 100% !important;
+  width: 100% !important;
+  overflow-x: hidden;
 }
 
 /* 3. Gaya Global */
 body {
-    @apply font-sans bg-gray-100 text-gray-900; /* default light mode */
-    font-family: 'Inter', sans-serif;
-    overflow-x: hidden;
+  @apply font-sans bg-slate-50 text-slate-900; /* Light Mode: Slate lebih bersih dari Gray */
+  font-family: "Inter", sans-serif;
+  overflow-x: hidden;
 }
 
+/* --- PERBAIKAN DARK MODE GLOBAL --- */
+/* Gunakan Gray-950 (Hampir hitam) agar aurora terlihat kontras */
+html.dark body {
+  @apply bg-slate-950 text-slate-100;
+}
+
+/* --- SCROLLBAR UTILITIES --- */
 .hide-scrollbar::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-    display: none;
+  width: 0;
+  height: 0;
+  display: none;
 }
 
-/* Sembunyikan scroll bar untuk Firefox dan IE/Edge lama */
 .hide-scrollbar {
-    scrollbar-width: none;
-    -ms-overflow-style: none; /* Hanya untuk IE/Edge lama */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 html::-webkit-scrollbar,
@@ -43,92 +48,72 @@ body::-webkit-scrollbar,
   display: none;
 }
 
+/* --- FONTS --- */
+.font-dancing-script { font-family: "Dancing Script", cursive; }
+.font-caveat { font-family: "Caveat", cursive; }
+.font-sacramento { font-family: "Sacramento", cursive; }
 
-.font-dancing-script {
-    font-family: 'Dancing Script', cursive;
-}
-
-.font-caveat {
-    font-family: 'Caveat', cursive;
-}
-
-.font-sacramento {
-    font-family: 'Sacramento', cursive;
-}
-
-/* Dark Mode Global */
-html.dark body {
-    @apply bg-gray-900 text-gray-100;
-}
-
-
-/* Aurora Background Dinamis */
+/* --- AURORA BACKGROUND (CSS VERSION) --- */
+/* Class ini berguna jika Anda tidak menggunakan Blob Tailwind di React */
 .aurora-bg {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image: 
-    radial-gradient(ellipse at 90% 10%, hsla(210, 90%, 70%, 0.25), transparent), /* Biru kanan atas */
-    radial-gradient(ellipse at 10% 90%, hsla(150, 80%, 55%, 0.2), transparent),  /* Hijau kiri bawah */
-    radial-gradient(ellipse at 50% 50%, hsla(180, 80%, 65%, 0.15), transparent); /* Cyan tengah */
-  filter: blur(40px);
+  inset: 0;
   z-index: 0;
+  filter: blur(60px); /* Blur lebih tinggi */
+  background-image: 
+    radial-gradient(at 90% 10%, hsla(210, 90%, 70%, 0.35), transparent 60%),
+    radial-gradient(at 10% 90%, hsla(150, 80%, 55%, 0.3), transparent 60%),
+    radial-gradient(at 50% 50%, hsla(180, 80%, 65%, 0.2), transparent 60%);
   animation: aurora-flow 20s infinite alternate;
 }
 
-/* Dark Mode Override */
+/* --- PERBAIKAN DARK MODE AURORA --- */
 .dark .aurora-bg {
+  /* KUNCI: Blend Mode Screen membuat warna 'menyala' di atas gelap */
+  mix-blend-mode: screen; 
+  filter: blur(100px); /* Blur sangat halus */
+  
   background-image: 
-    radial-gradient(ellipse at 90% 10%, hsla(220, 90%, 55%, 0.3), transparent),  /* Biru tua kanan atas */
-    radial-gradient(ellipse at 10% 90%, hsla(160, 80%, 40%, 0.25), transparent), /* Hijau zamrud kiri bawah */
-    radial-gradient(ellipse at 50% 50%, hsla(175, 70%, 45%, 0.15), transparent); /* Turquoise tengah */
+    /* Kanan Atas: Ungu/Biru Neon (Lebih Terang & Opacity Tinggi) */
+    radial-gradient(at 90% 10%, hsla(240, 90%, 65%, 0.4), transparent 70%),
+    
+    /* Kiri Bawah: Emerald/Hijau Neon */
+    radial-gradient(at 10% 90%, hsla(150, 90%, 50%, 0.4), transparent 70%),
+    
+    /* Tengah: Cyan/Biru Muda */
+    radial-gradient(at 50% 50%, hsla(190, 90%, 60%, 0.3), transparent 70%);
 }
 
-/* Animasi gerakan tetap sama */
 @keyframes aurora-flow {
-  0% { transform: translateX(-10%) translateY(-10%) scale(1.1); }
-  100% { transform: translateX(10%) translateY(10%) scale(0.9); }
+  0% { transform: scale(1) translate(0, 0); }
+  100% { transform: scale(1.1) translate(2%, 2%); }
 }
 
-
-/* Efek Border Bento Card */
+/* --- BENTO CARD & EFFECTS --- */
 .bento-card::before {
-    content: '';
-    @apply absolute inset-0 rounded-xl;
-    padding: 1px;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0));
-    -webkit-mask:
-            linear-gradient(#fff 0 0) content-box,
-            linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
+  content: "";
+  @apply absolute inset-0 rounded-xl;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
 }
 
-/* Efek hover untuk kartu */
 .bento-card {
-    @apply transition-transform duration-300 ease-in-out;
+  @apply transition-transform duration-300 ease-in-out;
 }
 .bento-card:hover {
-    @apply -translate-y-1;
+  @apply -translate-y-1;
 }
 
-/* Teks Gradien */
 .gradient-text {
-    background: linear-gradient(90deg, #3b82f6, #818cf8);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+  background: linear-gradient(90deg, #3b82f6, #818cf8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
-/* Animasi Scroll */
-.scroll-animate {
-    @apply opacity-0 translate-y-5 transition ease-out duration-700;
-}
-.scroll-animate.visible {
-    @apply opacity-100 translate-y-0;
-}
-
+/* --- ANIMATIONS --- */
 .scroll-animate {
   opacity: 0;
   transform: translateY(30px);
@@ -139,6 +124,26 @@ html.dark body {
   transform: translateY(0);
 }
 
+.animate-loading-bar {
+  animation: loading-bar 1.5s infinite linear;
+}
+
+@keyframes loading-bar {
+  0% { width: 0%; transform: translateX(-100%); }
+  50% { width: 50%; transform: translateX(0%); }
+  100% { width: 100%; transform: translateX(100%); }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* --- PDF & DRAG DROP --- */
 .pdf-page-wrapper {
   position: relative;
   margin: 1rem auto;
@@ -147,141 +152,94 @@ html.dark body {
 }
 
 .dropzone-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 10; 
-    pointer-events: none; /* Dinonaktifkan secara default */
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 10;
+  pointer-events: none;
 }
 
 .dragging-clone {
-    opacity: 0.7;
-    z-index: 9999;
-    position: absolute;
-    pointer-events: none;
-    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+  opacity: 0.7;
+  z-index: 9999;
+  position: absolute;
+  pointer-events: none;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
 }
 
 body.dragging-active,
 body.dragging-active * {
-    user-select: none !important;
-    -webkit-user-select: none !important;
-    -moz-user-select: none !important;
-    -ms-user-select: none !important;
-    cursor: grabbing !important;
+  user-select: none !important;
+  cursor: grabbing !important;
 }
 
-
-/* ========================================================== */
-/* A. KONTROL INTERAKSI SIGNATURE (PLACED-FIELD) */
-/* ========================================================== */
-/* ========================================================== */
-/* A. KONTROL INTERAKSI SIGNATURE (PLACED-FIELD) */
-/* ========================================================== */
-
+/* --- SIGNATURE FIELD (Placed Field) --- */
 .placed-field {
-    /* INTERACTJS SETUP */
-    touch-action: none; 
-    position: absolute;
-    
-    /* Z-INDEX & MARGIN */
-    z-index: 20; 
-    margin: 10px; /* Ruang aman untuk handle */
-    
-    /* STYLING BORDER */
-    border: 2px solid transparent; 
-    border-radius: 6px;
-    transition: border-color 0.15s ease-in-out; 
-    
-    /* PERFORMANCE: Mendorong Akselerasi GPU pada elemen induk */
-    transform: translate3d(0, 0, 0); 
+  touch-action: none;
+  position: absolute;
+  z-index: 20;
+  margin: 0; /* Hapus margin agar posisi akurat */
+  border: 2px solid transparent;
+  border-radius: 6px;
+  transition: border-color 0.15s ease-in-out;
+  transform: translate3d(0, 0, 0);
 }
 
-.placed-field.active-field {
-    border-color: #3b82f6; /* Aktif: Border Biru */
-}
-
+.placed-field.active-field,
 .placed-field:hover {
-    border-color: #3b82f6; /* Hover: Border Biru */
+  border-color: #3b82f6;
+  background-color: rgba(59, 130, 246, 0.05); /* Sedikit highlight biru saat hover */
 }
 
 .placed-field.is-dragging {
-    /* PERFORMANCE: Menonaktifkan visual berat saat drag */
-    box-shadow: none !important; 
-    opacity: 0.9;
+  box-shadow: none !important;
+  opacity: 0.8;
+  border-color: #3b82f6;
+  cursor: grabbing;
 }
 
-/* KUNCI: Membuat Tanda Tangan Realistis (Menghilangkan Canvas) */
 .placed-field .field-content {
-    padding: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    /* Transform 3D tidak lagi diperlukan di sini karena sudah ada di .placed-field */
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden; /* Pastikan gambar tidak keluar border */
 }
 
-.placed-field img {
-    background: transparent !important;
-}
-
-/* ========================================================== */
-/* B. HANDLE RESIZE */
-/* ========================================================== */
-
+/* --- RESIZE HANDLES --- */
 .placed-field .handle-resize {
-    position: absolute;
-    
-    /* ERGONOMI SENTUH */
-    width: 32px; 
-    height: 32px;
-    margin: -16px; /* Offset ke sudut */
-    
-    z-index: 50; 
-    pointer-events: auto; 
-    
-    /* STYLING VISUAL */
-    background: #3b82f6; 
-    border: 3px solid #ffffff; 
-    border-radius: 50%;
+  position: absolute;
+  width: 12px; /* Ukuran handle lebih proporsional */
+  height: 12px;
+  background: #3b82f6;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  z-index: 50;
+  /* Sembunyikan handle jika tidak aktif/hover untuk tampilan bersih */
+  opacity: 0; 
+  transition: opacity 0.2s;
 }
 
-/* Kursor dan Penempatan Handle */
-.placed-field .handle-resize.top-left { top: 0; left: 0; cursor: nwse-resize; }
-.placed-field .handle-resize.top-right { top: 0; right: 0; cursor: nesw-resize; }
-.placed-field .handle-resize.bottom-left { bottom: 0; left: 0; cursor: nesw-resize; }
-.placed-field .handle-resize.bottom-right { bottom: 0; right: 0; cursor: nwse-resize; }
+.placed-field:hover .handle-resize,
+.placed-field.active-field .handle-resize {
+  opacity: 1;
+}
 
-
-/* ========================================================== */
-/* C. TOOLBAR & OVERLAY */
-/* ========================================================== */
+/* Posisi Handle: Tempel di garis border (-6px setengah dari width 12px) */
+.placed-field .handle-resize.top-left { top: -6px; left: -6px; cursor: nwse-resize; }
+.placed-field .handle-resize.top-right { top: -6px; right: -6px; cursor: nesw-resize; }
+.placed-field .handle-resize.bottom-left { bottom: -6px; left: -6px; cursor: nesw-resize; }
+.placed-field .handle-resize.bottom-right { bottom: -6px; right: -6px; cursor: nwse-resize; }
 
 .field-toolbar {
-    /* Posisikan di luar area interaktif utama (di atas margin 10px) */
-    top: -20px; 
-    right: -20px;
-    z-index: 60; /* Paling atas */
-}
-
-
-/* index.css */
-
-@keyframes loading-bar {
-  0% { width: 0%; transform: translateX(-100%); }
-  50% { width: 50%; transform: translateX(0%); }
-  100% { width: 100%; transform: translateX(100%); }
-}
-
-.animate-loading-bar {
-  animation: loading-bar 1.5s infinite linear;
-}
-
-.animate-fade-in-up {
-  animation: fadeInUp 0.8s ease-out forwards;
-}
-
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  position: absolute;
+  top: -35px; /* Sedikit lebih jauh ke atas */
+  right: 0;
+  z-index: 60;
+  background: white;
+  border-radius: 6px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  padding: 4px;
+  display: flex;
+  gap: 4px;
 }
