@@ -110,39 +110,45 @@ export const signatureService = {
    * @param {boolean} isGroupDoc - [BARU] Status apakah ini dokumen grup
    * @param {boolean} includeQrCode - [BARU] Status apakah perlu QR Code (Opsional)
    */
-  async saveDraft(documentId, payload, isGroupDoc, includeQrCode) {
-    try {
-      // Kirim semua data yang diperlukan, termasuk isGroupDoc dan includeQrCode jika backend memprosesnya
-      // ASUMSI: Backend Anda hanya menerima 'documentId' di URL dan semua data lain di body
-      const fullPayload = { 
-        ...payload, 
-        isGroupDoc, 
-        includeQrCode 
-      };
+async saveDraft(documentId, payload, isGroupDoc, includeQrCode) {
+    try {
+      const fullPayload = { 
+        ...payload, 
+        isGroupDoc, 
+        includeQrCode 
+      };
       
-      const response = await apiClient.post(`signatures/draft/${documentId}`, fullPayload);
-      
-      return response.data.data;
-    } catch (error) {
-      console.error("❌ Error saveDraft:", error);
-      const message = error.response?.data?.message || "Gagal menyimpan posisi tanda tangan.";
-      throw new Error(message);
-    }
-},
+      const response = await apiClient.post(`signatures/draft/${documentId}`, fullPayload);
+      return response.data.data;
+    } catch (error) {
+      console.error("❌ Error saveDraft:", error);
+      const message = error.response?.data?.message || "Gagal menyimpan posisi tanda tangan.";
+      throw new Error(message);
+    }
+  },
 
   /**
    * [BARU] Mengupdate posisi tanda tangan saat digeser (Drag) atau diubah ukuran (Resize).
    * * @param {string} signatureId - ID Asli Database (Bukan 'sig-temp...')
    * @param {object} payload - { positionX, positionY, width, height, pageNumber }
    */
-  async updatePosition(signatureId, payload) {
+async updatePosition(signatureId, payload) {
     try {
       const response = await apiClient.patch(`signatures/${signatureId}/position`, payload);
       return response.data.data;
     } catch (error) {
+      // 🔥 PENANGANAN KHUSUS ERROR 404 🔥
+      // Jika 404, artinya data belum masuk DB (masih loading/race condition).
+      // Kita abaikan saja, jangan throw error merah.
+      if (error.response && error.response.status === 404) {
+        // console.warn opsional, bisa dihapus jika ingin console benar-benar bersih
+        // console.warn(`[Info] Update skipped: ID ${signatureId} not ready.`);
+        return null;
+      }
+
+      // Jika error lain (misal 500), baru kita log error merah
       console.error("❌ Error updatePosition:", error);
-      // Tidak perlu throw error blocking agar UX dragging tidak patah-patah
-      console.warn("Gagal update posisi di server (mungkin koneksi lambat).");
+      // Jangan throw error agar UX drag tidak patah
     }
   },
 
@@ -150,11 +156,17 @@ export const signatureService = {
    * [BARU] Menghapus draft tanda tangan dari database.
    * @param {string} signatureId - ID Asli Database
    */
-  async deleteSignature(signatureId) {
+async deleteSignature(signatureId) {
     try {
       await apiClient.delete(`signatures/${signatureId}`);
       return true;
     } catch (error) {
+      // 🔥 PENANGANAN KHUSUS ERROR 404 🔥
+      // Jika 404, artinya barang sudah tidak ada. Anggap sukses.
+      if (error.response && error.response.status === 404) {
+        return true; 
+      }
+
       console.error("❌ Error deleteSignature:", error);
       const message = error.response?.data?.message || "Gagal menghapus tanda tangan.";
       throw new Error(message);
