@@ -1,6 +1,7 @@
 // File: components/Group/AssignDocumentModal.jsx
 
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom'; // 1. Import createPortal
 import toast from "react-hot-toast";
 import { HiX, HiCheck, HiOutlineDocumentText } from 'react-icons/hi';
 import { ImSpinner9 } from 'react-icons/im';
@@ -11,8 +12,8 @@ import { useAssignDocumentToGroup } from '../../hooks/useGroups';
  * @param {boolean} isOpen - Tampilkan/sembunyikan modal
  * @param {function} onClose - Fungsi untuk menutup modal
  * @param {number} groupId - ID grup target
- * @param {Array} documentsAlreadyInGroup - Daftar dokumen yang sudah ada di grup (untuk filter)
- * @param {Array} members - Daftar anggota grup (untuk checklist signer)
+ * @param {Array} documentsAlreadyInGroup - Daftar dokumen yang sudah ada di grup
+ * @param {Array} members - Daftar anggota grup
  */
 export const AssignDocumentModal = ({ isOpen, onClose, groupId, documentsAlreadyInGroup = [], members = [] }) => {
   
@@ -20,29 +21,25 @@ export const AssignDocumentModal = ({ isOpen, onClose, groupId, documentsAlready
   const [selectedDocumentId, setSelectedDocumentId] = useState(null);
   const [selectedSigners, setSelectedSigners] = useState([]);
 
-  // 1. Ambil SEMUA dokumen milik user
+  // Ambil Data & Mutasi
   const { data: allMyDocuments, isLoading: isLoadingDocs } = useGetMyDocuments();
-  
-  // 2. Siapkan mutasi
   const { mutate: assignDocument, isPending: isAssigning } = useAssignDocumentToGroup();
 
-  // 3. Filter dokumen: Hanya tampilkan Draft yang BELUM masuk grup manapun
+  // Filter Dokumen
   const availableDocuments = useMemo(() => {
-    // Set ID dokumen yang sudah ada di grup ini
     const existingIds = new Set(documentsAlreadyInGroup.map(doc => doc.id));
-    
     return allMyDocuments?.filter(doc => 
-        !existingIds.has(doc.id) && // Belum ada di grup ini
-        !doc.groupId // Dan belum menjadi milik grup lain (Masih Draft Pribadi)
+        !existingIds.has(doc.id) && 
+        !doc.groupId 
     ) || [];
   }, [allMyDocuments, documentsAlreadyInGroup]);
 
-  // Handler Checkbox Anggota
+  // Handler Checkbox
   const handleCheckboxChange = (userId) => {
     setSelectedSigners((prev) =>
       prev.includes(userId)
-        ? prev.filter((id) => id !== userId) // Uncheck
-        : [...prev, userId] // Check
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId]
     );
   };
 
@@ -53,16 +50,14 @@ export const AssignDocumentModal = ({ isOpen, onClose, groupId, documentsAlready
       return;
     }
 
-    // Panggil mutasi dengan parameter lengkap
     assignDocument(
       { 
         groupId, 
         documentId: selectedDocumentId,
-        signerUserIds: selectedSigners // <-- Kirim checklist signer
+        signerUserIds: selectedSigners 
       },
       {
         onSuccess: () => {
-          // Reset State
           setSelectedDocumentId(null);
           setSelectedSigners([]);
           onClose(); 
@@ -73,9 +68,16 @@ export const AssignDocumentModal = ({ isOpen, onClose, groupId, documentsAlready
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] border border-slate-200 dark:border-slate-700">
+  // 2. Bungkus Konten Modal ke dalam variabel
+  const modalContent = (
+    <div 
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn"
+      onClick={onClose} // Menutup modal jika backdrop diklik
+    >
+      <div 
+        className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] border border-slate-200 dark:border-slate-700 transform transition-all scale-100"
+        onClick={(e) => e.stopPropagation()} // Mencegah klik di dalam modal menutup modal
+      >
         
         {/* Header Modal */}
         <div className="flex justify-between items-center p-5 border-b border-slate-200 dark:border-slate-700">
@@ -133,7 +135,7 @@ export const AssignDocumentModal = ({ isOpen, onClose, groupId, documentsAlready
                 )}
             </div>
 
-            {/* BAGIAN 2: PILIH SIGNER (Hanya muncul jika dokumen sudah dipilih) */}
+            {/* BAGIAN 2: PILIH SIGNER */}
             {selectedDocumentId && (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
                     <div className="border-t border-slate-200 dark:border-slate-700 my-4"></div>
@@ -204,4 +206,7 @@ export const AssignDocumentModal = ({ isOpen, onClose, groupId, documentsAlready
       </div>
     </div>
   );
+
+  // 3. Render ke document.body
+  return createPortal(modalContent, document.body);
 };

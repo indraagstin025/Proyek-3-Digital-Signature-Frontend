@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useUploadGroupDocument } from "../../hooks/useGroups"; // Sesuaikan path hook Anda
+import { createPortal } from "react-dom"; // 1. Import createPortal
+import { useUploadGroupDocument } from "../../hooks/useGroups"; 
 import { HiOutlineUpload, HiX, HiUserGroup, HiCheck } from "react-icons/hi";
 import { ImSpinner9 } from "react-icons/im";
 
@@ -10,7 +11,7 @@ export const UploadGroupDocumentModal = ({ isOpen, onClose, groupId, members = [
   // State untuk menyimpan ID anggota yang dipilih (Checklist)
   const [selectedSigners, setSelectedSigners] = useState([]);
 
-  // Hook Mutation yang sudah Anda buat
+  // Hook Mutation
   const { mutate: uploadDoc, isPending } = useUploadGroupDocument();
 
   // Reset form saat modal dibuka/tutup
@@ -26,10 +27,8 @@ export const UploadGroupDocumentModal = ({ isOpen, onClose, groupId, members = [
   const handleToggleSigner = (userId) => {
     setSelectedSigners((prev) => {
       if (prev.includes(userId)) {
-        // Uncheck
         return prev.filter((id) => id !== userId);
       } else {
-        // Check
         return [...prev, userId];
       }
     });
@@ -38,35 +37,32 @@ export const UploadGroupDocumentModal = ({ isOpen, onClose, groupId, members = [
   // Pilih Semua Anggota
   const handleSelectAll = () => {
     if (selectedSigners.length === members.length) {
-      setSelectedSigners([]); // Unselect All
+      setSelectedSigners([]); 
     } else {
-      setSelectedSigners(members.map(m => m.userId)); // Select All
+      setSelectedSigners(members.map(m => m.userId)); 
     }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Validasi Sederhana
     if (!file) return alert("Pilih file PDF terlebih dahulu.");
     if (!title.trim()) return alert("Judul dokumen wajib diisi.");
     
-    // [PENTING] Validasi Minimal 1 Signer (Sesuai Logic Backend/Controller Anda)
     if (selectedSigners.length === 0) {
       return alert("Harap pilih minimal satu anggota yang harus tanda tangan.");
     }
 
-    // Panggil Mutation
     uploadDoc(
       { 
         groupId, 
         file, 
         title, 
-        signerUserIds: selectedSigners // <--- Array ini yang akan memicu Notifikasi WA
+        signerUserIds: selectedSigners 
       },
       {
         onSuccess: () => {
-          onClose(); // Tutup modal jika sukses
+          onClose(); 
         },
       }
     );
@@ -74,9 +70,16 @@ export const UploadGroupDocumentModal = ({ isOpen, onClose, groupId, members = [
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-slate-800 w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col max-h-[90vh]">
+  // 2. Bungkus Konten Modal ke dalam variabel
+  const modalContent = (
+    <div 
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn"
+      onClick={onClose} // Klik backdrop = tutup modal
+    >
+      <div 
+        className="bg-white dark:bg-slate-800 w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col max-h-[90vh] transform transition-all scale-100"
+        onClick={(e) => e.stopPropagation()} // Cegah klik dalam modal menutup modal
+      >
         
         {/* Header */}
         <div className="flex justify-between items-center p-5 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800">
@@ -119,7 +122,7 @@ export const UploadGroupDocumentModal = ({ isOpen, onClose, groupId, members = [
                   accept="application/pdf"
                   onChange={(e) => setFile(e.target.files[0])}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  required
+                  required={!file} // Hanya required jika file belum ada
                 />
                 <div className="flex flex-col items-center justify-center gap-2 pointer-events-none">
                    {file ? (
@@ -220,4 +223,7 @@ export const UploadGroupDocumentModal = ({ isOpen, onClose, groupId, members = [
       </div>
     </div>
   );
+
+  // 3. Render ke document.body
+  return createPortal(modalContent, document.body);
 };
