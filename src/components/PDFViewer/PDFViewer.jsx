@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import interact from "interactjs";
+import { FaSpinner, FaExclamationTriangle } from "react-icons/fa"; // [1] Import Icon
 import PlacedSignature from "../PlacedSignature/PlacedSignature";
 
 // Konfigurasi Worker PDF.js
@@ -17,6 +18,18 @@ function debounce(func, delay) {
 
 const MAX_PDF_WIDTH = 768;
 
+// [2] KOMPONEN SKELETON (Kotak Abu-abu Berkedip)
+const PDFPageSkeleton = () => (
+  <div className="w-full bg-white dark:bg-slate-700 shadow-md rounded-md border border-slate-200 dark:border-slate-600 overflow-hidden relative">
+    {/* Aspect Ratio A4 (kira-kira 1 : 1.41) */}
+    <div className="pt-[141%] w-full relative animate-pulse bg-slate-200 dark:bg-slate-600">
+       <div className="absolute inset-0 flex items-center justify-center">
+          <FaSpinner className="animate-spin text-slate-400 text-4xl opacity-50" />
+       </div>
+    </div>
+  </div>
+);
+
 const PDFViewer = ({
   documentTitle,
   fileUrl,
@@ -25,9 +38,7 @@ const PDFViewer = ({
   onUpdateSignature,
   onDeleteSignature,
   savedSignatureUrl,
-  readOnly = false, // Default false
-  // documentId, currentUser // (Opsional: Bisa dihapus jika PlacedSignature benar-benar tidak butuh lagi)
-  // Untuk saat ini saya biarkan props lain standard
+  readOnly = false,
 }) => {
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
@@ -77,7 +88,7 @@ const PDFViewer = ({
     return () => window.removeEventListener("resize", debouncedUpdateWidth);
   }, [checkResponsiveness]);
 
-  // --- INTERSECTION OBSERVER (Detect Page Scroll) ---
+  // --- INTERSECTION OBSERVER ---
   useEffect(() => {
     if (isMobileOrPortrait) {
       if (observerRef.current) observerRef.current.disconnect();
@@ -109,9 +120,9 @@ const PDFViewer = ({
     };
   }, [numPages, isMobileOrPortrait]);
 
-  // --- INTERACTION LOGIC (Tap to Sign) ---
+  // --- TAP TO SIGN ---
   const handleCanvasClick = (event, pageNumber) => {
-    if (readOnly) return; // Proteksi ReadOnly
+    if (readOnly) return;
     if (!savedSignatureUrl) return;
     if (!event.target.classList.contains("dropzone-overlay")) return;
 
@@ -157,9 +168,9 @@ const PDFViewer = ({
     if (navigator.vibrate) navigator.vibrate(50);
   };
 
-  // --- INTERACTION LOGIC (Drag & Drop from Outside/Modal) ---
+  // --- DRAG & DROP ---
   useEffect(() => {
-    if (readOnly) return; // Proteksi ReadOnly
+    if (readOnly) return;
 
     interact(".dropzone-overlay").dropzone({
       ondropactivate(event) {
@@ -239,16 +250,14 @@ const PDFViewer = ({
   return (
     <div className="w-full h-full relative bg-white dark:bg-slate-800/50 shadow-lg rounded-xl flex flex-col">
       {/* Header */}
-      <div className={`flex-shrink-0 h-16 flex justify-between items-center p-4 border-b border-slate-200/80 dark:border-slate-700/50 z-10 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm ${!isMobileOrPortrait ? "rounded-t-xl" : "rounded-none"}`}>
+      <div
+        className={`flex-shrink-0 h-16 flex justify-between items-center p-4 border-b border-slate-200/80 dark:border-slate-700/50 z-10 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm ${
+          !isMobileOrPortrait ? "rounded-t-xl" : "rounded-none"
+        }`}
+      >
         <div className="flex items-baseline gap-3 min-w-0">
-          {!isMobileOrPortrait && (
-            <span className="text-sm font-medium text-slate-500 dark:text-slate-400 flex-shrink-0">
-              Nama Dokumen:
-            </span>
-          )}
-          <h2 className="font-bold text-base md:text-lg text-slate-800 dark:text-white truncate">
-            {documentTitle}
-          </h2>
+          {!isMobileOrPortrait && <span className="text-sm font-medium text-slate-500 dark:text-slate-400 flex-shrink-0">Nama Dokumen:</span>}
+          <h2 className="font-bold text-base md:text-lg text-slate-800 dark:text-white truncate">{documentTitle}</h2>
         </div>
 
         <p className="font-semibold text-sm text-slate-500 dark:text-slate-400 flex-shrink-0 ml-4">
@@ -261,22 +270,30 @@ const PDFViewer = ({
         {/* Sidebar Thumbnail (Desktop Only) */}
         {!isMobileOrPortrait && (
           <div className="w-48 overflow-y-auto bg-slate-100/50 dark:bg-slate-900/50 border-r border-slate-200/80 dark:border-slate-700 p-2 flex-shrink-0">
-            <Document file={fileUrl} loading="">
+            <Document 
+                file={fileUrl} 
+                // [3] Loading Skeleton Sidebar
+                loading={
+                    <div className="space-y-3">
+                        {[1,2,3,4].map(i => (
+                            <div key={i} className="h-32 bg-slate-200 dark:bg-slate-700 animate-pulse rounded-md border border-slate-300 dark:border-slate-600"></div>
+                        ))}
+                    </div>
+                }
+            >
               {Array.from(new Array(numPages || 0), (el, index) => (
                 <div
                   key={`thumb_${index + 1}`}
-                  className={`mb-2 cursor-pointer rounded-md overflow-hidden border-2 transition-all ${
-                    pageNumber === index + 1
-                      ? "border-blue-500 shadow-md"
-                      : "border-transparent hover:border-blue-300 dark:hover:border-blue-700"
-                  }`}
+                  className={`mb-2 cursor-pointer rounded-md overflow-hidden border-2 transition-all ${pageNumber === index + 1 ? "border-blue-500 shadow-md" : "border-transparent hover:border-blue-300 dark:hover:border-blue-700"}`}
                   onClick={() => scrollToPage(index + 1)}
                 >
-                  <Page
-                    pageNumber={index + 1}
-                    width={150}
-                    renderAnnotationLayer={false}
+                  <Page 
+                    pageNumber={index + 1} 
+                    width={150} 
+                    renderAnnotationLayer={false} 
                     renderTextLayer={false}
+                    // Loading per thumbnail
+                    loading={<div className="h-32 bg-slate-200 dark:bg-slate-700 animate-pulse" />} 
                   />
                 </div>
               ))}
@@ -285,64 +302,69 @@ const PDFViewer = ({
         )}
 
         {/* Area PDF Utama */}
-        <div
-          ref={containerRef}
-          className={`flex-grow overflow-auto ${
-            isMobileOrPortrait ? "p-2 pb-24" : "p-4"
-          } flex justify-center`}
-        >
-          <Document
-            file={fileUrl}
-            onLoadSuccess={onDocumentLoadSuccess}
-            loading={<p className="text-center mt-8">Memuat dokumen...</p>}
-            error={<p className="text-center mt-8 text-red-500">Gagal memuat dokumen.</p>}
-          >
-            {Array.from(new Array(numPages || 0), (el, index) => (
-              <div
-                key={`page_${index + 1}`}
-                ref={(node) => {
-                  if (node) pageRefs.current.set(index + 1, node);
-                  else pageRefs.current.delete(index + 1);
-                }}
-                data-page-number={index + 1}
-                className={`mb-6 ${
-                  isMobileOrPortrait ? "mx-auto" : "mb-8 flex justify-center"
-                } relative`}
-                style={isMobileOrPortrait ? { width: `${containerWidth}px` } : {}}
-              >
-                <div className="bg-white shadow-lg rounded-md border border-gray-200 overflow-hidden">
-                  <Page
-                    pageNumber={index + 1}
-                    width={containerWidth > 0 ? containerWidth : 600}
-                    height={
-                      isMobileOrPortrait && pageHeight > 0 ? pageHeight : undefined
-                    }
-                    renderTextLayer={false}
-                    renderAnnotationLayer={false}
-                    className="pointer-events-none"
-                  />
+        <div ref={containerRef} className={`flex-grow overflow-auto ${isMobileOrPortrait ? "p-2 pb-24" : "p-4"} flex justify-center`}>
+          <Document 
+            file={fileUrl} 
+            onLoadSuccess={onDocumentLoadSuccess} 
+            // [4] Loading Utama (Spinner Besar)
+            loading={
+                <div className="flex flex-col items-center mt-20 space-y-4">
+                     <FaSpinner className="text-4xl text-blue-500 animate-spin" />
+                     <p className="text-slate-500 dark:text-slate-400 font-medium">Memproses dokumen...</p>
                 </div>
-                
-                {/* Layer Interaksi (Klik & Drop) */}
-                <div
-                  className="dropzone-overlay absolute top-0 left-0 w-full h-full z-10 cursor-crosshair"
-                  data-page-number={index + 1}
-                  onClick={(e) => handleCanvasClick(e, index + 1)}
-                />
+            } 
+            error={
+                <div className="flex flex-col items-center mt-20 text-red-500 bg-red-50 dark:bg-red-900/10 p-6 rounded-xl border border-red-200 dark:border-red-800">
+                    <FaExclamationTriangle className="text-4xl mb-2" />
+                    <p className="font-bold">Gagal memuat dokumen.</p>
+                    <p className="text-sm opacity-80 mt-1">Pastikan file PDF valid dan tidak rusak.</p>
+                </div>
+            }
+          >
+            {/* [5] LOGIKA PENTING: Jika numPages belum ada, render array [1] agar Skeleton muncul */}
+            {(numPages ? Array.from(new Array(numPages), (el, index) => index + 1) : [1]).map((pageNum) => (
+               
+               numPages ? (
+                  // KONDISI A: Dokumen sudah siap, render halaman asli
+                  <div
+                    key={`page_${pageNum}`}
+                    ref={(node) => {
+                      if (node) pageRefs.current.set(pageNum, node);
+                      else pageRefs.current.delete(pageNum);
+                    }}
+                    data-page-number={pageNum}
+                    className={`mb-6 ${isMobileOrPortrait ? "mx-auto" : "mb-8 flex justify-center"} relative`}
+                    style={isMobileOrPortrait ? { width: `${containerWidth}px` } : {}}
+                  >
+                    <div className="bg-white shadow-lg rounded-md border border-gray-200 overflow-hidden min-h-[400px]">
+                      <Page
+                        pageNumber={pageNum}
+                        width={containerWidth > 0 ? containerWidth : 600}
+                        height={isMobileOrPortrait && pageHeight > 0 ? pageHeight : undefined}
+                        renderTextLayer={false}
+                        renderAnnotationLayer={false}
+                        className="pointer-events-none"
+                        // Loading Halaman Spesifik
+                        loading={<PDFPageSkeleton />}
+                      />
+                    </div>
 
-                {/* Render Tanda Tangan */}
-                {signatures
-                  .filter((sig) => sig.pageNumber === index + 1)
-                  .map((sig) => (
-                    <PlacedSignature
-                      key={sig.id}
-                      signature={sig}
-                      onUpdate={onUpdateSignature}
-                      onDelete={onDeleteSignature}
-                      readOnly={readOnly}
-                    />
-                  ))}
-              </div>
+                    {/* Layer Interaksi (Klik & Drop) */}
+                    <div className="dropzone-overlay absolute top-0 left-0 w-full h-full z-10 cursor-crosshair" data-page-number={pageNum} onClick={(e) => handleCanvasClick(e, pageNum)} />
+
+                    {/* Render Tanda Tangan */}
+                    {signatures
+                      .filter((sig) => sig.pageNumber === pageNum)
+                      .map((sig) => (
+                        <PlacedSignature key={sig.id} signature={sig} onUpdate={onUpdateSignature} onDelete={onDeleteSignature} readOnly={readOnly} />
+                      ))}
+                  </div>
+               ) : (
+                  // KONDISI B: Masih loading awal (numPages null), render Skeleton Dummy
+                  <div key="skeleton-loader" className={`mb-6 ${isMobileOrPortrait ? "mx-auto" : "mb-8 flex justify-center"} w-full max-w-2xl`}>
+                       <PDFPageSkeleton />
+                  </div>
+               )
             ))}
           </Document>
         </div>

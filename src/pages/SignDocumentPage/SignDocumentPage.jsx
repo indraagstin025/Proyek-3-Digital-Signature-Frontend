@@ -44,10 +44,11 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
     isSignedSuccess,
     setIsSignedSuccess,
     isLoadingDoc,
-    isGroupDoc // API mungkin tetap mendeteksi ini grup, kita bisa gunakan untuk redirect
+    isGroupDoc,
+    // documentType // [OPSIONAL] Jika hook ini mengembalikan tipe dokumen dari DB, bisa diambil disini
   } = useDocumentDetail(documentId, contextData, refreshKey);
 
-  // Jika user membuka URL halaman personal untuk dokumen group, redirect ke halaman group
+  // Redirect Logic untuk Dokumen Group
   useEffect(() => {
     if (!isLoadingDoc && isGroupDoc) {
         toast("Mengalihkan ke mode Grup...", { icon: "👥" });
@@ -55,11 +56,11 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
     }
   }, [isGroupDoc, isLoadingDoc, navigate, documentId]);
 
-  // 2. Hook Signature Manager (MATIKAN SOCKET dengan isGroupDoc={false})
+  // 2. Hook Signature Manager
   const {
     signatures,
     isSaving,
-    isAnalyzing,
+    isAnalyzing, // Pastikan ini terambil
     aiData,
     handleAddSignature,
     handleUpdateSignature,
@@ -71,10 +72,19 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
     documentId,
     documentVersionId,
     currentUser,
-    isGroupDoc: false, // <--- PENTING: Matikan WebSocket & logic grup
+    isGroupDoc: false, 
     refreshKey,
     onRefreshRequest: () => setRefreshKey(prev => prev + 1)
   });
+
+  // [PERBAIKAN UTAMA DISINI]
+  // Buka modal jika SEDANG ANALISIS (Loading) ATAU jika DATA SUDAH ADA
+  // Ini memastikan robot loading muncul saat tombol diklik
+  useEffect(() => {
+    if (isAnalyzing || aiData) {
+      setIsAiModalOpen(true);
+    }
+  }, [isAnalyzing, aiData]);
 
   // Handlers
   const onSaveFromModal = useCallback((dataUrl) => {
@@ -99,7 +109,6 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
   };
 
   const handleNavigateToView = () => navigate(`/documents/${documentId}/view`);
-  useEffect(() => { if(aiData) setIsAiModalOpen(true); }, [aiData]);
 
   // Render menggunakan Layout
   return (
@@ -114,7 +123,7 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
       canSign={canSign}
       isSignedSuccess={isSignedSuccess}
       isSaving={isSaving}
-      isAnalyzing={isAnalyzing}
+      isAnalyzing={isAnalyzing} // Kirim status loading ke Layout/Modal
       
       theme={theme}
       toggleTheme={toggleTheme}
@@ -128,7 +137,7 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
       isPortrait={isPortrait}
       includeQrCode={includeQrCode}
       setIncludeQrCode={setIncludeQrCode}
-      aiData={aiData}
+      aiData={aiData} // Data hasil analisis
 
       onAddDraft={onAddDraft}
       onUpdateSignature={handleUpdateSignature}

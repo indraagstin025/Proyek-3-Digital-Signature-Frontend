@@ -96,7 +96,7 @@ export const signatureService = {
   async analyzeDocument(documentId) {
     try {
       const response = await apiClient.post(`documents/${documentId}/analyze`);
-      return response.data;
+      return response.data.data;
     } catch (error) {
       console.error("❌ Error analyzeDocument:", error);
       throw new Error(error.response?.data?.message || "Gagal menganalisis dokumen.");
