@@ -1,7 +1,9 @@
+// file: src/pages/DashboardPage/DashboardPage.jsx (atau DashboardOverview)
 import React, { useState, useEffect, useRef } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { userService } from "../../services/userService";
-import toast from "react-hot-toast";
+// [1] IMPORT Toaster
+import toast, { Toaster } from "react-hot-toast";
 
 import Sidebar from "../../components/Sidebar/Sidebar.jsx";
 import DashboardHeader from "../../components/DashboardHeader/DashboardHeader.jsx";
@@ -20,11 +22,9 @@ const DashboardPage = ({ theme, toggleTheme }) => {
 
   const [pendingToken, setPendingToken] = useState(null);
   const [userError, setUserError] = useState("");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(() => 
-    typeof window !== "undefined" && window.innerWidth >= 1024
-  );
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1024);
 
-  // --- Effects (Sama seperti sebelumnya) ---
+  // --- Effects ---
   useEffect(() => {
     const message = location.state?.message;
     if (message && !toastShownRef.current) {
@@ -82,38 +82,31 @@ const DashboardPage = ({ theme, toggleTheme }) => {
   const activePage = getActivePageFromPath(location.pathname);
 
   return (
-    // FIX 1: BACKGROUND BASE (SAMA DENGAN HERO SECTION)
-    // Gunakan gradasi slate-900 -> slate-800 -> slate-900 agar blob terlihat kontras
-    <div className="flex h-screen w-full overflow-hidden relative 
+    <div
+      className="flex h-screen w-full overflow-hidden relative 
                     bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 
                     dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 
-                    transition-colors duration-300">
-      
-      {/* FIX 2: AURORA BLOB (COPY PASTE DARI HERO SECTION) */}
-      {/* z-0 agar di paling belakang, pointer-events-none agar tidak menghalangi klik */}
+                    transition-colors duration-300"
+    >
+      {/* [2] PASANG TOASTER GLOBAL DI SINI */}
+      {/* zIndex 99999 (5 angka 9) menjamin selalu di atas Modal (biasanya 9999) */}
+      <Toaster 
+        position="top-center" 
+        containerStyle={{ 
+           zIndex: 99999 
+        }} 
+      />
+
+      {/* Background Blobs */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-        {/* Blob Hijau (Kiri Atas) */}
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-green-400/30 rounded-full blur-3xl animate-pulse"></div>
-        
-        {/* Blob Biru (Kanan Bawah) */}
         <div className="absolute bottom-0 right-0 w-[28rem] h-[28rem] bg-blue-500/30 rounded-full blur-3xl animate-pulse delay-2000"></div>
-        
-        {/* Blob Ungu (Tengah - Opsional, untuk layar lebar) */}
         <div className="hidden lg:block absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
       </div>
 
       {pendingToken && <AcceptInviteLinks token={pendingToken} onDone={handleInviteDone} />}
 
-      {/* Sidebar z-50 agar di atas aurora */}
-      <Sidebar 
-        userName={userData?.name} 
-        userEmail={userData?.email} 
-        userAvatar={userData?.profilePictureUrl} 
-        isOpen={isSidebarOpen} 
-        activePage={activePage} 
-        onClose={() => setIsSidebarOpen(false)} 
-        theme={theme} 
-      />
+      <Sidebar userName={userData?.name} userEmail={userData?.email} userAvatar={userData?.profilePictureUrl} isOpen={isSidebarOpen} activePage={activePage} onClose={() => setIsSidebarOpen(false)} theme={theme} />
 
       <div
         className={`
@@ -122,15 +115,8 @@ const DashboardPage = ({ theme, toggleTheme }) => {
           ml-0 ${isSidebarOpen ? "lg:ml-64" : "lg:ml-0"} 
           relative z-10 
         `}
-        /* z-10 di sini penting agar konten dashboard naik di atas layer aurora */
       >
-        <DashboardHeader 
-          activePage={activePage} 
-          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
-          isSidebarOpen={isSidebarOpen} 
-          theme={theme} 
-          toggleTheme={toggleTheme} 
-        />
+        <DashboardHeader activePage={activePage} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} isSidebarOpen={isSidebarOpen} theme={theme} toggleTheme={toggleTheme} />
 
         {/* MAIN CONTENT */}
         <main className="flex-1 pt-20 h-full overflow-hidden flex flex-col relative">

@@ -1,22 +1,21 @@
+// file: src/pages/DashboardDocuments/DashboardDocuments.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Toaster, toast } from "react-hot-toast";
+// [1] Hapus 'Toaster' dari import, sisakan 'toast'
+import { toast } from "react-hot-toast"; 
 import { FaPlus, FaSpinner, FaFileAlt } from "react-icons/fa";
 
-// Hooks
+// ... imports lainnya (Hooks, Components, Modals) ...
 import { useDashboardDocuments } from "../../hooks/useDashboardDocuments";
-
-// Components
 import DocumentFilters from "../../components/DashboardDocuments/DocumentFilters";
 import DocumentCard from "../../components/DashboardDocuments/DocumentCard.jsx";
 import BatchActionBar from "../../components/DashboardDocuments/BatchActionBar";
-
-// Modals
 import ViewDocumentModal from "../../components/ViewDocumentModal/ViewDocumentModal.jsx";
 import DocumentManagementModal from "../../components/DocumentManagementModal/DocumentManagementModal.jsx";
 import ConfirmationModal from "../../components/ConfirmationModal/ConfirmationModal.jsx";
 
 const DashboardDocuments = () => {
+  // ... (Semua logic hook & state TETAP SAMA) ...
   const {
     personalDocuments,
     groupDocuments,
@@ -46,26 +45,16 @@ const DashboardDocuments = () => {
   
   const navigate = useNavigate();
 
-  // --- Helpers ---
-
-  // [FITUR BARU] Smart Navigation Handler
-  // Logic: Parent yang menentukan rute, bukan Child (Card)
+  // ... (Semua helpers TETAP SAMA) ...
   const handleSmartNavigation = (doc, action = 'sign') => {
-    
-    // 1. Jika aksinya 'view', arahkan ke halaman view standar
     if (action === 'view') {
       navigate(`/documents/${doc.id}/view`);
       return;
     }
-
-    // 2. Jika aksinya 'sign' (default), cek tipe dokumen
     const isGroupDoc = doc.groupId || (doc.group && doc.group.id);
-
     if (isGroupDoc) {
-      // --> Arahkan ke Halaman Group (Connect Socket)
       navigate(`/documents/${doc.id}/group-sign`);
     } else {
-      // --> Arahkan ke Halaman Personal (Canvas)
       navigate(`/documents/${doc.id}/sign`);
     }
   };
@@ -93,7 +82,7 @@ const DashboardDocuments = () => {
   };
 
   const formatDate = (dateString) => new Date(dateString).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
-
+  
   const getStatusClass = (status) => {
     switch ((status || "").toLowerCase()) {
       case "completed": return "bg-emerald-100 text-emerald-700 border-emerald-200";
@@ -117,10 +106,11 @@ const DashboardDocuments = () => {
   return (
     <div className="h-full w-full overflow-y-auto custom-scrollbar relative bg-transparent">
       
-      <Toaster position="top-center" containerStyle={{ zIndex: 9999 }} />
-
+      {/* [PENTING] HAPUS KOMPONEN <Toaster /> DARI SINI AGAR TIDAK KONFLIK */}
+      
       {/* --- STICKY HEADER SECTION --- */}
       <div className="sticky top-0 z-30 px-3 sm:px-8 pt-2 sm:pt-4 pb-2">
+        {/* ... (Isi Header Tetap Sama) ... */}
         <div className="absolute inset-0 bg-gray-50/95 dark:bg-slate-900/95 backdrop-blur-md -z-10 shadow-sm border-b border-gray-200/50 dark:border-slate-700/50 transition-colors duration-300" />
 
         <div className="bg-white/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 shadow-sm rounded-xl sm:rounded-2xl p-4 sm:p-6 transition-all">
@@ -210,7 +200,6 @@ const DashboardDocuments = () => {
                     doc={doc}
                     isSelected={selectedDocIds.has(doc.id)}
                     
-                    // ✅ UPDATE: Mengirim Action Type (sign/view), bukan Path
                     onNavigate={(action) => handleSmartNavigation(doc, action)}
                     
                     onToggle={toggleDocumentSelection}

@@ -79,30 +79,27 @@ export const useDashboardDocuments = () => {
    * Karena Backend SUDAH mereset status signer menjadi PENDING saat rollback,
    * kita bisa percaya penuh pada status dokumen dari database.
    */
-  const getDerivedStatus = useCallback((doc) => {
-    // A. Status Global Dokumen (completed, draft, pending)
+const getDerivedStatus = useCallback((doc) => {
     const globalStatus = doc.status;
 
-    // B. Logika Nuansa (Opsional): 
-    // Jika pending, apakah "Giliran Saya" atau "Menunggu Orang Lain"?
-    
-    if (globalStatus === 'pending' && currentUser) {
-        // Cari request tanda tangan user ini
+    // Untuk Group Document yang statusnya 'pending', kita perlu tahu apakah user perlu action atau waiting
+    if (doc.groupId && globalStatus === 'pending' && currentUser) {
+        // Cari request user
         const myRequest = doc.signerRequests?.find(req => req.userId === currentUser.id);
 
-        // Jika saya sudah tanda tangan TAPI dokumen belum completed -> Waiting
-        if (myRequest?.status === 'SIGNED') {
-            return 'waiting'; // Bisa digunakan untuk styling warna kuning/abu
+        if (myRequest) {
+            // Jika saya belum sign -> Action Needed
+            if (myRequest.status === 'PENDING') return 'action_needed';
+            
+            // Jika saya SUDAH sign, tapi teman lain belum -> Waiting
+            if (myRequest.status === 'SIGNED') return 'waiting';
         }
         
-        // Jika saya belum tanda tangan -> Action Needed
-        if (myRequest?.status === 'PENDING') {
-            return 'action_needed'; // Bisa digunakan untuk styling warna merah/hijau
-        }
+        // Jika saya bukan signer di dokumen group ini (misal hanya member), return pending biasa
+        return 'pending';
     }
 
-    // Default: Kembalikan status asli dari DB (completed, draft, pending)
-    // Frontend (DocumentCard) biasanya map 'waiting' -> 'pending' secara visual jika tidak ada class khusus
+    // Default Personal / Package
     return globalStatus;
   }, [currentUser]);
 
