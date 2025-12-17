@@ -2,25 +2,15 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "react-hot-toast";
 import { signatureService } from "../services/signatureService";
 import { documentService } from "../services/documentService";
-// import { socketService } from "../services/socketService"; // [REMOVED]
-// import { userService } from "../services/userService";     // [REMOVED] (Tidak butuh auth check untuk socket lagi)
 
-export const useSignatureManager = ({ 
-  documentId, 
-  documentVersionId, 
-  currentUser, 
-  isGroupDoc, // Parameter ini mungkin masih berguna untuk logika simpan ke endpoint berbeda (personal vs group)
-  refreshKey 
-}) => {
+export const useSignatureManager = ({ documentId, documentVersionId, currentUser, isGroupDoc, refreshKey }) => {
   const [signatures, setSignatures] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false); // Tetap dipertahankan jika nanti ada fitur AI
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiData, setAiData] = useState(null);
 
-  // Ref untuk melacak item yang dihapus agar tidak muncul lagi saat re-fetch
   const deletedSignaturesRef = useRef(new Set());
 
-  // --- 1. Load Initial Signatures (Fetch dari API) ---
   useEffect(() => {
     const loadInitialSignatures = async () => {
       if (!documentId || !currentUser) return;
@@ -28,17 +18,12 @@ export const useSignatureManager = ({
       try {
         const doc = await documentService.getDocumentById(documentId);
 
-        // Jika dokumen sudah selesai/diarsipkan, kosongkan signature interaktif
         if (doc?.status === "completed" || doc?.status === "archived") {
           setSignatures([]);
           return;
         }
 
-        // Gabungkan signature Group dan Personal
-        const sourceSignatures = [
-          ...(doc.currentVersion.signaturesGroup || []), 
-          ...(doc.currentVersion.signaturesPersonal || [])
-        ];
+        const sourceSignatures = [...(doc.currentVersion.signaturesGroup || []), ...(doc.currentVersion.signaturesPersonal || [])];
 
         const dbSignatures = sourceSignatures
           .map((sig) => {
@@ -55,19 +40,14 @@ export const useSignatureManager = ({
               positionY: parseFloat(sig.positionY),
               width: parseFloat(sig.width),
               height: parseFloat(sig.height),
-              // Kunci jika bukan milik user ini (agar tidak bisa digeser)
-              isLocked: !isMySignature, 
+
+              isLocked: !isMySignature,
             };
           })
           .filter((sig) => !deletedSignaturesRef.current.has(sig.id));
 
         setSignatures((prev) => {
-          // Pertahankan draft lokal yang sedang dibuat user (yang ID-nya masih temporary 'sig-tap-')
-          const myOwnDrafts = prev.filter(
-            (sig) => sig.userId === currentUser.id && 
-            typeof sig.id === "string" && 
-            sig.id.startsWith("sig-tap-")
-          );
+          const myOwnDrafts = prev.filter((sig) => sig.userId === currentUser.id && typeof sig.id === "string" && sig.id.startsWith("sig-tap-"));
 
           return [...dbSignatures, ...myOwnDrafts];
         });
@@ -80,7 +60,7 @@ export const useSignatureManager = ({
   }, [documentId, currentUser, refreshKey]);
 
 
-  // --- 2. Handle Add Signature (Local & API Draft) ---
+
   const handleAddSignature = useCallback(
     async (signatureData, savedSignatureUrl, includeQrCode) => {
       setIsSaving(true);
@@ -91,39 +71,24 @@ export const useSignatureManager = ({
         documentId,
         documentVersionId,
         userId: currentUser.id,
-        signatureImageUrl: savedSignatureUrl, // Pastikan key ini konsisten dengan PlacedSignature
+        signatureImageUrl: savedSignatureUrl,
         isLocked: false,
         isTemp: true,
-        ...signatureData, // { pageNumber, x, y, width, height, ... }
+        ...signatureData,
       };
 
-      // Update State Lokal (Optimistic UI)
       setSignatures((prev) => [...prev, newSignature]);
 
-      // [REMOVED] socketService.emitAddSignature(...)
-
       try {
-        // Simpan ke Database (sebagai Draft)
-        const savedData = await signatureService.saveDraft(
-          documentId, 
-          newSignature, 
-          isGroupDoc, 
-          includeQrCode
-        );
+        const savedData = await signatureService.saveDraft(documentId, newSignature, isGroupDoc, includeQrCode);
 
-        // Hapus dari set deleted jika sebelumnya pernah dihapus
         deletedSignaturesRef.current.delete(savedData.id);
 
-        // Ganti ID Temporary dengan ID Database yang asli
-        setSignatures((prev) => 
-          prev.map((s) => (s.id === tempId ? { ...s, id: savedData.id, isTemp: false } : s))
-        );
+        setSignatures((prev) => prev.map((s) => (s.id === tempId ? { ...s, id: savedData.id, isTemp: false } : s)));
       } catch (error) {
         toast.error("Gagal menyimpan draft.");
-        // Rollback state jika gagal
-        setSignatures((prev) => prev.filter((s) => s.id !== tempId));
 
-        // [REMOVED] socketService.emitRemoveSignature(...)
+        setSignatures((prev) => prev.filter((s) => s.id !== tempId));
       } finally {
         setIsSaving(false);
       }
@@ -131,16 +96,9 @@ export const useSignatureManager = ({
     [documentId, documentVersionId, currentUser, isGroupDoc]
   );
 
-
-  // --- 3. Handle Update Signature (Move/Resize) ---
   const handleUpdateSignature = useCallback(async (updatedSignature) => {
-    // Update State Lokal
-    setSignatures((prev) => 
-      prev.map((sig) => (sig.id === updatedSignature.id ? updatedSignature : sig))
-    );
+    setSignatures((prev) => prev.map((sig) => (sig.id === updatedSignature.id ? updatedSignature : sig)));
 
-    // Update ke API hanya jika ID-nya sudah valid (bukan draft temporary 'sig-tap-')
-    // Draft temporary biasanya di-handle saat 'saveDraft' atau menunggu ID asli balik.
     if (!updatedSignature.id.toString().startsWith("sig-")) {
       try {
         await signatureService.updatePosition(updatedSignature.id, {
@@ -152,43 +110,52 @@ export const useSignatureManager = ({
         });
       } catch (e) {
         console.error("Gagal update posisi:", e);
-        // Opsional: Rollback state jika gagal update posisi
       }
     }
   }, []);
 
-
-  // --- 4. Handle Delete Signature ---
   const handleDeleteSignature = useCallback(
     async (signatureId) => {
-      // Tandai sebagai deleted agar tidak muncul lagi saat re-fetch
       deletedSignaturesRef.current.add(signatureId);
-      
-      // Hapus dari State Lokal
+
       setSignatures((prev) => prev.filter((sig) => sig.id !== signatureId));
 
-      // [REMOVED] socketService.emitRemoveSignature(...)
-
-      // Hapus dari Database jika bukan draft temporary
       if (!signatureId.toString().startsWith("sig-")) {
         try {
           await signatureService.deleteSignature(signatureId);
         } catch (e) {
           console.error(e);
           toast.error("Gagal menghapus tanda tangan.");
-          // Rollback: Hapus dari set deleted agar muncul lagi nanti
+
           deletedSignaturesRef.current.delete(signatureId);
         }
       }
     },
-    [documentId] // Dependency dikurangi
+    [documentId]
   );
 
+  const handleAnalyzeDocument = useCallback(async () => {
+    if (!documentId) return;
+    
+    setIsAnalyzing(true);
+    setAiData(null); // Reset data lama agar modal tertutup sebentar/loading ulang
 
-  // --- 5. Handle Final Save (Komitmen Akhir) ---
+    try {
+   
+      const result = await signatureService.analyzeDocument(documentId);
+      
+      setAiData(result);
+      toast.success("Analisis AI selesai!", { icon: "🤖" });
+    } catch (error) {
+      console.error("AI Analysis Failed:", error);
+      toast.error(error.message || "Gagal melakukan analisis dokumen.");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [documentId]);
+
   const handleFinalSave = useCallback(
     async (includeQrCode) => {
-      // Cari signature milik user ini yang valid
       const mySignatures = signatures.filter((sig) => !sig.isLocked && sig.signatureImageUrl);
 
       if (mySignatures.length === 0) {
@@ -209,16 +176,11 @@ export const useSignatureManager = ({
         displayQrCode: includeQrCode,
       };
 
-      // Simulasi loading agar UX terasa mantap (opsional)
-      const minLoadingTime = new Promise((resolve) => setTimeout(resolve, 2000)); // Dikurangi jadi 2s saja
+      const minLoadingTime = new Promise((resolve) => setTimeout(resolve, 2000));
 
       try {
         if (isGroupDoc) {
-          await Promise.all([
-            signatureService.addGroupSignature({ documentId, ...payload }), 
-            minLoadingTime
-          ]);
-          // [REMOVED] socketService.notifyDataChanged(...)
+          await Promise.all([signatureService.addGroupSignature({ documentId, ...payload }), minLoadingTime]);
         } else {
           await Promise.all([
             signatureService.addPersonalSignature({
@@ -228,7 +190,6 @@ export const useSignatureManager = ({
           ]);
         }
 
-        // Hapus signature draft dari layar karena sekarang sudah jadi permanen di dokumen
         setSignatures((prev) => prev.filter((s) => s.id !== sigToSave.id));
       } catch (error) {
         throw error;
@@ -250,5 +211,6 @@ export const useSignatureManager = ({
     handleUpdateSignature,
     handleDeleteSignature,
     handleFinalSave,
+    handleAnalyzeDocument,
   };
 };
