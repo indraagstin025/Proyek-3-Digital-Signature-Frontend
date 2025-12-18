@@ -49,9 +49,16 @@ const SignGroupPage = ({ theme, toggleTheme }) => {
     isGroupDoc 
   } = useDocumentDetail(documentId, contextData, refreshKey);
 
+  // 1.1 LOGIKA REDIRECT AUTOMATIS:
+  // Jika akses via URL group-sign tapi ternyata dokumen personal, pindahkan ke sign page biasa.
   useEffect(() => {
     if (!isLoadingDoc && isGroupDoc === false) {
-       toast("Ini dokumen personal.", { icon: "👤" });
+       // KODE LAMA (Nonaktif):
+       // toast("Ini dokumen personal.", { icon: "👤" });
+       // navigate(`/documents/${documentId}/sign`);
+
+       // KODE BARU: Dengan pesan yang lebih jelas
+       toast("Halaman ini khusus Grup. Mengalihkan ke Penandatanganan Personal...", { icon: "👤" });
        navigate(`/documents/${documentId}/sign`);
     }
   }, [isLoadingDoc, isGroupDoc, navigate, documentId]);
