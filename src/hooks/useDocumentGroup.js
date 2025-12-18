@@ -9,6 +9,11 @@ import { documentService } from '../services/documentService'; // Asumsi nama fi
 export const useGetMyDocuments = () => {
   return useQuery({
     queryKey: ['documents', 'all'], 
-    queryFn: documentService.getAllDocuments, // <--- INI BENAR
+    // KODE LAMA (Nonaktif): TanStack Query mengirim context object sebagai argumen pertama, 
+    // menyebabkan /api/documents?search=[object Object]
+    // queryFn: documentService.getAllDocuments, 
+
+    // KODE BARU: Membungkus dengan fungsi kosong agar tidak ada argumen yang diteruskan ke getAllDocuments
+    queryFn: () => documentService.getAllDocuments(),
   });
 };
