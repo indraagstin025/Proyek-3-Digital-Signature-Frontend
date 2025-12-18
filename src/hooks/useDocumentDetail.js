@@ -9,9 +9,25 @@ import { userService } from "../services/userService";
 export const useDocumentDetail = (documentId, contextData, refreshKey) => {
   const navigate = useNavigate();
   
-  const [currentUser, setCurrentUser] = useState(
-    contextData?.user || JSON.parse(localStorage.getItem("user") || "null")
-  );
+  // KODE LAMA (Pemicu Crash): Menggunakan key "user" yang tidak sinkron & tanpa try-catch
+  // const [currentUser, setCurrentUser] = useState(
+  //   contextData?.user || JSON.parse(localStorage.getItem("user") || "null")
+  // );
+
+  // KODE BARU: Sinkronisasi dengan authService (key: "authUser") & Safety Check (try-catch)
+  const [currentUser, setCurrentUser] = useState(() => {
+    if (contextData?.user) return contextData.user;
+    try {
+      const stored = localStorage.getItem("authUser");
+      if (!stored) return null;
+      const parsed = JSON.parse(stored);
+      // Extraksi user (mendukung format {user: {...}} atau langsung {...})
+      return parsed?.user || parsed;
+    } catch (e) {
+      console.error("Gagal parsing session di useDocumentDetail:", e);
+      return null;
+    }
+  });
 
   const [documentTitle, setDocumentTitle] = useState("Memuat...");
   const [pdfFile, setPdfFile] = useState(null);
@@ -29,7 +45,11 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
         try {
           const data = await userService.getMyProfile();
           setCurrentUser(data);
-          localStorage.setItem("user", JSON.stringify(data));
+          // KODE LAMA: 
+          // localStorage.setItem("user", JSON.stringify(data));
+          
+          // KODE BARU: Selalu simpan dengan key "authUser" agar konsisten di seluruh aplikasi
+          localStorage.setItem("authUser", JSON.stringify({ user: data }));
         } catch (error) {
           toast.error("Sesi berakhir.");
           navigate("/login");
