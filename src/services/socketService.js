@@ -1,9 +1,13 @@
 // src/services/socketService.js
 import { io } from "socket.io-client";
 
-// Pastikan VITE_API_URL mengarah ke backend (misal http://localhost:3000)
-// Jika undefined, fallback ke localhost:3000
-const SOCKET_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+// 1. Ambil URL dari Environment Variable
+// Prioritaskan VITE_API_BASE_URL, lalu VITE_API_URL, fallback ke localhost
+const rawUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || "http://localhost:3000";
+
+// 2. Bersihkan URL (Hapus akhiran "/api" jika ada)
+// Socket.io butuh root domain (misal: https://api.moodvis.my.id), bukan endpoint API
+const SOCKET_URL = rawUrl.replace(/\/api\/?$/, ""); 
 
 let socket;
 
@@ -11,17 +15,18 @@ export const socketService = {
   connect: () => {
     // Jika socket sudah ada dan tersambung, gunakan yang ada
     if (socket && socket.connected) {
-      console.log("⚡ [Socket] Reusing existing connection:", socket.id);
+      // console.log("⚡ [Socket] Reusing existing connection:", socket.id);
       return socket;
     }
 
     console.log("🔌 [Socket] Connecting to:", SOCKET_URL);
 
     socket = io(SOCKET_URL, {
-      withCredentials: true, // PENTING: Kirim Cookie HttpOnly
-      transports: ["websocket", "polling"],
-      reconnectionAttempts: 5,
-      path: "/socket.io/", // Pastikan path sesuai backend
+      withCredentials: true, // PENTING: Agar cookie Session/JWT terkirim
+      transports: ["websocket"], // Paksa websocket agar lebih stabil & cepat
+      reconnectionAttempts: 10,
+      reconnectionDelay: 3000,
+      path: "/socket.io/", // Default path socket.io
     });
 
     socket.on("connect", () => {
@@ -31,7 +36,7 @@ export const socketService = {
     socket.on("connect_error", (err) => {
       console.error("❌ [Socket] Connection Error:", err.message);
 
-      // TAMBAHAN: Jika error karena Auth, matikan socket agar tidak spam reconnect
+      // Jika error karena Auth, matikan socket agar tidak spam reconnect
       if (err.message.includes("Authentication error") || err.message.includes("token missing")) {
         console.warn("🔒 Auth gagal, memutus koneksi socket. Menunggu login ulang...");
         socket.disconnect();
@@ -43,7 +48,7 @@ export const socketService = {
 
   // 2. Room Management
   joinRoom: (documentId) => {
-    if (socket) socket.emit("join_room", documentId);
+    if (socket && socket.connected) socket.emit("join_room", documentId);
   },
 
   leaveRoom: (documentId) => {
@@ -52,27 +57,27 @@ export const socketService = {
 
   // 3. Emitters (Kirim Data)
   emitDrag: (data) => {
-    if (socket) socket.emit("drag_signature", data);
+    if (socket && socket.connected) socket.emit("drag_signature", data);
   },
 
   emitAddSignature: (documentId, signature) => {
-    if (socket) socket.emit("add_signature_live", { documentId, signature });
+    if (socket && socket.connected) socket.emit("add_signature_live", { documentId, signature });
   },
 
   emitRemoveSignature: (documentId, signatureId) => {
-    if (socket) socket.emit("remove_signature_live", { documentId, signatureId });
+    if (socket && socket.connected) socket.emit("remove_signature_live", { documentId, signatureId });
   },
 
   notifyDataChanged: (documentId) => {
-    if (socket) socket.emit("trigger_reload", documentId);
+    if (socket && socket.connected) socket.emit("trigger_reload", documentId);
   },
 
   emitCursorMove: (data) => {
-    if (socket) socket.emit("cursor_move", data);
+    // Cek connected agar tidak error saat user putus nyambung
+    if (socket && socket.connected) socket.emit("cursor_move", data);
   },
 
   // 4. Listeners (Terima Data)
-  // Kita bungkus callback agar aman jika socket belum ready
   onPositionUpdate: (callback) => {
     if (socket) socket.on("update_signature_position", callback);
   },
@@ -93,7 +98,7 @@ export const socketService = {
     if (socket) socket.on("cursor_move", callback);
   },
 
-  // Generic listener/unlistener untuk event apapun
+  // Generic listener/unlistener
   on: (event, callback) => {
     if (socket) socket.on(event, callback);
   },
