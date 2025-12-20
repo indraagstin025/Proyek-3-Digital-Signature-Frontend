@@ -1,32 +1,38 @@
 // src/services/socketService.js
 import { io } from "socket.io-client";
 
-// 1. Ambil URL dari Environment Variable
-// Prioritaskan VITE_API_BASE_URL, lalu VITE_API_URL, fallback ke localhost
-const rawUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || "http://localhost:3000";
+// --- 1. LOGIKA PENENTUAN URL (SAMA DENGAN API CLIENT) ---
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || 
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.MODE === "production"
+    ? "https://api.moodvis.my.id"
+    : "http://localhost:3000");
 
-// 2. Bersihkan URL (Hapus akhiran "/api" jika ada)
-// Socket.io butuh root domain (misal: https://api.moodvis.my.id), bukan endpoint API
-const SOCKET_URL = rawUrl.replace(/\/api\/?$/, ""); 
+// --- 2. KONVERSI KE SOCKET URL ---
+// Kita harus menghapus "/api" dari belakang URL karena Socket.io jalan di root.
+// Contoh: "https://api.moodvis.my.id/api" --> Menjadi "https://api.moodvis.my.id"
+const SOCKET_URL = API_BASE_URL.replace(/\/api\/?$/, "");
+
+console.log(`[Socket Service] Base URL derived from API: ${SOCKET_URL}`);
 
 let socket;
 
 export const socketService = {
   connect: () => {
-    // Jika socket sudah ada dan tersambung, gunakan yang ada
+    // Singleton: Jika sudah connect, pakai yang lama
     if (socket && socket.connected) {
-      // console.log("⚡ [Socket] Reusing existing connection:", socket.id);
       return socket;
     }
 
     console.log("🔌 [Socket] Connecting to:", SOCKET_URL);
 
     socket = io(SOCKET_URL, {
-      withCredentials: true, // PENTING: Agar cookie Session/JWT terkirim
-      transports: ["websocket"], // Paksa websocket agar lebih stabil & cepat
+      withCredentials: true, // Wajib untuk cookie/session
+      transports: ["websocket"], // Wajib untuk kestabilan di Railway/Cloudflare
       reconnectionAttempts: 10,
       reconnectionDelay: 3000,
-      path: "/socket.io/", // Default path socket.io
+      path: "/socket.io/",
     });
 
     socket.on("connect", () => {
@@ -36,9 +42,9 @@ export const socketService = {
     socket.on("connect_error", (err) => {
       console.error("❌ [Socket] Connection Error:", err.message);
 
-      // Jika error karena Auth, matikan socket agar tidak spam reconnect
+      // Logika pencegahan spam reconnect jika Auth gagal
       if (err.message.includes("Authentication error") || err.message.includes("token missing")) {
-        console.warn("🔒 Auth gagal, memutus koneksi socket. Menunggu login ulang...");
+        console.warn("🔒 Auth gagal, memutus koneksi socket...");
         socket.disconnect();
       }
     });
@@ -46,7 +52,7 @@ export const socketService = {
     return socket;
   },
 
-  // 2. Room Management
+  // --- ROOM MANAGEMENT ---
   joinRoom: (documentId) => {
     if (socket && socket.connected) socket.emit("join_room", documentId);
   },
@@ -55,7 +61,7 @@ export const socketService = {
     if (socket) socket.emit("leave_room", documentId);
   },
 
-  // 3. Emitters (Kirim Data)
+  // --- EMITTERS (Kirim Data) ---
   emitDrag: (data) => {
     if (socket && socket.connected) socket.emit("drag_signature", data);
   },
@@ -73,11 +79,10 @@ export const socketService = {
   },
 
   emitCursorMove: (data) => {
-    // Cek connected agar tidak error saat user putus nyambung
     if (socket && socket.connected) socket.emit("cursor_move", data);
   },
 
-  // 4. Listeners (Terima Data)
+  // --- LISTENERS (Terima Data) ---
   onPositionUpdate: (callback) => {
     if (socket) socket.on("update_signature_position", callback);
   },
@@ -98,7 +103,7 @@ export const socketService = {
     if (socket) socket.on("cursor_move", callback);
   },
 
-  // Generic listener/unlistener
+  // Helpers
   on: (event, callback) => {
     if (socket) socket.on(event, callback);
   },
@@ -107,7 +112,6 @@ export const socketService = {
     if (socket) socket.off(event, callback);
   },
 
-  // 5. Cleanup
   disconnect: () => {
     if (socket) {
       socket.disconnect();
