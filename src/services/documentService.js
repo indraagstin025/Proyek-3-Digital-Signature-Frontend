@@ -27,16 +27,22 @@ export const documentService = {
    */
 // src/services/documentService.js (Frontend)
 
-  getAllDocuments: async (search = "") => {
+// Tambahkan parameter 'config' (default object kosong)
+  getAllDocuments: async (search = "", config = {}) => {
     try {
-      // [PERBAIKAN] Tambahkan object 'params' agar Axios mengirimkan query string
-      // Hasilnya nanti URL menjadi: /documents?search=keyword
       const response = await apiClient.get("/documents", {
-        params: { search: search } 
+        params: { search: search },
+        ...config // 🔥 PENTING: Ini agar 'signal' dari hook bisa masuk ke Axios
       });
       
       return response.data.data;
     } catch (error) {
+      // Jangan handle error jika itu adalah 'CanceledError' (pembatalan manual)
+      // Biarkan error dilempar agar bisa ditangkap di hook
+      if (error.name === "CanceledError" || error.code === "ERR_CANCELED") {
+          throw error; 
+      }
+      
       handleError(error, "Gagal mengambil daftar dokumen.");
     }
   },

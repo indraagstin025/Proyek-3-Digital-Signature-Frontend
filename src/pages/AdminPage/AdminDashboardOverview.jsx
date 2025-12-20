@@ -139,26 +139,42 @@ const AdminDashboardOverview = () => {
     { name: 'Verifikasi', value: dashboardData.counts.verifications },
   ];
 
-  useEffect(() => {
+useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         // Panggil 2 Endpoint: Summary Dashboard & Audit Logs
         const [summaryRes, logsRes] = await Promise.all([
-          adminService.getDashboardSummary(), // Endpoint baru: /api/admin/dashboard
-          adminService.getAllAuditLogs()      // Endpoint logs: /api/admin/audit-logs
+          adminService.getDashboardSummary(), 
+          adminService.getAllAuditLogs()      
         ]);
 
         if (summaryRes.data) {
-           setDashboardData(summaryRes.data); // Simpan counts, traffic, trends
+           setDashboardData(summaryRes.data); 
         }
         if (logsRes.data) {
            setLogs(logsRes.data);
         }
       } catch (err) {
         console.error("Dashboard Error:", err);
-        toast.error("Gagal memuat data dashboard.");
+
+        // --- FILTER ERROR (Agar tidak double toast) ---
+        const isAuthError = err.response?.status === 401;
+        
+        // Cek error network/timeout (sesuai pesan dari apiClient.js)
+        const isNetworkError = 
+            err.message === "Request Timeout" || 
+            err.message === "Network Error" ||
+            err.message.includes("offline") ||
+            err.code === "ECONNABORTED";
+
+        // Hanya tampilkan Toast Lokal jika BUKAN Auth & BUKAN Network
+        if (!isAuthError && !isNetworkError) {
+           const message = err.response?.data?.message || "Gagal memuat data dashboard.";
+           toast.error(message);
+        }
       } finally {
+        // Spinner Admin berhenti di sini (Sukses/Gagal/Timeout)
         setLoading(false);
       }
     };

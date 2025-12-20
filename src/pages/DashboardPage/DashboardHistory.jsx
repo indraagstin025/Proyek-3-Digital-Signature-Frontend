@@ -6,15 +6,34 @@ const DashboardHistory = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
+useEffect(() => {
     const fetchHistory = async () => {
       try {
         setIsLoading(true);
+        setError(null); // Reset error sebelum fetch ulang
         const data = await historyService.getMyHistory();
         setHistoryData(data);
       } catch (err) {
         console.error("Error fetching history:", err);
-        setError("Gagal memuat riwayat aktivitas.");
+
+        // --- FILTER ERROR (Agar UI tidak error saat cuma masalah koneksi) ---
+        
+        // 1. Cek Auth (401) -> Sudah dihandle redirect ke login
+        const isAuthError = err.response?.status === 401;
+
+        // 2. Cek Network/Timeout -> Sudah dihandle Toast Global
+        const isNetworkError = 
+            err.message === "Request Timeout" || 
+            err.message === "Network Error" ||
+            err.message.includes("offline") ||
+            err.code === "ECONNABORTED";
+
+        // 3. Hanya set error LOKAL jika murni masalah server/data (misal 500)
+        if (!isAuthError && !isNetworkError) {
+            // Gunakan pesan dari backend jika ada, atau default
+            const msg = err.response?.data?.message || "Gagal memuat riwayat aktivitas.";
+            setError(msg);
+        }
       } finally {
         setIsLoading(false);
       }
