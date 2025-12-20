@@ -1,126 +1,151 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { documentService } from "../services/documentService";
-import { packageService } from "../services/packageService"; // Opsional: jika ada fitur batch sign
-import { userService } from "../services/userService"; 
+import { packageService } from "../services/packageService";
+import { useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 
 export const useDashboardDocuments = () => {
+  // --- STATE ---
   const [documents, setDocuments] = useState([]);
   const [personalDocuments, setPersonalDocuments] = useState([]);
   const [groupDocuments, setGroupDocuments] = useState([]);
-  const navigate = useNavigate();
-  
+
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState("");
-  
-  // Selection & Batch Action State
+
   const [selectedDocIds, setSelectedDocIds] = useState(new Set());
   const [isSubmittingBatch, setIsSubmittingBatch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
-  const [currentUser, setCurrentUser] = useState(null);
+  const navigate = useNavigate();
+  const abortControllerRef = useRef(null);
+  const [searchParams] = useSearchParams();
 
-  // 1. Initial Load User
-  useEffect(() => {
-    const loadUser = async () => {
-        try {
-            const user = await userService.getMyProfile();
-            setCurrentUser(user);
-        } catch (e) {
-            console.error("Gagal load user profile", e);
-        }
-    };
-    loadUser();
-  }, []);
+  // --- 1. OPTIMASI USER DATA (SINKRON) ---
+  // Kita tidak perlu memanggil API /me lagi. Ambil data user dari cache LocalStorage.
+  // Ini menghilangkan error "ERR_INTERNET_DISCONNECTED" untuk endpoint user saat offline.
+  const [currentUser] = useState(() => {
+    try {
+      const storedUser = localStorage.getItem("authUser"); // Sesuaikan key di sistem Anda
+      return storedUser ? JSON.parse(storedUser) : null;
+    } catch (e) {
+      console.warn("Gagal parsing user dari storage", e);
+      return null;
+    }
+  });
 
-  // 2. Fetch Documents
+  // --- 2. FETCH DATA DENGAN ABORT & ERROR FILTER ---
   const fetchDocuments = useCallback(async (query = "") => {
+    // Batalkan request sebelumnya jika user mengetik cepat (Search Optimization)
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     setIsLoading(true);
-    setError("");
+    setError(""); // Reset error lokal
     if (query) setIsSearching(true);
 
     try {
-      // Mengambil semua dokumen (API sudah handle filter search jika ada)
-      const allDocs = await documentService.getAllDocuments(query);
-      
+      // Kirim signal ke service (pastikan service support pass config ke axios)
+      const allDocs = await documentService.getAllDocuments(query, {
+        signal: abortControllerRef.current.signal,
+      });
+
       setDocuments(allDocs);
 
-      // Pisahkan Personal vs Group di Frontend
-      // (Atau bisa juga minta API memisahkan, tapi ini lebih fleksibel)
-      const personal = allDocs.filter(doc => !doc.groupId);
-      const group = allDocs.filter(doc => doc.groupId);
-
-      setPersonalDocuments(personal);
-      setGroupDocuments(group);
-
+      // Filter Client Side (Lebih cepat daripada request ulang)
+      setPersonalDocuments(allDocs.filter((doc) => !doc.groupId));
+      setGroupDocuments(allDocs.filter((doc) => doc.groupId));
     } catch (err) {
-      console.error(err);
-      setError("Gagal memuat dokumen.");
+      // Abaikan jika error disebabkan oleh pembatalan manual (Abort)
+      if (err.name === "CanceledError" || err.name === "AbortError") return;
+
+      console.error("Error fetching docs:", err);
+
+      // --- FILTER ERROR (Agar tidak double toast dengan Global Handler) ---
+      const isAuthError = err.response?.status === 401;
+      const isNetworkError = err.message === "Request Timeout" || err.message === "Network Error" || err.message.includes("offline") || err.code === "ECONNABORTED";
+
+      // Hanya set pesan error di UI Dashboard jika BUKAN masalah koneksi/auth
+      if (!isAuthError && !isNetworkError) {
+        setError("Gagal memuat dokumen.");
+      }
     } finally {
       setIsLoading(false);
       setIsSearching(false);
     }
   }, []);
 
-  // Trigger fetch saat search query berubah (debounce)
+  useEffect(() => {
+    if (searchParams.get("openUpload") === "true") {
+      setIsUploadModalOpen(true);
+    }
+  }, [searchParams]);
+
+  // --- 3. DEBOUNCE SEARCH ---
   useEffect(() => {
     const timer = setTimeout(() => {
-        fetchDocuments(searchQuery);
-    }, 500); // Debounce 500ms
+      fetchDocuments(searchQuery);
+    }, 500); // Tunggu 500ms setelah user berhenti mengetik
     return () => clearTimeout(timer);
   }, [searchQuery, fetchDocuments]);
 
+  // --- 4. LOGIKA STATUS DINAMIS ---
+  const getDerivedStatus = useCallback(
+    (doc) => {
+      if (!currentUser) return doc.status;
 
-  // 3. Status Logic
-  /**
-   * Menentukan status tampilan kartu dokumen.
-   * Karena Backend SUDAH mereset status signer menjadi PENDING saat rollback,
-   * kita bisa percaya penuh pada status dokumen dari database.
-   */
-const getDerivedStatus = useCallback((doc) => {
-    const globalStatus = doc.status;
+      const globalStatus = doc.status;
 
-    // Untuk Group Document yang statusnya 'pending', kita perlu tahu apakah user perlu action atau waiting
-    if (doc.groupId && globalStatus === 'pending' && currentUser) {
-        // Cari request user
-        const myRequest = doc.signerRequests?.find(req => req.userId === currentUser.id);
+      // Jika dokumen grup masih pending, cek apakah SAYA yang harus tanda tangan?
+      if (doc.groupId && globalStatus === "pending") {
+        const myRequest = doc.signerRequests?.find((req) => req.userId === currentUser.id);
 
         if (myRequest) {
-            // Jika saya belum sign -> Action Needed
-            if (myRequest.status === 'PENDING') return 'action_needed';
-            
-            // Jika saya SUDAH sign, tapi teman lain belum -> Waiting
-            if (myRequest.status === 'SIGNED') return 'waiting';
+          if (myRequest.status === "PENDING") return "action_needed"; // Giliran saya
+          if (myRequest.status === "SIGNED") return "waiting"; // Saya sudah, nunggu yang lain
         }
-        
-        // Jika saya bukan signer di dokumen group ini (misal hanya member), return pending biasa
-        return 'pending';
-    }
+        return "pending";
+      }
 
-    // Default Personal / Package
-    return globalStatus;
-  }, [currentUser]);
+      return globalStatus;
+    },
+    [currentUser]
+  );
 
-
-  // 4. Delete Logic
+  // --- 5. DELETE DENGAN FEEDBACK ---
   const deleteDocument = async (docId) => {
-    await documentService.deleteDocument(docId);
-    // Update state lokal tanpa fetch ulang (Optimistic UI update)
-    setDocuments(prev => prev.filter(d => d.id !== docId));
-    setPersonalDocuments(prev => prev.filter(d => d.id !== docId));
-    setGroupDocuments(prev => prev.filter(d => d.id !== docId));
-    setSelectedDocIds(prev => {
-      const next = new Set(prev);
-      next.delete(docId);
-      return next;
-    });
-    return true;
+    const deletePromise = documentService.deleteDocument(docId);
+
+    try {
+      await toast.promise(deletePromise, {
+        loading: "Menghapus dokumen...",
+        success: "Dokumen berhasil dihapus",
+        error: (err) => `Gagal menghapus: ${err.message}`,
+      });
+
+      // Optimistic Update: Hapus dari state UI tanpa fetch ulang (Cepat!)
+      setDocuments((prev) => prev.filter((d) => d.id !== docId));
+      setPersonalDocuments((prev) => prev.filter((d) => d.id !== docId));
+      setGroupDocuments((prev) => prev.filter((d) => d.id !== docId));
+
+      setSelectedDocIds((prev) => {
+        const next = new Set(prev);
+        next.delete(docId);
+        return next;
+      });
+
+      return true;
+    } catch (error) {
+      return false;
+    }
   };
 
-
-  // 5. Selection Logic
+  // --- 6. BATCH ACTIONS ---
   const toggleDocumentSelection = (docId) => {
     setSelectedDocIds((prev) => {
       const next = new Set(prev);
@@ -132,35 +157,25 @@ const getDerivedStatus = useCallback((doc) => {
 
   const clearSelection = () => setSelectedDocIds(new Set());
 
-
-  // 6. Batch Signing Logic
-const startBatchSigning = async () => {
+  const startBatchSigning = async () => {
     if (selectedDocIds.size === 0) return;
-    
+
     setIsSubmittingBatch(true);
     const toastId = toast.loading("Membuat paket tanda tangan...");
 
     try {
-        const docIdsArray = Array.from(selectedDocIds);
-        
-        // Panggil service: createPackage(title, documentIds)
-        // (Pastikan packageService.js sudah diperbaiki urutan parameternya seperti diskusi sebelumnya)
-        const newPackage = await packageService.createPackage(
-           "Batch Sign " + new Date().toLocaleDateString(), 
-           docIdsArray
-        );
-        
-        toast.success("Paket siap! Mengalihkan...", { id: toastId });
-        
-        // [UPDATE] Navigasi sesuai route yang Anda berikan:
-        // Route: /packages/sign/:packageId
-        navigate(`/packages/sign/${newPackage.id}`);
+      const docIdsArray = Array.from(selectedDocIds);
+      const newPackage = await packageService.createPackage("Batch Sign " + new Date().toLocaleDateString(), docIdsArray);
 
+      toast.success("Paket siap! Mengalihkan...", { id: toastId });
+      navigate(`/packages/sign/${newPackage.id}`);
     } catch (err) {
-        console.error(err);
-        toast.error(err.message || "Gagal membuat paket.", { id: toastId });
+      console.error(err);
+      const msg = err.response?.data?.message || err.message || "Gagal membuat paket.";
+      // Pastikan toast error muncul karena ini aksi user manual (klik tombol)
+      toast.error(msg, { id: toastId });
     } finally {
-        setIsSubmittingBatch(false);
+      setIsSubmittingBatch(false);
     }
   };
 
@@ -171,19 +186,21 @@ const startBatchSigning = async () => {
     isLoading,
     isSearching,
     error,
+    currentUser,
+
     getDerivedStatus,
     fetchDocuments,
     deleteDocument,
-    
-    // Selection & Batch
+
     selectedDocIds,
     toggleDocumentSelection,
     clearSelection,
     startBatchSigning,
     isSubmittingBatch,
-    
-    // Search
+
     searchQuery,
-    setSearchQuery
+    setSearchQuery,
+    isUploadModalOpen,
+    setIsUploadModalOpen,
   };
 };
