@@ -3,15 +3,8 @@ import apiClient from "./apiClient";
 
 export const signatureService = {
   /**
-   * Mengirim data tanda tangan mandiri (personal) ke backend.
-   * @param {object} payload - Data lengkap untuk membuat tanda tangan.
-   * @param {string} payload.documentVersionId - ID dari versi dokumen yang ditandatangani.
-   * @param {string} payload.method - Metode yang digunakan ('canvas' atau 'qrcode').
-   * @param {string} payload.signatureImageUrl - Gambar tanda tangan dalam format Base64.
-   * @param {number} payload.positionX - Koordinat X penempatan di PDF.
-   * @param {number} payload.positionY - Koordinat Y penempatan di PDF.
-   * @param {number} payload.pageNumber - Nomor halaman penempatan di PDF.
-   * @returns {Promise<object>} Data dokumen yang sudah di-update oleh backend.
+   * [PERSONAL] Mengirim data tanda tangan mandiri ke backend.
+   * Endpoint: POST /api/signatures/personal
    */
   addPersonalSignature: async (payload) => {
     try {
@@ -19,30 +12,14 @@ export const signatureService = {
       return response.data;
     } catch (error) {
       console.error("❌ Error addPersonalSignature:", error);
-      const message = error.response?.data?.message || "Gagal menandatangani dokumen. Silakan coba lagi.";
+      const message = error.response?.data?.message || "Gagal menandatangani dokumen.";
       throw new Error(message);
     }
   },
 
   /**
-   * Mengirim data tanda tangan untuk dokumen GRUP (Finalisasi).
-   * Endpoint: POST /api/signatures/group
-   * @param {object} payload
-   */
-  addGroupSignature: async (payload) => {
-    try {
-      const response = await apiClient.post("signatures/group", payload);
-      return response.data; // Mengembalikan { status, message, data: { isComplete, remainingSigners } }
-    } catch (error) {
-      console.error("❌ Error addGroupSignature:", error);
-      const message = error.response?.data?.message || "Gagal menandatangani dokumen grup.";
-      throw new Error(message);
-    }
-  },
-
-  /**
-   * Mengambil detail verifikasi dari sebuah tanda tangan berdasarkan ID uniknya.
-   * @param {string} signatureId - ID unik dari tanda tangan (dari URL QR Code).
+   * [PUBLIC] Mengambil detail verifikasi (Scan QR Code).
+   * Endpoint: GET /api/signatures/verify/:id
    */
   getVerificationDetails: async (signatureId) => {
     try {
@@ -50,13 +27,14 @@ export const signatureService = {
       return response.data;
     } catch (error) {
       console.error("❌ Error getVerificationDetails:", error);
-      const message = error.response?.data?.message || "Gagal mengambil detail verifikasi tanda tangan.";
+      const message = error.response?.data?.message || "Gagal mengambil detail verifikasi.";
       throw new Error(message);
     }
   },
 
   /**
-   * @description Mengirim file PDF yang diunggah untuk diverifikasi integritasnya (Hash Check).
+   * [PUBLIC] Verifikasi file PDF manual (Upload).
+   * Endpoint: POST /api/signatures/verify-file
    */
   verifyUploadedFile: async (signatureId, file) => {
     const formData = new FormData();
@@ -65,20 +43,18 @@ export const signatureService = {
 
     try {
       const response = await apiClient.post("signatures/verify-file", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+        headers: { "Content-Type": "multipart/form-data" },
       });
       return response.data;
     } catch (error) {
-      console.error(" Error verifyUploadedFile:", error);
-      const message = error.response?.data?.message || "Gagal memverifikasi file yang diunggah.";
+      console.error("❌ Error verifyUploadedFile:", error);
+      const message = error.response?.data?.message || "Gagal memverifikasi file.";
       throw new Error(message);
     }
   },
 
   /**
-   * Meminta AI untuk mendeteksi posisi tanda tangan secara otomatis.
+   * [HELPER] AI Auto-Tagging
    */
   autoTagDocument: async (documentId) => {
     try {
@@ -91,7 +67,7 @@ export const signatureService = {
   },
 
   /**
-   * Meminta AI untuk menganalisis isi dokumen (Legal Check).
+   * [HELPER] AI Analyze Document
    */
   async analyzeDocument(documentId) {
     try {
@@ -102,78 +78,4 @@ export const signatureService = {
       throw new Error(error.response?.data?.message || "Gagal menganalisis dokumen.");
     }
   },
-
-  /**
-   * [BARU] Menyimpan draft tanda tangan ke Database saat User melakukan Drop.
-   * @param {string} documentId
-   * @param {object} payload - { signatureImageUrl, pageNumber, positionX, positionY, width, height }
-   * @param {boolean} isGroupDoc - [BARU] Status apakah ini dokumen grup
-   * @param {boolean} includeQrCode - [BARU] Status apakah perlu QR Code (Opsional)
-   */
-async saveDraft(documentId, payload, isGroupDoc, includeQrCode) {
-    try {
-      const fullPayload = { 
-        ...payload, 
-        isGroupDoc, 
-        includeQrCode 
-      };
-      
-      const response = await apiClient.post(`signatures/draft/${documentId}`, fullPayload);
-      return response.data.data;
-    } catch (error) {
-      console.error("❌ Error saveDraft:", error);
-      const message = error.response?.data?.message || "Gagal menyimpan posisi tanda tangan.";
-      throw new Error(message);
-    }
-  },
-
-  /**
-   * [BARU] Mengupdate posisi tanda tangan saat digeser (Drag) atau diubah ukuran (Resize).
-   * * @param {string} signatureId - ID Asli Database (Bukan 'sig-temp...')
-   * @param {object} payload - { positionX, positionY, width, height, pageNumber }
-   */
-async updatePosition(signatureId, payload) {
-    try {
-      const response = await apiClient.patch(`signatures/${signatureId}/position`, payload);
-      return response.data.data;
-    } catch (error) {
-      // 🔥 PENANGANAN KHUSUS ERROR 404 🔥
-      // Jika 404, artinya data belum masuk DB (masih loading/race condition).
-      // Kita abaikan saja, jangan throw error merah.
-      if (error.response && error.response.status === 404) {
-        // console.warn opsional, bisa dihapus jika ingin console benar-benar bersih
-        // console.warn(`[Info] Update skipped: ID ${signatureId} not ready.`);
-        return null;
-      }
-
-      // Jika error lain (misal 500), baru kita log error merah
-      console.error("❌ Error updatePosition:", error);
-      // Jangan throw error agar UX drag tidak patah
-    }
-  },
-
-  /**
-   * [BARU] Menghapus draft tanda tangan dari database.
-   * @param {string} signatureId - ID Asli Database
-   */
-async deleteSignature(signatureId) {
-    try {
-      await apiClient.delete(`signatures/${signatureId}`);
-      return true;
-    } catch (error) {
-      // 🔥 PENANGANAN KHUSUS ERROR 404 🔥
-      // Jika 404, artinya barang sudah tidak ada. Anggap sukses.
-      if (error.response && error.response.status === 404) {
-        return true; 
-      }
-
-      console.error("❌ Error deleteSignature:", error);
-      const message = error.response?.data?.message || "Gagal menghapus tanda tangan.";
-      throw new Error(message);
-    }
-  },
 };
-
-
-
-  

@@ -1,16 +1,20 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "react-hot-toast";
-import { signatureService } from "../services/signatureService";
+import { signatureService } from "../services/signatureService"; // Service Personal (Clean)
 import { documentService } from "../services/documentService";
 
-export const useSignatureManager = ({ documentId, documentVersionId, currentUser, isGroupDoc, refreshKey }) => {
+export const useSignatureManager = ({ 
+  documentId, 
+  documentVersionId, 
+  currentUser, 
+  refreshKey 
+}) => {
   const [signatures, setSignatures] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiData, setAiData] = useState(null);
 
-  const deletedSignaturesRef = useRef(new Set());
-
+  // 1. LOAD INITIAL DATA (Hanya mengambil signature yang sudah FINAL dari DB)
   useEffect(() => {
     const loadInitialSignatures = async () => {
       if (!documentId || !currentUser) return;
@@ -23,34 +27,24 @@ export const useSignatureManager = ({ documentId, documentVersionId, currentUser
           return;
         }
 
-        const sourceSignatures = [...(doc.currentVersion.signaturesGroup || []), ...(doc.currentVersion.signaturesPersonal || [])];
+        // Ambil hanya Personal Signatures (karena ini hook personal)
+        const sourceSignatures = doc.currentVersion.signaturesPersonal || [];
 
-        const dbSignatures = sourceSignatures
-          .map((sig) => {
-            const sigOwnerId = sig.userId || sig.signerId || sig.signer?.id;
-            const isMySignature = sigOwnerId === currentUser.id;
+        const dbSignatures = sourceSignatures.map((sig) => ({
+            id: sig.id,
+            userId: sig.signerId || sig.userId, // Sesuaikan dengan respon prisma
+            signerName: sig.signer?.name || "Saya",
+            signatureImageUrl: sig.signatureImageUrl,
+            pageNumber: sig.pageNumber,
+            positionX: parseFloat(sig.positionX),
+            positionY: parseFloat(sig.positionY),
+            width: parseFloat(sig.width),
+            height: parseFloat(sig.height),
+            isLocked: true, // Signature dari DB (Personal) selalu locked/final
+            status: "final"
+        }));
 
-            return {
-              id: sig.id,
-              userId: sigOwnerId,
-              signerName: sig.signer?.name || "User Lain",
-              signatureImageUrl: sig.signatureImageUrl,
-              pageNumber: sig.pageNumber,
-              positionX: parseFloat(sig.positionX),
-              positionY: parseFloat(sig.positionY),
-              width: parseFloat(sig.width),
-              height: parseFloat(sig.height),
-
-              isLocked: !isMySignature,
-            };
-          })
-          .filter((sig) => !deletedSignaturesRef.current.has(sig.id));
-
-        setSignatures((prev) => {
-          const myOwnDrafts = prev.filter((sig) => sig.userId === currentUser.id && typeof sig.id === "string" && sig.id.startsWith("sig-tap-"));
-
-          return [...dbSignatures, ...myOwnDrafts];
-        });
+        setSignatures(dbSignatures);
       } catch (e) {
         console.error("Failed to load signatures:", e);
       }
@@ -59,91 +53,62 @@ export const useSignatureManager = ({ documentId, documentVersionId, currentUser
     loadInitialSignatures();
   }, [documentId, currentUser, refreshKey]);
 
-
-
+  // 2. HANDLER: ADD SIGNATURE (DROP)
+  // Perubahan: Hanya simpan di Local State. Tidak ada API Call 'saveDraft'.
   const handleAddSignature = useCallback(
     async (signatureData, savedSignatureUrl, includeQrCode) => {
-      setIsSaving(true);
-
-      const tempId = `sig-tap-${Date.now()}`;
+      // Generate ID Sementara Client-Side
+      const tempId = `sig-local-${Date.now()}`;
+      
       const newSignature = {
         id: tempId,
         documentId,
         documentVersionId,
         userId: currentUser.id,
         signatureImageUrl: savedSignatureUrl,
-        isLocked: false,
+        isLocked: false, // Bisa digeser karena masih draft lokal
         isTemp: true,
+        status: "draft",
         ...signatureData,
       };
 
+      // Update UI langsung
       setSignatures((prev) => [...prev, newSignature]);
 
-      try {
-        const savedData = await signatureService.saveDraft(documentId, newSignature, isGroupDoc, includeQrCode);
-
-        deletedSignaturesRef.current.delete(savedData.id);
-
-        setSignatures((prev) => prev.map((s) => (s.id === tempId ? { ...s, id: savedData.id, isTemp: false } : s)));
-      } catch (error) {
-        toast.error("Gagal menyimpan draft.");
-
-        setSignatures((prev) => prev.filter((s) => s.id !== tempId));
-      } finally {
-        setIsSaving(false);
-      }
+      // Tidak ada API Call ke backend untuk Personal Draft
+      // Data akan dikirim nanti saat handleFinalSave
     },
-    [documentId, documentVersionId, currentUser, isGroupDoc]
+    [documentId, documentVersionId, currentUser]
   );
 
+  // 3. HANDLER: UPDATE POSITION (DRAG)
+  // Perubahan: Hanya update Local State. Tidak ada API Call 'updatePosition'.
   const handleUpdateSignature = useCallback(async (updatedSignature) => {
-    setSignatures((prev) => prev.map((sig) => (sig.id === updatedSignature.id ? updatedSignature : sig)));
-
-    if (!updatedSignature.id.toString().startsWith("sig-")) {
-      try {
-        await signatureService.updatePosition(updatedSignature.id, {
-          positionX: updatedSignature.positionX,
-          positionY: updatedSignature.positionY,
-          width: updatedSignature.width,
-          height: updatedSignature.height,
-          pageNumber: updatedSignature.pageNumber,
-        });
-      } catch (e) {
-        console.error("Gagal update posisi:", e);
-      }
-    }
+    setSignatures((prev) => 
+      prev.map((sig) => (sig.id === updatedSignature.id ? updatedSignature : sig))
+    );
+    // Tidak perlu try-catch API call, karena murni operasi client-side
   }, []);
 
+  // 4. HANDLER: DELETE SIGNATURE
+  // Perubahan: Hanya hapus dari Local State.
   const handleDeleteSignature = useCallback(
     async (signatureId) => {
-      deletedSignaturesRef.current.add(signatureId);
-
       setSignatures((prev) => prev.filter((sig) => sig.id !== signatureId));
-
-      if (!signatureId.toString().startsWith("sig-")) {
-        try {
-          await signatureService.deleteSignature(signatureId);
-        } catch (e) {
-          console.error(e);
-          toast.error("Gagal menghapus tanda tangan.");
-
-          deletedSignaturesRef.current.delete(signatureId);
-        }
-      }
+      // Tidak perlu API call delete, karena data belum ada di DB
     },
-    [documentId]
+    []
   );
 
+  // 5. HANDLER: AI ANALYSIS (Tetap menggunakan API)
   const handleAnalyzeDocument = useCallback(async () => {
     if (!documentId) return;
     
     setIsAnalyzing(true);
-    setAiData(null); // Reset data lama agar modal tertutup sebentar/loading ulang
+    setAiData(null); 
 
     try {
-   
       const result = await signatureService.analyzeDocument(documentId);
-      
       setAiData(result);
       toast.success("Analisis AI selesai!", { icon: "🤖" });
     } catch (error) {
@@ -154,50 +119,54 @@ export const useSignatureManager = ({ documentId, documentVersionId, currentUser
     }
   }, [documentId]);
 
+  // 6. HANDLER: FINAL SAVE (ACTION KE SERVER)
+  // Ini satu-satunya saat kita menghubungi Backend Personal Signature
   const handleFinalSave = useCallback(
     async (includeQrCode) => {
-      const mySignatures = signatures.filter((sig) => !sig.isLocked && sig.signatureImageUrl);
+      // Ambil signature lokal yang belum terkunci
+      const myLocalSignatures = signatures.filter((sig) => !sig.isLocked && sig.isTemp);
 
-      if (mySignatures.length === 0) {
-        throw new Error("Silakan tempatkan tanda tangan Anda.");
+      if (myLocalSignatures.length === 0) {
+        throw new Error("Silakan tempatkan tanda tangan Anda terlebih dahulu.");
       }
 
       setIsSaving(true);
 
-      const sigToSave = mySignatures[0];
+      // Kita asumsikan Personal Sign bisa multiple, tapi biasanya 1.
+      // Kita ambil yang pertama atau mapping semua jika backend support batch array.
+      // Sesuai controller Anda: req.body.signatures (Array)
+      
+      const payloadSignatures = myLocalSignatures.map(sig => ({
+          documentVersionId: documentVersionId,
+          signatureImageUrl: sig.signatureImageUrl,
+          positionX: sig.positionX,
+          positionY: sig.positionY,
+          pageNumber: sig.pageNumber,
+          width: sig.width,
+          height: sig.height,
+          method: "canvas",
+          displayQrCode: includeQrCode
+      }));
+
       const payload = {
-        signatureImageUrl: sigToSave.signatureImageUrl,
-        positionX: sigToSave.positionX,
-        positionY: sigToSave.positionY,
-        pageNumber: sigToSave.pageNumber,
-        width: sigToSave.width,
-        height: sigToSave.height,
-        method: "canvas",
-        displayQrCode: includeQrCode,
+        signatures: payloadSignatures
       };
 
-      const minLoadingTime = new Promise((resolve) => setTimeout(resolve, 2000));
-
       try {
-        if (isGroupDoc) {
-          await Promise.all([signatureService.addGroupSignature({ documentId, ...payload }), minLoadingTime]);
-        } else {
-          await Promise.all([
-            signatureService.addPersonalSignature({
-              signatures: [{ documentVersionId, ...payload }],
-            }),
-            minLoadingTime,
-          ]);
-        }
-
-        setSignatures((prev) => prev.filter((s) => s.id !== sigToSave.id));
+        // Panggil endpoint: POST /api/signatures/personal
+        await signatureService.addPersonalSignature(payload);
+        
+        // Bersihkan state lokal karena sudah tersimpan di server
+        // Nanti useEffect loadInitialSignatures akan mengambil data final yang baru
+        setSignatures((prev) => prev.filter(s => s.isLocked)); 
+        
       } catch (error) {
         throw error;
       } finally {
         setIsSaving(false);
       }
     },
-    [signatures, documentId, documentVersionId, isGroupDoc]
+    [signatures, documentVersionId]
   );
 
   return {
