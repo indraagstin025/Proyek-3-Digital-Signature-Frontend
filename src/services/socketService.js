@@ -1,17 +1,12 @@
-// src/services/socketService.js
 import { io } from "socket.io-client";
 
-// --- 1. LOGIKA PENENTUAN URL (SAMA DENGAN API CLIENT) ---
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 
+  import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_API_URL ||
   (import.meta.env.MODE === "production"
     ? "https://api.moodvis.my.id"
     : "http://localhost:3000");
 
-// --- 2. KONVERSI KE SOCKET URL ---
-// Kita harus menghapus "/api" dari belakang URL karena Socket.io jalan di root.
-// Contoh: "https://api.moodvis.my.id/api" --> Menjadi "https://api.moodvis.my.id"
 const SOCKET_URL = API_BASE_URL.replace(/\/api\/?$/, "");
 
 console.log(`[Socket Service] Base URL derived from API: ${SOCKET_URL}`);
@@ -20,58 +15,85 @@ let socket;
 
 export const socketService = {
   connect: () => {
-    // Singleton: Jika sudah connect, pakai yang lama
     if (socket && socket.connected) {
+      console.log("⚡ [Socket] Sudah terhubung, menggunakan koneksi aktif.");
       return socket;
     }
 
-    console.log("🔌 [Socket] Connecting to:", SOCKET_URL);
+    console.log("🔌 [Socket] Mencoba connect ke:", SOCKET_URL);
+    
+    // DEBUG: Cek apakah cookie terbaca oleh JS (Hanya jika tidak HttpOnly)
+    // Jika HttpOnly, ini string kosong, tapi browser tetap mengirimnya.
+    console.log("🍪 [Socket] Cookie Visible (Document):", document.cookie);
 
     socket = io(SOCKET_URL, {
-      withCredentials: true, // Wajib untuk cookie/session
-      transports: ["websocket"], // Wajib untuk kestabilan di Railway/Cloudflare
+      withCredentials: true,
+      transports: ["websocket"],
       reconnectionAttempts: 10,
       reconnectionDelay: 3000,
       path: "/socket.io/",
     });
 
     socket.on("connect", () => {
-      console.log("✅ [Socket] Connected! ID:", socket.id);
+      console.log("✅ [Socket] Connected! Socket ID:", socket.id);
     });
 
     socket.on("connect_error", (err) => {
       console.error("❌ [Socket] Connection Error:", err.message);
+      
+      // Cek detail error dari backend (kadang ada di err.data)
+      if (err.data) console.error("   Detail:", err.data);
 
-      // Logika pencegahan spam reconnect jika Auth gagal
       if (err.message.includes("Authentication error") || err.message.includes("token missing")) {
-        console.warn("🔒 Auth gagal, memutus koneksi socket...");
-        socket.disconnect();
+        console.warn("🔒 Auth gagal. Server menolak token/cookie.");
+        // Opsi: Jangan langsung disconnect biar bisa retry jika token di-refresh
+        // socket.disconnect(); 
       }
+    });
+
+    socket.on("disconnect", (reason) => {
+       console.warn(`⚠️ [Socket] Disconnected. Reason: ${reason}`);
     });
 
     return socket;
   },
 
-  // --- ROOM MANAGEMENT ---
   joinRoom: (documentId) => {
-    if (socket && socket.connected) socket.emit("join_room", documentId);
+    if (socket && socket.connected) {
+        console.log(`🚪 [Socket] Joining Room: ${documentId}`);
+        socket.emit("join_room", documentId);
+    } else {
+        console.warn("⚠️ [Socket] Gagal Join Room: Socket belum connect.");
+    }
   },
 
   leaveRoom: (documentId) => {
-    if (socket) socket.emit("leave_room", documentId);
+    if (socket) {
+        console.log(`👋 [Socket] Leaving Room: ${documentId}`);
+        socket.emit("leave_room", documentId);
+    }
   },
 
-  // --- EMITTERS (Kirim Data) ---
   emitDrag: (data) => {
-    if (socket && socket.connected) socket.emit("drag_signature", data);
+    if (socket && socket.connected) {
+        // LOG PENTING: Cek Document ID sebelum kirim
+        // console.log("📤 [Socket] Emit Drag:", data); 
+        socket.emit("drag_signature", data);
+    }
   },
 
   emitAddSignature: (documentId, signature) => {
-    if (socket && socket.connected) socket.emit("add_signature_live", { documentId, signature });
+    if (socket && socket.connected) {
+        console.log("✨ [Socket] Emit Add Signature ke Room:", documentId);
+        socket.emit("add_signature_live", { documentId, signature });
+    }
   },
 
   emitRemoveSignature: (documentId, signatureId) => {
-    if (socket && socket.connected) socket.emit("remove_signature_live", { documentId, signatureId });
+    if (socket && socket.connected) {
+        console.log("🗑️ [Socket] Emit Remove Signature:", signatureId);
+        socket.emit("remove_signature_live", { documentId, signatureId });
+    }
   },
 
   notifyDataChanged: (documentId) => {
@@ -82,13 +104,16 @@ export const socketService = {
     if (socket && socket.connected) socket.emit("cursor_move", data);
   },
 
-  // --- LISTENERS (Terima Data) ---
+  // --- LISTENERS ---
   onPositionUpdate: (callback) => {
     if (socket) socket.on("update_signature_position", callback);
   },
 
   onAddSignatureLive: (callback) => {
-    if (socket) socket.on("add_signature_live", callback);
+    if (socket) socket.on("add_signature_live", (data) => {
+        console.log("📥 [Socket] Terima Signature Baru dari Teman:", data);
+        callback(data);
+    });
   },
 
   onRemoveSignatureLive: (callback) => {
@@ -96,7 +121,10 @@ export const socketService = {
   },
 
   onRefetchData: (callback) => {
-    if (socket) socket.on("refetch_data", callback);
+    if (socket) socket.on("refetch_data", () => {
+        console.log("🔄 [Socket] Diminta Reload Data oleh Server");
+        callback();
+    });
   },
 
   onCursorMove: (callback) => {
@@ -114,6 +142,7 @@ export const socketService = {
 
   disconnect: () => {
     if (socket) {
+      console.log("🛑 [Socket] Disconnect manual dipanggil.");
       socket.disconnect();
       socket = null;
     }
