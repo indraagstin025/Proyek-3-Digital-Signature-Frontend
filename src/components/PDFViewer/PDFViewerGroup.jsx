@@ -41,43 +41,8 @@ const PDFViewerGroup = ({
   const observerRef = useRef(null);
   const isDroppingRef = useRef(false);
 
-  // --- [LOGGING] 1. Cek Props Masuk ---
-  useEffect(() => {
-    console.group("📄 [PDFViewerGroup] Debug Init");
-    console.log("Document ID:", documentId);
-    console.log("File URL:", fileUrl);
-    console.log("Worker Src:", pdfjs.GlobalWorkerOptions.workerSrc);
-    
-    if (!fileUrl) {
-      console.error("❌ File URL Kosong/Null/Undefined!");
-    } else {
-        // Cek apakah URL valid (bukan blob error atau string kosong)
-        console.log("✅ File URL terdeteksi, mencoba memuat...");
-    }
-    console.groupEnd();
-  }, [fileUrl, documentId]);
-
-  // --- [LOGGING] 2. Handler Sukses ---
   function onDocumentLoadSuccess({ numPages: nextNumPages }) {
-    console.log(`✅ [PDFViewerGroup] Load Sukses! Total Halaman: ${nextNumPages}`);
     setNumPages(nextNumPages);
-  }
-
-  // --- [LOGGING] 3. Handler Error Utama ---
-  function onDocumentLoadError(error) {
-    console.error("❌ [PDFViewerGroup] Gagal Memuat PDF:", error);
-    console.error("Detail Error:", error.message);
-    
-    if (error.name === "MissingPDFException") {
-        console.warn("⚠️ File PDF tidak ditemukan di URL tersebut (404).");
-    } else if (error.message && error.message.includes("Failed to fetch")) {
-        console.warn("⚠️ Masalah Jaringan atau CORS. Cek tab Network.");
-    }
-  }
-
-  // --- [LOGGING] 4. Handler Source Error (Fetch Error) ---
-  function onDocumentSourceError(error) {
-    console.error("❌ [PDFViewerGroup] Source Error (Masalah mengambil data dari server):", error);
   }
 
   const checkResponsiveness = useCallback(() => {
@@ -283,11 +248,7 @@ const PDFViewerGroup = ({
         {/* SIDEBAR THUMBNAIL (Desktop Only) */}
         {!isMobileOrPortrait && (
           <div className="w-48 overflow-y-auto bg-slate-100/50 dark:bg-slate-900/50 border-r border-slate-200/80 dark:border-slate-700 p-2 flex-shrink-0">
-            <Document 
-                file={fileUrl} 
-                loading=""
-                onLoadError={onDocumentLoadError} // Tambahkan log di sini juga
-            >
+            <Document file={fileUrl} loading="">
               {Array.from(new Array(numPages || 0), (el, index) => (
                 <div
                   key={`thumb_${index + 1}`}
@@ -303,17 +264,7 @@ const PDFViewerGroup = ({
 
         {/* MAIN PDF AREA */}
         <div ref={containerRef} className={`flex-grow overflow-auto ${isMobileOrPortrait ? "p-2 pb-24" : "p-4"} flex justify-center`}>
-          <Document 
-            file={fileUrl} 
-            onLoadSuccess={onDocumentLoadSuccess} 
-            onLoadError={onDocumentLoadError} // <-- Handler Error ditambahkan
-            onSourceError={onDocumentSourceError} // <-- Handler Source Error ditambahkan
-            loading={<p className="text-center mt-8">Memuat dokumen grup...</p>} 
-            error={<div className="text-center mt-8 text-red-500 p-4 border border-red-200 rounded">
-                    <p className="font-bold">Gagal memuat dokumen.</p>
-                    <p className="text-sm mt-2 text-gray-500">Silakan cek console log untuk detail.</p>
-                   </div>}
-          >
+          <Document file={fileUrl} onLoadSuccess={onDocumentLoadSuccess} loading={<p className="text-center mt-8">Memuat dokumen grup...</p>} error={<p className="text-center mt-8 text-red-500">Gagal memuat dokumen.</p>}>
             {Array.from(new Array(numPages || 0), (el, index) => (
               <div
                 key={`page_${index + 1}`}
@@ -334,7 +285,6 @@ const PDFViewerGroup = ({
                     renderTextLayer={false}
                     renderAnnotationLayer={false}
                     className="pointer-events-none"
-                    onLoadError={(error) => console.error(`❌ Gagal load halaman ${index + 1}:`, error)} // Log per halaman
                   />
                 </div>
 
