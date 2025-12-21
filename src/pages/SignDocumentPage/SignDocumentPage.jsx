@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useOutletContext } from "react-router-dom";
 import { toast } from "react-hot-toast";
+import { FaRobot } from "react-icons/fa"; // [BARU] Import Icon Robot
 
 // Layout & Hooks
 import SignDocumentLayout from "../../layouts/SignDocumentLayout";
@@ -45,7 +46,6 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
     setIsSignedSuccess,
     isLoadingDoc,
     isGroupDoc,
-    // documentType // [OPSIONAL] Jika hook ini mengembalikan tipe dokumen dari DB, bisa diambil disini
   } = useDocumentDetail(documentId, contextData, refreshKey);
 
   // Redirect Logic untuk Dokumen Group
@@ -60,7 +60,7 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
   const {
     signatures,
     isSaving,
-    isAnalyzing, // Pastikan ini terambil
+    isAnalyzing, 
     aiData,
     handleAddSignature,
     handleUpdateSignature,
@@ -77,9 +77,7 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
     onRefreshRequest: () => setRefreshKey(prev => prev + 1)
   });
 
-  // [PERBAIKAN UTAMA DISINI]
-  // Buka modal jika SEDANG ANALISIS (Loading) ATAU jika DATA SUDAH ADA
-  // Ini memastikan robot loading muncul saat tombol diklik
+  // Effect: Buka modal jika analisis selesai atau sedang berjalan
   useEffect(() => {
     if (isAnalyzing || aiData) {
       setIsAiModalOpen(true);
@@ -110,44 +108,60 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
 
   const handleNavigateToView = () => navigate(`/documents/${documentId}/view`);
 
-  // Render menggunakan Layout
+  // Render
   return (
-    <SignDocumentLayout
-      currentUser={currentUser}
-      isLoadingDoc={isLoadingDoc}
-      pdfFile={pdfFile}
-      documentTitle={documentTitle}
-      documentId={documentId}
-      signatures={signatures}
-      savedSignatureUrl={savedSignatureUrl}
-      canSign={canSign}
-      isSignedSuccess={isSignedSuccess}
-      isSaving={isSaving}
-      isAnalyzing={isAnalyzing} // Kirim status loading ke Layout/Modal
-      
-      theme={theme}
-      toggleTheme={toggleTheme}
-      isSidebarOpen={isSidebarOpen}
-      setIsSidebarOpen={setIsSidebarOpen}
-      isSignatureModalOpen={isSignatureModalOpen}
-      setIsSignatureModalOpen={setIsSignatureModalOpen}
-      isAiModalOpen={isAiModalOpen}
-      setIsAiModalOpen={setIsAiModalOpen}
-      isLandscape={isLandscape}
-      isPortrait={isPortrait}
-      includeQrCode={includeQrCode}
-      setIncludeQrCode={setIncludeQrCode}
-      aiData={aiData} // Data hasil analisis
+    <>
+      <SignDocumentLayout
+        currentUser={currentUser}
+        isLoadingDoc={isLoadingDoc}
+        pdfFile={pdfFile}
+        documentTitle={documentTitle}
+        documentId={documentId}
+        signatures={signatures}
+        savedSignatureUrl={savedSignatureUrl}
+        canSign={canSign}
+        isSignedSuccess={isSignedSuccess}
+        isSaving={isSaving}
+        isAnalyzing={isAnalyzing} 
+        
+        theme={theme}
+        toggleTheme={toggleTheme}
+        isSidebarOpen={isSidebarOpen}
+        setIsSidebarOpen={setIsSidebarOpen}
+        isSignatureModalOpen={isSignatureModalOpen}
+        setIsSignatureModalOpen={setIsSignatureModalOpen}
+        isAiModalOpen={isAiModalOpen}
+        setIsAiModalOpen={setIsAiModalOpen}
+        isLandscape={isLandscape}
+        isPortrait={isPortrait}
+        includeQrCode={includeQrCode}
+        setIncludeQrCode={setIncludeQrCode}
+        aiData={aiData} 
 
-      onAddDraft={onAddDraft}
-      onUpdateSignature={handleUpdateSignature}
-      onDeleteSignature={handleDeleteSignature}
-      onSaveFromModal={onSaveFromModal}
-      onCommitSave={onCommitSave}
-      handleAutoTag={handleAutoTag}
-      handleAnalyzeDocument={handleAnalyzeDocument}
-      handleNavigateToView={handleNavigateToView}
-    />
+        onAddDraft={onAddDraft}
+        onUpdateSignature={handleUpdateSignature}
+        onDeleteSignature={handleDeleteSignature}
+        onSaveFromModal={onSaveFromModal}
+        onCommitSave={onCommitSave}
+        handleAutoTag={handleAutoTag}
+        handleAnalyzeDocument={handleAnalyzeDocument}
+        handleNavigateToView={handleNavigateToView}
+      />
+
+      {/* [BARU] Tombol AI Melayang (FAB) Khusus Mobile */}
+      {/* Hanya tampil di Mobile (md:hidden) agar tidak duplikat dengan sidebar desktop */}
+      <div className="fixed top-20 right-4 z-50 md:hidden flex flex-col items-end gap-3 pointer-events-none">
+        
+        <button
+          onClick={handleAnalyzeDocument}
+          className="pointer-events-auto w-10 h-10 rounded-full bg-indigo-600 text-white shadow-lg flex items-center justify-center hover:bg-indigo-700 transition-all transform hover:scale-110 active:scale-90"
+          title="Analisis AI"
+        >
+          <FaRobot size={18} className={isAnalyzing ? "animate-bounce" : ""} />
+        </button>
+
+      </div>
+    </>
   );
 };
 

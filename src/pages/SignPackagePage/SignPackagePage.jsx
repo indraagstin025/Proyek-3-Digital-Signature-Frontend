@@ -9,8 +9,9 @@ import PDFViewer from "../../components/PDFViewer/PDFViewer";
 import SignatureSidebar from "../../components/SignatureSidebar/SignatureSidebar";
 import SignatureModal from "../../components/SignatureModal/SignatureModal";
 import ProcessingPackageModal from "../../components/ProcessingModal/ProcessingPackageModal"; 
+import AiAnalysisModal from "../../components/AiAnalysisModal/AiAnalysisModal"; 
 
-import { FaSpinner, FaChevronRight, FaChevronLeft, FaPenNib, FaSave, FaTools } from "react-icons/fa";
+import { FaSpinner, FaChevronRight, FaChevronLeft, FaPenNib, FaSave, FaTools, FaRobot } from "react-icons/fa"; // Tambahkan FaRobot jika ingin icon tombol manual (opsional)
 
 const SignPackagePage = ({ theme, toggleTheme }) => {
   const { packageId } = useParams();
@@ -36,9 +37,14 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLandscape, setIsLandscape] = useState(window.innerWidth > window.innerHeight);
 
-  // ✅ STATE BARU UNTUK MODAL PROGRESS
+  // State Modal Progress
   const [isProcessingModalOpen, setIsProcessingModalOpen] = useState(false);
   const [progressIndex, setProgressIndex] = useState(0);
+
+  // ✅ [2] STATE BARU UNTUK AI
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [aiAnalysisData, setAiAnalysisData] = useState(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
 
   const totalDocs = packageDetails?.documents?.length || 0;
   const isLastDocument = totalDocs > 0 && currentIndex === totalDocs - 1;
@@ -169,6 +175,39 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
     setCurrentSignatures((prev) => prev.filter((sig) => sig.id !== signatureId));
   }, []);
 
+  // ✅ [3] FUNGSI TRIGGER AI PER DOKUMEN
+  const handleAnalyzeCurrentDocument = useCallback(async () => {
+    if (!currentPackageDocument) {
+      toast.error("Dokumen tidak ditemukan.");
+      return;
+    }
+
+    // Ambil ID dokumen asli (bukan ID packageDocument)
+    const realDocId = currentPackageDocument.docVersion?.document?.id;
+    
+    if (!realDocId) {
+      toast.error("ID Dokumen tidak valid.");
+      return;
+    }
+
+    setIsAiModalOpen(true);
+    setAiAnalysisData(null); // Reset data lama agar loading terlihat
+    setIsAiLoading(true);
+
+    try {
+        // Panggil service (pastikan documentService punya fungsi analyzeDocument)
+        const result = await signatureService.analyzeDocument(realDocId);
+        setAiAnalysisData(result);
+    } catch (error) {
+        console.error("AI Error:", error);
+        toast.error("Gagal menganalisis dokumen.");
+        setIsAiModalOpen(false); // Tutup jika error fatal
+    } finally {
+        setIsAiLoading(false);
+    }
+  }, [currentPackageDocument]);
+
+
   const navigateDocument = useCallback(
     (direction) => {
       const nextIndex = direction === "next" ? currentIndex + 1 : currentIndex - 1;
@@ -178,6 +217,11 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
         const newAllSignatures = new Map(allSignatures).set(currentPackageDocument.id, currentSignatures);
         setAllSignatures(newAllSignatures);
       }
+
+      // ✅ [4] RESET AI SAAT PINDAH DOKUMEN
+      // Agar hasil analisis dokumen A tidak muncul saat melihat dokumen B
+      setAiAnalysisData(null);
+      setIsAiModalOpen(false);
 
       setCurrentIndex(nextIndex);
 
@@ -242,7 +286,6 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
     }
   }, [currentPackageDocument, currentDocumentTitle, savedSignatureUrl, allSignatures]);
 
-  // ✅ [LOGIKA UTAMA] Handle Submit dengan Modal Progress
   const handleNextOrSubmit = async () => {
     if (currentSignatures.length === 0) {
       toast.error(`Harap tempatkan setidaknya satu tanda tangan di ${currentDocumentTitle}.`);
@@ -253,12 +296,10 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
       return;
     }
 
-    // Simpan ttd dokumen aktif ke map
     const newAllSignatures = new Map(allSignatures).set(currentPackageDocument.id, currentSignatures);
     setAllSignatures(newAllSignatures);
 
     if (isLastDocument) {
-      // 1. Persiapan Payload
       const finalSignaturesPayload = [];
       newAllSignatures.forEach((signatures, packageDocId) => {
         signatures.forEach((sig) => {
@@ -282,32 +323,25 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
         return;
       }
 
-      // 2. BUKA MODAL & MULAI PROSES
       setIsSubmitting(true);
       setIsProcessingModalOpen(true);
       setProgressIndex(0);
 
-      // 3. Simulasi Progress (Agar UI terlihat hidup)
-      // Estimasi: 1 Dokumen = 4 Detik
       const intervalId = setInterval(() => {
         setProgressIndex((prev) => {
-            // Mentok di dokumen terakhir (n-1) sampai request benar-benar selesai
             if (prev < totalDocs - 1) return prev + 1;
             return prev;
         });
       }, 4000); 
 
       try {
-        // 🔥 REQUEST UTAMA (Bisa 1-5 Menit)
         const result = await packageService.signPackage(packageId, finalSignaturesPayload);
 
-        // 4. SUKSES: Hentikan timer & Penuhkan Progress
         clearInterval(intervalId);
-        setProgressIndex(totalDocs); // Set ke 100%
+        setProgressIndex(totalDocs); 
 
-        // Delay sedikit agar user lihat animasi centang hijau di modal
         setTimeout(() => {
-            setIsProcessingModalOpen(false); // Tutup modal
+            setIsProcessingModalOpen(false); 
             setIsSubmitting(false);
 
             if (result.status === "completed") {
@@ -320,7 +354,6 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
         }, 2000);
 
       } catch (err) {
-        // 5. GAGAL
         clearInterval(intervalId);
         setIsProcessingModalOpen(false);
         setIsSubmitting(false);
@@ -344,7 +377,6 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
     );
   }
 
-  // Helper untuk mendapatkan judul dokumen yang sedang diproses (untuk ditampilkan di modal)
   const processingTitle = packageDetails?.documents[Math.min(progressIndex, totalDocs - 1)]?.docVersion?.document?.title;
 
   return (
@@ -352,7 +384,7 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
       <Toaster position="top-center" containerStyle={{ zIndex: 9999 }} />
       {isSignatureModalOpen && <SignatureModal onClose={() => setIsSignatureModalOpen(false)} onSave={handleSignatureSave} />}
 
-      {/* ✅ PASANG MODAL PROGRESS DI SINI */}
+      {/* MODAL PROGRESS SIGNING */}
       <ProcessingPackageModal 
         isOpen={isProcessingModalOpen}
         totalDocs={totalDocs}
@@ -360,12 +392,19 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
         currentDocTitle={processingTitle}
       />
 
-      {/* 1. SIGNING HEADER */}
+      {/* ✅ [5] MODAL AI ANALYSIS */}
+      <AiAnalysisModal 
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        data={aiAnalysisData}
+        isLoading={isAiLoading}
+        dbDocumentType={currentPackageDocument?.docVersion?.document?.type} 
+      />
+
       <header className="fixed top-0 left-0 w-full h-16 z-50">
         <SigningHeader theme={theme} toggleTheme={toggleTheme} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
       </header>
 
-      {/* 2. WRAPPER NAVIGASI DOKUMEN */}
       <div className={`fixed top-16 left-0 w-full h-12 z-40 bg-white dark:bg-slate-900 shadow-sm border-b border-slate-200/80 dark:border-white/10`}>
         <div className="flex items-center justify-center h-full px-4">
           <button
@@ -395,7 +434,6 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
         </div>
       </div>
 
-      {/* 3. WRAPPER KONTEN UTAMA */}
       <div className="absolute top-[112px] bottom-0 left-0 w-full flex overflow-hidden">
         <main className="flex-1 overflow-hidden">
           {currentPdfBlobUrl && (
@@ -423,11 +461,23 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
           setIncludeQrCode={setIncludeQrCode}
           isOpen={sidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
+          
+          // ✅ [6] PASSING FUNGSI AI KE SIDEBAR
+          onAnalyze={handleAnalyzeCurrentDocument}
         />
       </div>
 
-      {/* FAB Mobile */}
+      {/* FAB Mobile (Opsional: Tambah tombol robot di sini jika mau) */}
       <div className="fixed top-32 right-4 z-50 md:hidden flex flex-col items-end gap-3 pointer-events-none">
+        
+        {/* Tombol AI Mobile */}
+        <button
+          onClick={handleAnalyzeCurrentDocument}
+          className="pointer-events-auto w-10 h-10 rounded-full bg-indigo-600 text-white shadow-lg flex items-center justify-center hover:bg-indigo-700 transition-all transform hover:scale-110 active:scale-90"
+        >
+          <FaRobot size={14} />
+        </button>
+
         {currentSignatures.length > 0 && (
             <button
               onClick={handleNextOrSubmit}
@@ -458,7 +508,6 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
         </button>
       </div>
 
-      {/* Overlay untuk Mobile/Portrait */}
       {isSidebarOpen && !isLandscape && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/40 z-30 md:hidden"></div>}
     </div>
   );
