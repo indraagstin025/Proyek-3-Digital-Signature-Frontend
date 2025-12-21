@@ -8,17 +8,13 @@ import { handleError } from "./errorHandler";
 export const packageService = {
   /**
    * @description Membuat "Paket Tanda Tangan" (Amplop) baru di backend.
-   * Ini adalah langkah 1 dari wizard.
-   * * [PERBAIKAN] Urutan parameter ditukar agar sesuai dengan useDashboardDocuments.js
-   * @param {string} title - Judul paket.
-   * @param {string[]} documentIds - Array berisi ID dokumen.
+   * Langkah 1 Wizard.
    */
-  createPackage: async (title, documentIds) => { // <--- DITUKAR: Title dulu, baru IDs
+  createPackage: async (title, documentIds) => {
     try {
-      // Payload tetap mengirim object { documentIds, title } sesuai Controller Backend
-      const payload = { 
-        title, 
-        documentIds 
+      const payload = {
+        title,
+        documentIds,
       };
 
       const response = await apiClient.post("/packages", payload);
@@ -30,8 +26,8 @@ export const packageService = {
   },
 
   /**
-   * @description Mengambil detail lengkap paket, termasuk daftar dokumen di dalamnya.
-   * Ini adalah langkah 2 dari wizard (memuat halaman TTD).
+   * @description Mengambil detail lengkap paket.
+   * Langkah 2 Wizard.
    */
   getPackageDetails: async (packageId) => {
     try {
@@ -43,15 +39,28 @@ export const packageService = {
   },
 
   /**
-   * @description Mengirim semua data TTD yang sudah ditempatkan di wizard ke backend.
-   * Ini adalah langkah terakhir (final) dari wizard.
+   * @description Mengirim semua data TTD (Final Step).
+   * 🔥 PROSES BERAT (Bisa memakan waktu > 1 menit).
+   * Kita override timeout secara eksplisit di sini agar aman.
    */
   signPackage: async (packageId, signatures) => {
     try {
       const payload = { signatures };
-      const response = await apiClient.post(`/packages/${packageId}/sign`, payload);
+      
+      // Override timeout khusus untuk request ini menjadi 5 menit (300000ms)
+      // Ini memastikan request tidak diputus browser walau global config berubah.
+      const response = await apiClient.post(`/packages/${packageId}/sign`, payload, {
+        timeout: 300000, 
+      });
+      
       return response.data.data;
     } catch (error) {
+      // Deteksi error timeout spesifik untuk memberikan pesan yang lebih jelas
+      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+         console.error("Sign Package Timeout:", error);
+         // Kita lempar error baru agar UI tau ini masalah waktu, bukan bug
+         throw new Error("Proses tanda tangan memakan waktu terlalu lama. Coba kurangi jumlah dokumen dalam paket.");
+      }
       handleError(error, "Gagal menyelesaikan proses tanda tangan paket.");
     }
   },

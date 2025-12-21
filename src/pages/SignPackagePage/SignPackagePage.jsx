@@ -8,8 +8,8 @@ import SigningHeader from "../../components/SigningHeader/SigningHeader";
 import PDFViewer from "../../components/PDFViewer/PDFViewer";
 import SignatureSidebar from "../../components/SignatureSidebar/SignatureSidebar";
 import SignatureModal from "../../components/SignatureModal/SignatureModal";
+import ProcessingPackageModal from "../../components/ProcessingModal/ProcessingPackageModal"; 
 
-// [UX FIX] Tambahkan import ikon baru (FaPenNib, FaSave, FaTools)
 import { FaSpinner, FaChevronRight, FaChevronLeft, FaPenNib, FaSave, FaTools } from "react-icons/fa";
 
 const SignPackagePage = ({ theme, toggleTheme }) => {
@@ -36,10 +36,13 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLandscape, setIsLandscape] = useState(window.innerWidth > window.innerHeight);
 
+  // ✅ STATE BARU UNTUK MODAL PROGRESS
+  const [isProcessingModalOpen, setIsProcessingModalOpen] = useState(false);
+  const [progressIndex, setProgressIndex] = useState(0);
+
   const totalDocs = packageDetails?.documents?.length || 0;
   const isLastDocument = totalDocs > 0 && currentIndex === totalDocs - 1;
 
-  // [UX FIX] Onboarding Hint saat masuk halaman (Khusus Mobile)
   useEffect(() => {
     if (window.innerWidth < 768) {
       setTimeout(() => {
@@ -239,6 +242,7 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
     }
   }, [currentPackageDocument, currentDocumentTitle, savedSignatureUrl, allSignatures]);
 
+  // ✅ [LOGIKA UTAMA] Handle Submit dengan Modal Progress
   const handleNextOrSubmit = async () => {
     if (currentSignatures.length === 0) {
       toast.error(`Harap tempatkan setidaknya satu tanda tangan di ${currentDocumentTitle}.`);
@@ -249,13 +253,12 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
       return;
     }
 
+    // Simpan ttd dokumen aktif ke map
     const newAllSignatures = new Map(allSignatures).set(currentPackageDocument.id, currentSignatures);
     setAllSignatures(newAllSignatures);
 
     if (isLastDocument) {
-      setIsSubmitting(true);
-      const toastId = toast.loading("Menyelesaikan dan menyimpan semua tanda tangan...");
-
+      // 1. Persiapan Payload
       const finalSignaturesPayload = [];
       newAllSignatures.forEach((signatures, packageDocId) => {
         signatures.forEach((sig) => {
@@ -275,25 +278,54 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
       });
 
       if (finalSignaturesPayload.length === 0) {
-        setIsSubmitting(false);
-        toast.error("Tidak ada tanda tangan yang valid untuk disimpan.", { id: toastId });
+        toast.error("Tidak ada tanda tangan yang valid untuk disimpan.");
         return;
       }
 
+      // 2. BUKA MODAL & MULAI PROSES
+      setIsSubmitting(true);
+      setIsProcessingModalOpen(true);
+      setProgressIndex(0);
+
+      // 3. Simulasi Progress (Agar UI terlihat hidup)
+      // Estimasi: 1 Dokumen = 4 Detik
+      const intervalId = setInterval(() => {
+        setProgressIndex((prev) => {
+            // Mentok di dokumen terakhir (n-1) sampai request benar-benar selesai
+            if (prev < totalDocs - 1) return prev + 1;
+            return prev;
+        });
+      }, 4000); 
+
       try {
+        // 🔥 REQUEST UTAMA (Bisa 1-5 Menit)
         const result = await packageService.signPackage(packageId, finalSignaturesPayload);
 
-        if (result.status === "completed") {
-          toast.success("Semua dokumen berhasil ditandatangani!", { id: toastId });
-        } else {
-          toast.error(`Proses selesai, namun ${result.failed.length} dokumen gagal.`, { id: toastId });
-        }
+        // 4. SUKSES: Hentikan timer & Penuhkan Progress
+        clearInterval(intervalId);
+        setProgressIndex(totalDocs); // Set ke 100%
 
-        navigate("/dashboard/documents");
+        // Delay sedikit agar user lihat animasi centang hijau di modal
+        setTimeout(() => {
+            setIsProcessingModalOpen(false); // Tutup modal
+            setIsSubmitting(false);
+
+            if (result.status === "completed") {
+                toast.success("Semua dokumen berhasil ditandatangani!");
+            } else {
+                toast.error(`Selesai, namun ${result.failed.length} dokumen gagal.`);
+            }
+            
+            navigate("/dashboard/documents");
+        }, 2000);
+
       } catch (err) {
+        // 5. GAGAL
+        clearInterval(intervalId);
+        setIsProcessingModalOpen(false);
         setIsSubmitting(false);
         setError(err.message);
-        toast.error(err.message || "Gagal menyimpan paket.", { id: toastId });
+        toast.error(err.message || "Gagal menyimpan paket.");
       }
     } else {
       navigateDocument("next");
@@ -312,10 +344,21 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
     );
   }
 
+  // Helper untuk mendapatkan judul dokumen yang sedang diproses (untuk ditampilkan di modal)
+  const processingTitle = packageDetails?.documents[Math.min(progressIndex, totalDocs - 1)]?.docVersion?.document?.title;
+
   return (
     <div className="absolute inset-0 bg-slate-200 dark:bg-slate-900 overflow-hidden">
       <Toaster position="top-center" containerStyle={{ zIndex: 9999 }} />
       {isSignatureModalOpen && <SignatureModal onClose={() => setIsSignatureModalOpen(false)} onSave={handleSignatureSave} />}
+
+      {/* ✅ PASANG MODAL PROGRESS DI SINI */}
+      <ProcessingPackageModal 
+        isOpen={isProcessingModalOpen}
+        totalDocs={totalDocs}
+        currentDocIndex={progressIndex}
+        currentDocTitle={processingTitle}
+      />
 
       {/* 1. SIGNING HEADER */}
       <header className="fixed top-0 left-0 w-full h-16 z-50">
@@ -383,13 +426,8 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
         />
       </div>
 
-{/* ======================================================= */}
-      {/* [UX FIX] FLOATING ACTION BUTTONS (KHUSUS MOBILE)        */}
-      {/* POSISI: Kanan Atas                                      */}
-      {/* ======================================================= */}
-      
+      {/* FAB Mobile */}
       <div className="fixed top-32 right-4 z-50 md:hidden flex flex-col items-end gap-3 pointer-events-none">
-        
         {currentSignatures.length > 0 && (
             <button
               onClick={handleNextOrSubmit}
@@ -411,7 +449,7 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
           <FaTools size={14} />
         </button>
 
- <button
+        <button
           onClick={() => setIsSignatureModalOpen(true)}
           className="pointer-events-auto w-12 h-12 rounded-full bg-blue-600 text-white shadow-xl flex items-center justify-center hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 transition-all transform hover:scale-105 active:scale-95"
           title="Buat Tanda Tangan Baru"
@@ -419,7 +457,6 @@ const SignPackagePage = ({ theme, toggleTheme }) => {
           <FaPenNib size={16} />
         </button>
       </div>
-      {/* ======================================================= */}
 
       {/* Overlay untuk Mobile/Portrait */}
       {isSidebarOpen && !isLandscape && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/40 z-30 md:hidden"></div>}

@@ -30,7 +30,7 @@ const apiClient = axios.create({
   // 🔥 FIX UTAMA: Timeout 10 Detik
   // Jika server tidak merespon dalam 10 detik, batalkan request.
   // Ini mencegah spinner berputar selamanya saat ganti halaman.
-  timeout: 10000, 
+  timeout: 300000, 
 });
 
 /* ============================================================
