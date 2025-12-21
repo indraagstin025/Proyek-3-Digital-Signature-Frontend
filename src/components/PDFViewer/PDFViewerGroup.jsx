@@ -2,13 +2,10 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import interact from "interactjs";
 
-// 🔥 PENTING: Import komponen Signature khusus Group
 import PlacedSignatureGroup from "../PlacedSignature/PlacedSignatureGroup";
 
-// Konfigurasi Worker PDF
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.js";
 
-// Helper Debounce untuk efisiensi resize
 function debounce(func, delay) {
   let timeout;
   return function (...args) {
@@ -28,16 +25,14 @@ const PDFViewerGroup = ({
   onDeleteSignature,
   savedSignatureUrl,
   readOnly = false,
-  
-  // 🔥 Props Wajib untuk Group Logic (Socket & Auth)
+
   documentId,
-  currentUser
+  currentUser,
 }) => {
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [containerWidth, setContainerWidth] = useState(0);
 
-  // Responsiveness State
   const [isMobileOrPortrait, setIsMobileOrPortrait] = useState(false);
   const [pageHeight, setPageHeight] = useState(0);
 
@@ -46,11 +41,45 @@ const PDFViewerGroup = ({
   const observerRef = useRef(null);
   const isDroppingRef = useRef(false);
 
+  // --- [LOGGING] 1. Cek Props Masuk ---
+  useEffect(() => {
+    console.group("📄 [PDFViewerGroup] Debug Init");
+    console.log("Document ID:", documentId);
+    console.log("File URL:", fileUrl);
+    console.log("Worker Src:", pdfjs.GlobalWorkerOptions.workerSrc);
+    
+    if (!fileUrl) {
+      console.error("❌ File URL Kosong/Null/Undefined!");
+    } else {
+        // Cek apakah URL valid (bukan blob error atau string kosong)
+        console.log("✅ File URL terdeteksi, mencoba memuat...");
+    }
+    console.groupEnd();
+  }, [fileUrl, documentId]);
+
+  // --- [LOGGING] 2. Handler Sukses ---
   function onDocumentLoadSuccess({ numPages: nextNumPages }) {
+    console.log(`✅ [PDFViewerGroup] Load Sukses! Total Halaman: ${nextNumPages}`);
     setNumPages(nextNumPages);
   }
 
-  // --- 1. RESPONSIVE LOGIC ---
+  // --- [LOGGING] 3. Handler Error Utama ---
+  function onDocumentLoadError(error) {
+    console.error("❌ [PDFViewerGroup] Gagal Memuat PDF:", error);
+    console.error("Detail Error:", error.message);
+    
+    if (error.name === "MissingPDFException") {
+        console.warn("⚠️ File PDF tidak ditemukan di URL tersebut (404).");
+    } else if (error.message && error.message.includes("Failed to fetch")) {
+        console.warn("⚠️ Masalah Jaringan atau CORS. Cek tab Network.");
+    }
+  }
+
+  // --- [LOGGING] 4. Handler Source Error (Fetch Error) ---
+  function onDocumentSourceError(error) {
+    console.error("❌ [PDFViewerGroup] Source Error (Masalah mengambil data dari server):", error);
+  }
+
   const checkResponsiveness = useCallback(() => {
     if (!containerRef.current) return;
 
@@ -63,12 +92,10 @@ const PDFViewerGroup = ({
 
     let newContainerWidth;
     if (shouldUseMobileLayout) {
-      // Mobile: 90% lebar layar
       newContainerWidth = innerWidth * 0.9;
       setContainerWidth(newContainerWidth);
-      setPageHeight(newContainerWidth * 1.414); // Rasio A4
+      setPageHeight(newContainerWidth * 1.414);
     } else {
-      // Desktop: Hitung sisa ruang dikurangi padding
       const AVAILABLE_PADDING_BUFFER = 52;
       const availableWidth = Math.max(0, containerRef.current.offsetWidth - AVAILABLE_PADDING_BUFFER);
       newContainerWidth = Math.min(availableWidth, MAX_PDF_WIDTH);
@@ -84,7 +111,6 @@ const PDFViewerGroup = ({
     return () => window.removeEventListener("resize", debouncedUpdateWidth);
   }, [checkResponsiveness]);
 
-  // --- 2. INTERSECTION OBSERVER (Scroll Detection) ---
   useEffect(() => {
     if (isMobileOrPortrait) {
       if (observerRef.current) observerRef.current.disconnect();
@@ -116,7 +142,6 @@ const PDFViewerGroup = ({
     };
   }, [numPages, isMobileOrPortrait]);
 
-  // --- 3. TAP TO SIGN (Klik Layar) ---
   const handleCanvasClick = (event, pageNumber) => {
     if (readOnly) return;
     if (!savedSignatureUrl) return;
@@ -128,7 +153,6 @@ const PDFViewerGroup = ({
     const x_display = event.clientX - rect.left;
     const y_display = event.clientY - rect.top;
 
-    // Logika Ukuran Konsisten
     const MIN_PIXEL_SIZE = 140;
     const IDEAL_RATIO = 0.25;
 
@@ -142,7 +166,6 @@ const PDFViewerGroup = ({
     const centeredX = x_display - DEFAULT_WIDTH / 2;
     const centeredY = y_display - DEFAULT_HEIGHT / 2;
 
-    // Hitung posisi relatif database
     const realImageX = centeredX + PADDING;
     const realImageY = centeredY + PADDING;
     const realWidth = DEFAULT_WIDTH - PADDING * 2;
@@ -165,8 +188,7 @@ const PDFViewerGroup = ({
     if (navigator.vibrate) navigator.vibrate(50);
   };
 
-  // --- 4. DRAG & DROP DARI SIDEBAR ---
- useEffect(() => {
+  useEffect(() => {
     if (readOnly) return;
 
     interact(".dropzone-overlay").dropzone({
@@ -178,23 +200,16 @@ const PDFViewerGroup = ({
         event.target.classList.remove("pointer-events-auto");
         event.target.classList.add("pointer-events-none");
       },
-      
-      // 🔥 LOGIKA STRICT: HANYA TERIMA BARANG BARU 🔥
+
       ondrop: (event) => {
         const target = event.relatedTarget;
 
-        // 1. CEK: Apakah ini tanda tangan yang sudah ada di kanvas?
-        // Kita cek class 'placed-signature-item' yang ada di PlacedSignatureGroup
         const isExistingItem = target.classList.contains("placed-signature-item") || target.closest(".placed-signature-item");
 
         if (isExistingItem) {
-           // 🛑 STOP! Jangan lakukan apa-apa di sini.
-           // Biarkan PlacedSignatureGroup menangani update posisinya sendiri via event 'drag end'.
-           // Ini MENCEGAH DUPLIKASI 100%.
-           return;
+          return;
         }
 
-        // 2. KASUS: ITEM BARU DARI SIDEBAR
         if (!savedSignatureUrl) return;
 
         const overlayElement = event.target;
@@ -204,8 +219,7 @@ const PDFViewerGroup = ({
         const x_display = event.dragEvent.clientX - pageRect.left;
         const y_display = event.dragEvent.clientY - pageRect.top;
 
-        // Kalkulasi Ukuran
-        const MIN_PIXEL_SIZE = 140; 
+        const MIN_PIXEL_SIZE = 140;
         const IDEAL_RATIO = 0.25;
         let calculatedWidth = Math.max(pageRect.width * IDEAL_RATIO, MIN_PIXEL_SIZE);
         calculatedWidth = Math.min(calculatedWidth, pageRect.width * 0.6);
@@ -220,7 +234,6 @@ const PDFViewerGroup = ({
         const realImageY = y_display + PADDING;
 
         const newSignature = {
-      
           signatureImageUrl: savedSignatureUrl,
           pageNumber,
           x_display,
@@ -232,7 +245,7 @@ const PDFViewerGroup = ({
           width: realWidth / pageRect.width,
           height: realHeight / pageRect.height,
         };
-        
+
         onAddSignature(newSignature);
       },
     });
@@ -250,16 +263,14 @@ const PDFViewerGroup = ({
   return (
     <div className="w-full h-full relative bg-white dark:bg-slate-800/50 shadow-lg rounded-xl flex flex-col">
       {/* HEADER */}
-      <div className={`flex-shrink-0 h-16 flex justify-between items-center p-4 border-b border-slate-200/80 dark:border-slate-700/50 z-10 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm ${!isMobileOrPortrait ? "rounded-t-xl" : "rounded-none"}`}>
+      <div
+        className={`flex-shrink-0 h-16 flex justify-between items-center p-4 border-b border-slate-200/80 dark:border-slate-700/50 z-10 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm ${
+          !isMobileOrPortrait ? "rounded-t-xl" : "rounded-none"
+        }`}
+      >
         <div className="flex items-baseline gap-3 min-w-0">
-          {!isMobileOrPortrait && (
-            <span className="text-sm font-medium text-slate-500 dark:text-slate-400 flex-shrink-0">
-              [GROUP] Nama Dokumen:
-            </span>
-          )}
-          <h2 className="font-bold text-base md:text-lg text-slate-800 dark:text-white truncate">
-            {documentTitle}
-          </h2>
+          {!isMobileOrPortrait && <span className="text-sm font-medium text-slate-500 dark:text-slate-400 flex-shrink-0">[GROUP] Nama Dokumen:</span>}
+          <h2 className="font-bold text-base md:text-lg text-slate-800 dark:text-white truncate">{documentTitle}</h2>
         </div>
 
         <p className="font-semibold text-sm text-slate-500 dark:text-slate-400 flex-shrink-0 ml-4">
@@ -272,23 +283,18 @@ const PDFViewerGroup = ({
         {/* SIDEBAR THUMBNAIL (Desktop Only) */}
         {!isMobileOrPortrait && (
           <div className="w-48 overflow-y-auto bg-slate-100/50 dark:bg-slate-900/50 border-r border-slate-200/80 dark:border-slate-700 p-2 flex-shrink-0">
-            <Document file={fileUrl} loading="">
+            <Document 
+                file={fileUrl} 
+                loading=""
+                onLoadError={onDocumentLoadError} // Tambahkan log di sini juga
+            >
               {Array.from(new Array(numPages || 0), (el, index) => (
                 <div
                   key={`thumb_${index + 1}`}
-                  className={`mb-2 cursor-pointer rounded-md overflow-hidden border-2 transition-all ${
-                    pageNumber === index + 1
-                      ? "border-blue-500 shadow-md"
-                      : "border-transparent hover:border-blue-300 dark:hover:border-blue-700"
-                  }`}
+                  className={`mb-2 cursor-pointer rounded-md overflow-hidden border-2 transition-all ${pageNumber === index + 1 ? "border-blue-500 shadow-md" : "border-transparent hover:border-blue-300 dark:hover:border-blue-700"}`}
                   onClick={() => scrollToPage(index + 1)}
                 >
-                  <Page
-                    pageNumber={index + 1}
-                    width={150}
-                    renderAnnotationLayer={false}
-                    renderTextLayer={false}
-                  />
+                  <Page pageNumber={index + 1} width={150} renderAnnotationLayer={false} renderTextLayer={false} />
                 </div>
               ))}
             </Document>
@@ -296,17 +302,17 @@ const PDFViewerGroup = ({
         )}
 
         {/* MAIN PDF AREA */}
-        <div
-          ref={containerRef}
-          className={`flex-grow overflow-auto ${
-            isMobileOrPortrait ? "p-2 pb-24" : "p-4"
-          } flex justify-center`}
-        >
-          <Document
-            file={fileUrl}
-            onLoadSuccess={onDocumentLoadSuccess}
-            loading={<p className="text-center mt-8">Memuat dokumen grup...</p>}
-            error={<p className="text-center mt-8 text-red-500">Gagal memuat dokumen.</p>}
+        <div ref={containerRef} className={`flex-grow overflow-auto ${isMobileOrPortrait ? "p-2 pb-24" : "p-4"} flex justify-center`}>
+          <Document 
+            file={fileUrl} 
+            onLoadSuccess={onDocumentLoadSuccess} 
+            onLoadError={onDocumentLoadError} // <-- Handler Error ditambahkan
+            onSourceError={onDocumentSourceError} // <-- Handler Source Error ditambahkan
+            loading={<p className="text-center mt-8">Memuat dokumen grup...</p>} 
+            error={<div className="text-center mt-8 text-red-500 p-4 border border-red-200 rounded">
+                    <p className="font-bold">Gagal memuat dokumen.</p>
+                    <p className="text-sm mt-2 text-gray-500">Silakan cek console log untuk detail.</p>
+                   </div>}
           >
             {Array.from(new Array(numPages || 0), (el, index) => (
               <div
@@ -316,9 +322,7 @@ const PDFViewerGroup = ({
                   else pageRefs.current.delete(index + 1);
                 }}
                 data-page-number={index + 1}
-                className={`mb-6 ${
-                  isMobileOrPortrait ? "mx-auto" : "mb-8 flex justify-center"
-                } relative`}
+                className={`mb-6 ${isMobileOrPortrait ? "mx-auto" : "mb-8 flex justify-center"} relative`}
                 style={isMobileOrPortrait ? { width: `${containerWidth}px` } : {}}
               >
                 {/* PDF PAGE RENDER */}
@@ -330,31 +334,18 @@ const PDFViewerGroup = ({
                     renderTextLayer={false}
                     renderAnnotationLayer={false}
                     className="pointer-events-none"
+                    onLoadError={(error) => console.error(`❌ Gagal load halaman ${index + 1}:`, error)} // Log per halaman
                   />
                 </div>
 
                 {/* INTERACTION LAYER */}
-                <div
-                  className="dropzone-overlay absolute top-0 left-0 w-full h-full z-10 cursor-crosshair"
-                  data-page-number={index + 1}
-                  onClick={(e) => handleCanvasClick(e, index + 1)}
-                />
+                <div className="dropzone-overlay absolute top-0 left-0 w-full h-full z-10 cursor-crosshair" data-page-number={index + 1} onClick={(e) => handleCanvasClick(e, index + 1)} />
 
                 {/* 🔥 SIGNATURES RENDER (KHUSUS GROUP) 🔥 */}
                 {signatures
                   .filter((sig) => sig.pageNumber === index + 1)
                   .map((sig) => (
-                    <PlacedSignatureGroup
-                      key={sig.id}
-                      signature={sig}
-                      onUpdate={onUpdateSignature}
-                      onDelete={onDeleteSignature}
-                      readOnly={readOnly}
-                      
-                      // 🔥 Props Penting diteruskan ke Child
-                      documentId={documentId}
-                      currentUser={currentUser}
-                    />
+                    <PlacedSignatureGroup key={sig.id} signature={sig} onUpdate={onUpdateSignature} onDelete={onDeleteSignature} readOnly={readOnly} documentId={documentId} currentUser={currentUser} />
                   ))}
               </div>
             ))}
