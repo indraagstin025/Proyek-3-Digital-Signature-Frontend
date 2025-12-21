@@ -10,6 +10,16 @@ if (typeof Promise.withResolvers === 'undefined') {
     return { promise, resolve, reject };
   };
 }
+
+if (typeof URL.parse === 'undefined') {
+  URL.parse = function (url, base) {
+    try {
+      return new URL(url, base);
+    } catch (e) {
+      return null;
+    }
+  };
+}
 // =================================================================
 
 import "./index.css";
