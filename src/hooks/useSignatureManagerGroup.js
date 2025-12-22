@@ -31,6 +31,8 @@ export const useSignatureManagerGroup = ({
   const deletedSignaturesRef = useRef(new Set());
   const pendingCreationIds = useRef(new Set());
   const pendingUpdates = useRef(new Map());
+  const isSocketInitialized = useRef(null); // Menandai apakah socket sudah connect ke Doc ID tertentu
+  const userIdRef = useRef(currentUser?.id);
 
   // Update ref saat prop berubah
   useEffect(() => {
@@ -144,77 +146,84 @@ export const useSignatureManagerGroup = ({
 
   // --- 3. SOCKET LOGIC (VERSI STABIL & FIX LOGS) ---
   useEffect(() => {
+    userIdRef.current = currentUser?.id;
+  }, [currentUser]);
+
+  // --- 3. SOCKET LOGIC (YANG SUDAH DISESUAIKAN) ---
+  useEffect(() => {
+    // Validasi dasar: Jangan jalan kalau belum auth atau tidak ada dokumen
     if (!documentId || !isAuthVerified) return;
 
-    console.log("🚀 [Hook] Menginisialisasi Socket Service...");
+    // [LANGKAH 1 - STABILISASI]
+    // Cek apakah kita sudah menginisialisasi socket untuk Document ID ini?
+    // Jika SUDAH (dan ID-nya sama), BERHENTI DI SINI. Jangan jalankan ulang.
+    if (isSocketInitialized.current === documentId) {
+      return; 
+    }
+
+    console.log("🚀 [Hook] Menginisialisasi Socket Service (HANYA SEKALI)...");
+    
+    // Tandai bahwa kita sudah connect ke dokumen ini
+    isSocketInitialized.current = documentId;
+
     const socket = socketService.connect();
 
-    // Handler Koneksi
     const handleConnect = () => {
-      console.log("♻️ [Hook] Socket Connected/Reconnected, Joining Room:", documentId);
-      socketService.joinRoom(documentId);
+        console.log("♻️ [Hook] Socket Connected/Reconnected, Joining Room:", documentId);
+        socketService.joinRoom(documentId);
     };
 
     if (socket.connected) {
-      handleConnect();
+        handleConnect();
     }
     socketService.on("connect", handleConnect);
 
     // --- EVENT HANDLERS ---
-
-    // 1. Handle User Lain Menambah Signature
+    
     const handleAddLive = (newSig) => {
       const incomingUserId = String(newSig.userId || newSig.signerId || "");
-      const myCurrentId = String(currentUser.id || "");
+      // [FIX] Gunakan userIdRef.current agar selalu dapat ID terbaru tanpa restart effect
+      const myCurrentId = String(userIdRef.current || "");
 
-      // [PENTING] FILTER: Abaikan jika data berasal dari DIRI SENDIRI
-      // Karena kita sudah punya datanya via Optimistic UI (handleAddSignature)
+      // Filter: Abaikan data dari diri sendiri
       if (incomingUserId === myCurrentId) return;
 
       console.log("📥 [Socket] Terima Signature Baru dari Teman:", newSig);
       console.log(`👤 [Socket] User lain (${newSig.signerName}) menambah signature.`);
 
       setSignatures((prev) => {
-        // Cek duplikasi ID
+        // Cek duplikasi
         const exists = prev.find((s) => s.id === newSig.id);
         if (exists) return prev;
         
-        // Cek jika user ini sudah punya final signature (cegah tumpuk)
         const hasFinal = prev.some(
           (s) => String(s.userId) === incomingUserId && s.status === "final"
         );
         if (hasFinal) return prev;
 
-        // Cek jika kita barusan menghapus signature ini
         if (deletedSignaturesRef.current.has(newSig.id)) return prev;
 
-        // Bersihkan data lama user tersebut (jika ada draft sebelumnya)
         const cleanPrev = prev.filter((s) => String(s.userId) !== incomingUserId);
 
         toast(`${newSig.signerName || "User lain"} sedang menandatangani...`, {
           icon: "✏️",
           id: "sig-toast",
         });
-
         return [...cleanPrev, { ...newSig, status: "draft", isLocked: true }];
       });
     };
 
-    // 2. Handle User Lain Menghapus Signature
     const handleRemoveLive = (signatureId) => {
       console.log(`🗑️ [Socket] User lain menghapus signature ID: ${signatureId}`);
       setSignatures((prev) => prev.filter((s) => s.id !== signatureId));
     };
 
-    // 3. Handle User Lain Menggeser Posisi
     const handlePositionUpdate = (data) => {
-      // Tidak perlu log verbose di sini agar console tidak spam saat drag
       setSignatures((prev) =>
         prev.map((s) => (s.id === data.signatureId ? { ...s, ...data } : s))
       );
     };
 
-    // 4. Handle Refetch Request
     const handleRefetch = () => {
       console.log("🔄 [Socket] Server meminta Refetch Data");
       if (onRefreshRequestRef.current) onRefreshRequestRef.current();
@@ -226,7 +235,6 @@ export const useSignatureManagerGroup = ({
     socketService.onRemoveSignatureLive(handleRemoveLive);
     socketService.onRefetchData(handleRefetch);
 
-    // CLEANUP FUNCTION (PENTING untuk mencegah Double Event)
     return () => {
       console.log("🛑 [Hook] Cleanup Socket Listeners (Unmount)");
       socketService.off("connect", handleConnect);
@@ -234,10 +242,17 @@ export const useSignatureManagerGroup = ({
       socketService.off("add_signature_live", handleAddLive);
       socketService.off("remove_signature_live", handleRemoveLive);
       socketService.off("refetch_data", handleRefetch);
+      
       socketService.leaveRoom(documentId);
+      
+      // [PENTING] Reset ref inisialisasi saat benar-benar unmount/ganti dokumen
+      isSocketInitialized.current = null;
     };
-  }, [documentId, isAuthVerified, currentUser.id]);
-
+    
+    // [OPTIMASI DEPENDENCY]
+    // Hapus 'currentUser.id'. Kita hanya pantau documentId & status auth.
+    // Perubahan currentUser ditangani oleh userIdRef di dalam logika.
+  }, [documentId, isAuthVerified]);
   // --- 4. ACTION HANDLERS (CRUD) ---
 
   const handleUpdateSignature = useCallback((updatedSignature) => {
