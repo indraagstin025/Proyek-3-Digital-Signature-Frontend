@@ -1,33 +1,23 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import HeroSection from './HeroSection';
 import FeaturesSection from './FeaturesSection';
 import HowItWorksSection from './HowItWorksSection';
-import TestimonialsSection from './StatisticSection';
+import StatisticSection from './StatisticSection'; // Pastikan nama file import sesuai
 
 const HomePage = () => {
-    useEffect(() => {
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('visible');
-                }
-            });
-        }, { threshold: 0.1 });
-
-        const elements = document.querySelectorAll('.scroll-animate');
-        elements.forEach(el => observer.observe(el));
-
-        return () => {
-            elements.forEach(el => observer.unobserve(el));
-        };
-    }, []);
-
     return (
-        <main>
+        <main className="w-full overflow-hidden bg-white dark:bg-slate-900 transition-colors duration-300">
+            {/* 1. Hero Section (Pastikan file HeroSection Anda sudah update juga) */}
             <HeroSection />
+            
+            {/* 2. Features Section */}
             <FeaturesSection />
+            
+            {/* 3. How It Works Section */}
             <HowItWorksSection />
-            <TestimonialsSection />
+            
+            {/* 4. Statistic / Impact Section */}
+            <StatisticSection />
         </main>
     );
 };

@@ -10,7 +10,7 @@ import {
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 import { ImSpinner9 } from "react-icons/im";
 
-import nameLogo from "../../assets/images/name.png";
+import nameLogo from "../../assets/images/WeSign.png";
 
 const RegisterPage = () => {
   const [name, setName] = useState("");

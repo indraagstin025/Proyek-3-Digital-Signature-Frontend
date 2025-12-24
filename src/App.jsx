@@ -52,6 +52,7 @@ import DashboardOverview from "./pages/DashboardPage/DashboardOverview.jsx";
 import DashboardDocuments from "./pages/DashboardPage/DashboardDocuments.jsx";
 import DashboardWorkspaces from "./pages/DashboardPage/DashboardWorkspaces.jsx";
 import DashboardHistory from "./pages/DashboardPage/DashboardHistory.jsx";
+import ShortcutsPage from "./pages/DashboardPage/ShortcutPage.jsx";
 import ProfilePage from "./pages/ProfilePage/ProfilePage.jsx";
 import GroupDetailPage from "./pages/GroupPage/GroupDetailPage.jsx";
 import AcceptInvitePage from "./pages/AcceptInvitePage/AcceptInvitePage.jsx";
@@ -297,6 +298,7 @@ const AppWrapper = () => {
             <Route path="workspaces" element={<DashboardWorkspaces theme={theme} />} />
             <Route path="history" element={<DashboardHistory theme={theme} />} />
             <Route path="group/:groupId" element={<GroupDetailPage theme={theme} />} />
+            <Route path="shortcuts" element={<ShortcutsPage theme={theme} />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Route>

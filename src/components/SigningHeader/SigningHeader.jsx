@@ -4,7 +4,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { HiSun, HiMoon } from "react-icons/hi";
 import { FaBars } from 'react-icons/fa'; // Import ikon hamburger
-import nameLogo from "../../assets/images/name.png";
+import nameLogo from "../../assets/images/WeSign.png";
 
 // Tambahkan onToggleSidebar ke props
 const SigningHeader = ({ theme, toggleTheme, onToggleSidebar }) => {

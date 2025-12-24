@@ -24,12 +24,10 @@ export const useDashboardDocuments = () => {
   const abortControllerRef = useRef(null);
   const [searchParams] = useSearchParams();
 
-  // --- 1. OPTIMASI USER DATA (SINKRON) ---
-  // Kita tidak perlu memanggil API /me lagi. Ambil data user dari cache LocalStorage.
-  // Ini menghilangkan error "ERR_INTERNET_DISCONNECTED" untuk endpoint user saat offline.
+  // --- 1. USER DATA ---
   const [currentUser] = useState(() => {
     try {
-      const storedUser = localStorage.getItem("authUser"); // Sesuaikan key di sistem Anda
+      const storedUser = localStorage.getItem("authUser");
       return storedUser ? JSON.parse(storedUser) : null;
     } catch (e) {
       console.warn("Gagal parsing user dari storage", e);
@@ -37,40 +35,32 @@ export const useDashboardDocuments = () => {
     }
   });
 
-  // --- 2. FETCH DATA DENGAN ABORT & ERROR FILTER ---
+  // --- 2. FETCH DATA ---
   const fetchDocuments = useCallback(async (query = "") => {
-    // Batalkan request sebelumnya jika user mengetik cepat (Search Optimization)
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
     abortControllerRef.current = new AbortController();
 
     setIsLoading(true);
-    setError(""); // Reset error lokal
+    setError("");
     if (query) setIsSearching(true);
 
     try {
-      // Kirim signal ke service (pastikan service support pass config ke axios)
       const allDocs = await documentService.getAllDocuments(query, {
         signal: abortControllerRef.current.signal,
       });
 
       setDocuments(allDocs);
-
-      // Filter Client Side (Lebih cepat daripada request ulang)
       setPersonalDocuments(allDocs.filter((doc) => !doc.groupId));
       setGroupDocuments(allDocs.filter((doc) => doc.groupId));
     } catch (err) {
-      // Abaikan jika error disebabkan oleh pembatalan manual (Abort)
       if (err.name === "CanceledError" || err.name === "AbortError") return;
 
       console.error("Error fetching docs:", err);
-
-      // --- FILTER ERROR (Agar tidak double toast dengan Global Handler) ---
       const isAuthError = err.response?.status === 401;
       const isNetworkError = err.message === "Request Timeout" || err.message === "Network Error" || err.message.includes("offline") || err.code === "ECONNABORTED";
 
-      // Hanya set pesan error di UI Dashboard jika BUKAN masalah koneksi/auth
       if (!isAuthError && !isNetworkError) {
         setError("Gagal memuat dokumen.");
       }
@@ -90,45 +80,42 @@ export const useDashboardDocuments = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchDocuments(searchQuery);
-    }, 500); // Tunggu 500ms setelah user berhenti mengetik
+    }, 500);
     return () => clearTimeout(timer);
   }, [searchQuery, fetchDocuments]);
 
-  // --- 4. LOGIKA STATUS DINAMIS ---
+  // --- 4. STATUS DINAMIS ---
   const getDerivedStatus = useCallback(
     (doc) => {
       if (!currentUser) return doc.status;
-
       const globalStatus = doc.status;
 
-      // Jika dokumen grup masih pending, cek apakah SAYA yang harus tanda tangan?
       if (doc.groupId && globalStatus === "pending") {
         const myRequest = doc.signerRequests?.find((req) => req.userId === currentUser.id);
-
         if (myRequest) {
-          if (myRequest.status === "PENDING") return "action_needed"; // Giliran saya
-          if (myRequest.status === "SIGNED") return "waiting"; // Saya sudah, nunggu yang lain
+          if (myRequest.status === "PENDING") return "action_needed";
+          if (myRequest.status === "SIGNED") return "waiting";
         }
         return "pending";
       }
-
       return globalStatus;
     },
     [currentUser]
   );
 
-  // --- 5. DELETE DENGAN FEEDBACK ---
+  // --- 5. DELETE DENGAN FEEDBACK (TOAST DISINI SAJA) ---
   const deleteDocument = async (docId) => {
     const deletePromise = documentService.deleteDocument(docId);
 
     try {
+      // ✅ KITA PERTAHANKAN TOAST DISINI
       await toast.promise(deletePromise, {
         loading: "Menghapus dokumen...",
         success: "Dokumen berhasil dihapus",
         error: (err) => `Gagal menghapus: ${err.message}`,
       });
 
-      // Optimistic Update: Hapus dari state UI tanpa fetch ulang (Cepat!)
+      // Optimistic Update
       setDocuments((prev) => prev.filter((d) => d.id !== docId));
       setPersonalDocuments((prev) => prev.filter((d) => d.id !== docId));
       setGroupDocuments((prev) => prev.filter((d) => d.id !== docId));
@@ -161,18 +148,24 @@ export const useDashboardDocuments = () => {
     if (selectedDocIds.size === 0) return;
 
     setIsSubmittingBatch(true);
+    // 1. Simpan ID toast loading
     const toastId = toast.loading("Membuat paket tanda tangan...");
 
     try {
       const docIdsArray = Array.from(selectedDocIds);
       const newPackage = await packageService.createPackage("Batch Sign " + new Date().toLocaleDateString(), docIdsArray);
 
-      toast.success("Paket siap! Mengalihkan...", { id: toastId });
+      // ✅ FIX MASALAH PERTAMA:
+      // Jangan pakai toast.success karena akan muncul telat di halaman berikutnya.
+      // Cukup matikan loading, lalu pindah. User tau itu berhasil karena halamannya berubah.
+      toast.dismiss(toastId);
+
       navigate(`/packages/sign/${newPackage.id}`);
     } catch (err) {
       console.error(err);
       const msg = err.response?.data?.message || err.message || "Gagal membuat paket.";
-      // Pastikan toast error muncul karena ini aksi user manual (klik tombol)
+
+      // Jika error, ubah loading menjadi error (ini tetap perlu ditampilkan)
       toast.error(msg, { id: toastId });
     } finally {
       setIsSubmittingBatch(false);

@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import authService from "../../services/authService";
 import ConfirmationModal from "../ConfirmationModal/ConfirmationModal";
-import logoWhite from "../../assets/images/LogoLightMode.jpg";
-import logoDark from "../../assets/images/LogoDarkMode.jpg";
+import logoWhite from "../../assets/images/WeSignLightMode.png";
+import logoDark from "../../assets/images/WeSignDarkMode.png";
 
 const AdminSidebar = ({ userName, userEmail, userAvatar, isOpen, activePage, onClose, theme }) => {
   const navigate = useNavigate();

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import authService from "../../services/authService";
-import nameLogo from "../../assets/images/name.png";
+import nameLogo from "../../assets/images/WeSign.png";
 
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState("");

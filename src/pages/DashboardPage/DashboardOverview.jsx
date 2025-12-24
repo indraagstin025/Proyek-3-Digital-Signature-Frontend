@@ -1,62 +1,12 @@
+// file: src/pages/DashboardOverview/DashboardOverview.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-// Import Icon untuk Banner Baru (Hero Section)
-import { HiOutlineUpload, HiOutlineUserGroup } from "react-icons/hi";
-// Import Icon lama untuk Stats & Table
+// Icon untuk Stats & Table
 import { FaFileSignature, FaClock, FaCheckCircle, FaSpinner, FaUsers, FaBoxOpen, FaUser, FaArrowRight, FaPenFancy, FaChartPie, FaFolderOpen } from "react-icons/fa";
 import { toast } from "react-hot-toast";
 import { dashboardService } from "../../services/dashboardService";
 
-// --- KOMPONEN BARU: Welcome Banner (Hero Section) ---
-// --- KOMPONEN BARU: Welcome Banner (Updated Style) ---
-const WelcomeBanner = ({ userName, onUploadClick, onCreateGroupClick }) => {
-  return (
-    <div className="relative overflow-hidden rounded-2xl 
-      bg-gradient-to-br from-cyan-400 via-blue-500 to-blue-600 
-      dark:from-slate-900 dark:via-blue-950 dark:to-slate-900
-      dark:border dark:border-blue-500/30 dark:shadow-blue-900/20
-      p-6 sm:p-8 text-white shadow-lg shadow-blue-500/20 mb-8 transition-all hover:shadow-xl"
-    >
-      {/* Background Pattern (Hiasan Visual - Opacity disesuaikan) */}
-      <div className="absolute top-0 right-0 -mt-10 -mr-10 h-64 w-64 rounded-full bg-white opacity-20 dark:opacity-5 blur-3xl pointer-events-none"></div>
-      <div className="absolute bottom-0 left-0 -mb-10 -ml-10 h-40 w-40 rounded-full bg-white opacity-20 dark:opacity-5 blur-2xl pointer-events-none"></div>
-
-      <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div>
-          <h2 className="text-2xl sm:text-3xl font-bold mb-2 text-white dark:text-blue-50">
-            Halo, {userName}! 👋
-          </h2>
-          <p className="text-blue-50 dark:text-slate-300 max-w-lg text-sm sm:text-base leading-relaxed font-medium">
-            Selamat datang di Workspace Anda. Apa yang ingin Anda kerjakan hari ini?
-            Unggah dokumen baru atau kelola tim Anda sekarang.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-3 w-full md:w-auto">
-          {/* TOMBOL UTAMA: UPLOAD */}
-          <button
-            onClick={onUploadClick}
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-white text-blue-600 hover:bg-blue-50 px-6 py-3 rounded-xl font-bold shadow-md transition-transform active:scale-95"
-          >
-            <HiOutlineUpload className="text-xl" />
-            Upload Dokumen
-          </button>
-
-          {/* TOMBOL SEKUNDER: BUAT GRUP (Glassmorphism Style agar cocok dengan background baru) */}
-          <button
-            onClick={onCreateGroupClick}
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 text-white px-6 py-3 rounded-xl font-semibold backdrop-blur-md border border-white/30 transition-colors"
-          >
-            <HiOutlineUserGroup className="text-xl" />
-            Buat Grup
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// --- KOMPONEN LAMA (StatCard & ActionCard) ---
+// --- KOMPONEN (StatCard & ActionCard) ---
 const StatCard = ({ icon, label, value, colorTheme }) => {
   const bgColors = {
     blue: "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400",
@@ -119,36 +69,6 @@ const DashboardOverview = ({ theme }) => {
   const [loading, setLoading] = useState(true);
   const [activityFilter, setActivityFilter] = useState("all");
 
-  // --- LOGIKA USER ---
-  // Ambil nama user dari LocalStorage agar Banner Personal
-  const [userName, setUserName] = useState("User");
-  
-  useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem("authUser");
-      if (storedUser) {
-        const parsed = JSON.parse(storedUser);
-        // Ambil nama depan saja biar lebih ramah
-        const firstName = parsed.name ? parsed.name.split(" ")[0] : "User";
-        setUserName(firstName);
-      }
-    } catch (e) {
-      console.error("Gagal parse user", e);
-    }
-  }, []);
-
-  // --- HANDLER BUTTON ACTION ---
-  const handleUploadClick = () => {
-    // Arahkan ke halaman dokumen dan beri sinyal untuk membuka modal upload
-    // Pastikan di DashboardDocuments Anda membaca query param 'openUpload'
-    navigate("/dashboard/documents?openUpload=true");
-  };
-
-  const handleCreateGroupClick = () => {
-    // Arahkan ke workspace (bisa ditambahkan logic serupa untuk open modal create group)
-    navigate("/dashboard/workspaces");
-  };
-
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
@@ -181,7 +101,7 @@ const DashboardOverview = ({ theme }) => {
   const filteredActivities = getFilteredActivities();
   const totalDocs = (data?.counts?.completed || 0) + (data?.counts?.process || 0) + (data?.counts?.waiting || 0);
   const completedPercentage = totalDocs > 0 ? Math.round(((data?.counts?.completed || 0) / totalDocs) * 100) : 0;
-  
+
   // Chart Config
   const radius = 70;
   const circumference = 2 * Math.PI * radius;
@@ -207,14 +127,6 @@ const DashboardOverview = ({ theme }) => {
   return (
     <div className="h-full w-full overflow-y-auto custom-scrollbar">
       <div id="tab-overview" className="mx-auto max-w-screen-xl px-4 pt-6 pb-20 sm:px-6 lg:px-8 space-y-8 fade-in">
-        
-        {/* --- 🔥 IMPLEMENTASI BARU: WELCOME BANNER --- */}
-        <WelcomeBanner 
-          userName={userName}
-          onUploadClick={handleUploadClick}
-          onCreateGroupClick={handleCreateGroupClick}
-        />
-
         {/* --- STATISTIK --- */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {stats.map((stat, idx) => (

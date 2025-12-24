@@ -5,7 +5,7 @@ import { HiOutlineLockClosed } from "react-icons/hi";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 import { ImSpinner9 } from "react-icons/im";
 import authService from "../../services/authService";
-import nameLogo from "../../assets/images/name.png";
+import nameLogo from "../../assets/images/WeSign.png";
 
 const ResetPasswordPage = () => {
   const navigate = useNavigate();

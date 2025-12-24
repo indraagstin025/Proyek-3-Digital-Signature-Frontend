@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { HiSun, HiMoon } from "react-icons/hi";
-import nameLogo from "../../assets/images/name.png";
+import nameLogo from "../../assets/images/WeSign.png";
 
 const Header = ({ theme, toggleTheme }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);

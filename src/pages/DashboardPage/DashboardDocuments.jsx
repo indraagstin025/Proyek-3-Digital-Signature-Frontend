@@ -10,22 +10,17 @@ import ViewDocumentModal from "../../components/ViewDocumentModal/ViewDocumentMo
 import DocumentManagementModal from "../../components/DocumentManagementModal/DocumentManagementModal.jsx";
 import ConfirmationModal from "../../components/ConfirmationModal/ConfirmationModal.jsx";
 
-// --- KOMPONEN: Group Shortcut View (Hanya muncul jika BELUM ada dokumen grup) ---
+// ... (Komponen GroupShortcutView tetap sama, tidak perlu diubah) ...
 const GroupShortcutView = ({ onGoToWorkspace }) => {
   return (
     <div className="flex flex-col items-center justify-center py-20 px-4 text-center animate-fade-in bg-white/50 dark:bg-slate-800/30 rounded-3xl border border-dashed border-slate-300 dark:border-slate-700 mt-4">
       <div className="bg-white dark:bg-slate-800 p-6 rounded-full mb-5 shadow-sm border border-slate-100 dark:border-slate-700">
         <FaUsers className="w-12 h-12 text-blue-500" />
       </div>
-      
-      <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">
-        Belum Ada Dokumen Grup
-      </h3>
-      
-      <p className="text-slate-500 dark:text-slate-400 max-w-md mb-8 text-sm leading-relaxed">
-        Anda belum tergabung dalam grup manapun atau grup Anda belum memiliki dokumen. 
-        Kelola tim dan kolaborasi di Workspace.
-      </p>
+
+      <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Belum Ada Dokumen Grup</h3>
+
+      <p className="text-slate-500 dark:text-slate-400 max-w-md mb-8 text-sm leading-relaxed">Anda belum tergabung dalam grup manapun atau grup Anda belum memiliki dokumen. Kelola tim dan kolaborasi di Workspace.</p>
 
       <button
         onClick={onGoToWorkspace}
@@ -42,7 +37,7 @@ const GroupShortcutView = ({ onGoToWorkspace }) => {
 const DashboardDocuments = () => {
   const {
     personalDocuments,
-    groupDocuments, // Kita pakai data ini lagi
+    groupDocuments,
     isLoading,
     isSearching,
     error,
@@ -105,13 +100,14 @@ const DashboardDocuments = () => {
     setIsConfirmOpen(true);
   };
 
+  // ✅ FIX MASALAH KEDUA: Double Toast Delete
   const confirmDelete = async () => {
     if (!documentToDelete) return;
-    toast.promise(deleteDocument(documentToDelete), {
-      loading: "Menghapus...",
-      success: "Dokumen dihapus!",
-      error: "Gagal menghapus.",
-    });
+
+    // Hapus wrapper toast.promise disini.
+    // Kita cukup panggil deleteDocument karena Hook sudah menghandle toast-nya.
+    await deleteDocument(documentToDelete);
+
     setIsConfirmOpen(false);
     setDocumentToDelete(null);
   };
@@ -120,11 +116,16 @@ const DashboardDocuments = () => {
 
   const getStatusClass = (status) => {
     switch ((status || "").toLowerCase()) {
-      case "completed": return "bg-emerald-100 text-emerald-700 border-emerald-200";
-      case "pending": return "bg-amber-100 text-amber-700 border-amber-200";
-      case "action_needed": return "bg-blue-100 text-blue-700 border-blue-200 animate-pulse";
-      case "waiting": return "bg-slate-100 text-slate-500 border-slate-200";
-      default: return "bg-slate-100 text-slate-600 border-slate-200";
+      case "completed":
+        return "bg-emerald-100 text-emerald-700 border-emerald-200";
+      case "pending":
+        return "bg-amber-100 text-amber-700 border-amber-200";
+      case "action_needed":
+        return "bg-blue-100 text-blue-700 border-blue-200 animate-pulse";
+      case "waiting":
+        return "bg-slate-100 text-slate-500 border-slate-200";
+      default:
+        return "bg-slate-100 text-slate-600 border-slate-200";
     }
   };
 
@@ -133,15 +134,11 @@ const DashboardDocuments = () => {
     return "bg-teal-100 text-teal-700 border-teal-200";
   };
 
-  // 🔥 Tentukan dokumen yang ditampilkan berdasarkan Tab
   const displayedDocuments = activeTab === "personal" ? personalDocuments : groupDocuments;
-
-  // 🔥 Cek apakah harus menampilkan Shortcut View (Hanya jika di tab Group DAN kosong DAN tidak sedang search)
   const showGroupShortcut = activeTab === "group" && groupDocuments.length === 0 && !searchQuery && !isLoading;
 
   return (
     <div className="h-full w-full overflow-y-auto custom-scrollbar relative bg-transparent">
-      
       {/* --- STICKY HEADER --- */}
       <div className="sticky top-0 z-30 px-3 sm:px-8 pt-2 sm:pt-4 pb-2">
         <div className="absolute inset-0 bg-gray-50/95 dark:bg-slate-900/95 backdrop-blur-md -z-10 shadow-sm border-b border-gray-200/50 dark:border-slate-700/50 transition-colors duration-300" />
@@ -153,7 +150,6 @@ const DashboardDocuments = () => {
               <p className="text-slate-500 dark:text-slate-400 mt-1 text-xs sm:text-sm">Arsip digital & pelabelan otomatis AI.</p>
             </div>
 
-            {/* Tombol Upload HANYA muncul di Tab Personal (sesuai request) */}
             {activeTab === "personal" && (
               <button
                 onClick={() => openManagementModal("create")}
@@ -167,14 +163,13 @@ const DashboardDocuments = () => {
           <div className="w-full overflow-x-auto no-scrollbar">
             <DocumentFilters
               activeTab={activeTab}
-              onTabChange={handleTabChange} // Ganti prop setActiveTab jadi onTabChange sesuai refactor sebelumnya
+              onTabChange={handleTabChange}
               personalCount={personalDocuments.length}
-              groupCount={groupDocuments.length} // 🔥 Tampilkan jumlah lagi
+              groupCount={groupDocuments.length}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
               isSearching={isSearching}
-              // 🔥 Disable search HANYA jika shortcut view muncul
-              disableSearch={showGroupShortcut} 
+              disableSearch={showGroupShortcut}
             />
           </div>
         </div>
@@ -182,13 +177,9 @@ const DashboardDocuments = () => {
 
       {/* --- CONTENT AREA --- */}
       <div className="px-3 sm:px-8 pb-32 max-w-7xl mx-auto mt-2 sm:mt-4">
-        
-        {/* LOGIKA TAMPILAN KONTEN UTAMA */}
         {showGroupShortcut ? (
-          // Kondisi A: Tab Grup Kosong -> Tampilkan Shortcut
           <GroupShortcutView onGoToWorkspace={handleGoToWorkspace} />
         ) : (
-          // Kondisi B: Tampilkan Daftar Dokumen (Personal / Grup Berisi / Search Result)
           <>
             {/* Loading */}
             {isLoading && displayedDocuments.length === 0 && (
@@ -203,18 +194,13 @@ const DashboardDocuments = () => {
 
             {/* List */}
             <div className={`transition-opacity duration-300 ${isSearching ? "opacity-50 pointer-events-none" : "opacity-100"}`}>
-              
               {!isLoading && displayedDocuments.length === 0 && (
                 <div className="text-center py-20 px-4 bg-white/60 dark:bg-slate-800/60 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
                   <div className="bg-slate-50 dark:bg-slate-700 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                     {searchQuery ? <span className="text-4xl">🔍</span> : <FaFileAlt className="h-8 w-8 text-slate-400" />}
+                    {searchQuery ? <span className="text-4xl">剥</span> : <FaFileAlt className="h-8 w-8 text-slate-400" />}
                   </div>
-                  <h4 className="text-lg font-bold text-slate-800 dark:text-white">
-                    {searchQuery ? "Tidak ditemukan" : activeTab === "personal" ? "Belum Ada Dokumen" : "Dokumen Grup Kosong"}
-                  </h4>
-                  <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                     {searchQuery ? `Hasil pencarian "${searchQuery}" nihil.` : "Upload dokumen PDF untuk mulai."}
-                  </p>
+                  <h4 className="text-lg font-bold text-slate-800 dark:text-white">{searchQuery ? "Tidak ditemukan" : activeTab === "personal" ? "Belum Ada Dokumen" : "Dokumen Grup Kosong"}</h4>
+                  <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{searchQuery ? `Hasil pencarian "${searchQuery}" nihil.` : "Upload dokumen PDF untuk mulai."}</p>
                 </div>
               )}
 
@@ -233,9 +219,7 @@ const DashboardDocuments = () => {
                       getTypeColor={getTypeColor}
                       formatDate={formatDate}
                       getDerivedStatus={getDerivedStatus}
-                      
-                      // 🔥 Enable Selection hanya untuk Personal Tab (Batch Sign tidak untuk Grup)
-                      enableSelection={activeTab === "personal"} 
+                      enableSelection={activeTab === "personal"}
                     />
                   ))}
                 </div>
@@ -267,14 +251,8 @@ const DashboardDocuments = () => {
           }}
         />
       )}
-      
-      {isUploadModalOpen && (
-         <DocumentManagementModal
-          mode="create"
-          onClose={() => setIsUploadModalOpen(false)}
-          onSuccess={() => fetchDocuments(searchQuery)}
-        />
-      )}
+
+      {isUploadModalOpen && <DocumentManagementModal mode="create" onClose={() => setIsUploadModalOpen(false)} onSuccess={() => fetchDocuments(searchQuery)} />}
 
       <ViewDocumentModal isOpen={isViewModalOpen} onClose={() => setViewModalOpen(false)} url={selectedDocumentUrl} />
 
