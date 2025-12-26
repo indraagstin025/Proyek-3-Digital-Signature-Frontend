@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { FaSpinner, FaUsers, FaHandshake, FaWhatsapp, FaBolt, FaFileSignature } from "react-icons/fa";
 import CreateGroupModal from "../../components/CreateGroupModal/CreateGroupModal";
-import { useGetGroups, useCreateGroup } from "../../hooks/useGroups";
+import { useGetGroups, useCreateGroup } from "../../hooks/Group/useGroups";
 
 const WorkspaceInfoCard = () => {
   return (

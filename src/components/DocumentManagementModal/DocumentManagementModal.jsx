@@ -4,12 +4,27 @@ import React, { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { documentService } from "../../services/documentService.js";
 import toast from "react-hot-toast";
-// 🔥 Tambahkan FaInfoCircle, FaBolt, FaWhatsapp, FaFileSignature untuk Modal Info
 import { 
   FaSpinner, FaFileAlt, FaDownload, FaTrash, FaEye, FaCheckCircle, 
   FaUndo, FaTimes, FaCloudUploadAlt, FaHistory, FaInfoCircle, 
   FaBolt, FaWhatsapp, FaFileSignature 
 } from "react-icons/fa";
+
+// [BARU] Daftar pilihan tipe dokumen untuk Dropdown
+const DOCUMENT_TYPES = [
+  "General",
+  "Surat Pernyataan",
+  "Perjanjian Kerjasama",
+  "Kontrak Kerja",
+  "Non-Disclosure Agreement (NDA)",
+  "Surat Keputusan (SK)",
+  "Surat Kuasa",
+  "Invoice / Tagihan",
+  "Laporan Keuangan",
+  "Transkrip Nilai",
+  "Sertifikat",
+  "Lainnya"
+];
 
 // --- 1. SUB-KOMPONEN: FEATURE INFO MODAL ---
 const FeatureModal = ({ isOpen, onClose }) => {
@@ -90,6 +105,10 @@ const FeatureModal = ({ isOpen, onClose }) => {
 // --- 2. KOMPONEN UTAMA: DOCUMENT MANAGEMENT MODAL ---
 const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, onViewRequest }) => {
   const [file, setFile] = useState(null);
+  
+  // [BARU] State untuk menyimpan pilihan tipe dokumen, default "General"
+  const [docType, setDocType] = useState("General");
+  
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [versions, setVersions] = useState([]);
@@ -129,6 +148,7 @@ const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, on
       fetchHistory();
     } else {
       setFile(null);
+      setDocType("General"); // Reset type saat modal dibuka ulang
       setVersions([]);
       setHistoryLoading(false);
     }
@@ -136,6 +156,7 @@ const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, on
 
   const handleFileChange = (e) => setFile(e.target.files[0] || null);
 
+  // [UPDATED] Handle Submit untuk mengirim type ke service
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -146,7 +167,9 @@ const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, on
     const toastId = toast.loading("Mengunggah dokumen...");
     setIsLoading(true);
     try {
-      await documentService.createDocument(file);
+      // [PENTING] Kirim docType sebagai parameter kedua
+      await documentService.createDocument(file, docType);
+      
       toast.success("Dokumen berhasil diunggah!", { id: toastId });
       onSuccess();
       onClose();
@@ -251,7 +274,7 @@ const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, on
           </div>
 
           <div className="flex items-center gap-2 -mr-2">
-            {/* 🔥 BUTTON INFO FITUR */}
+            {/* BUTTON INFO FITUR */}
             <button 
               onClick={() => setShowInfo(true)}
               className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 dark:text-blue-400 rounded-full transition-colors"
@@ -277,6 +300,32 @@ const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, on
           {mode === "create" && (
             <div className="flex flex-col items-center justify-center py-4">
               <form onSubmit={handleSubmit} className="w-full space-y-6">
+                
+                {/* [BARU] UI DROPDOWN TIPE DOKUMEN */}
+                <div className="w-full">
+                  <label className="block mb-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    Kategori Dokumen
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={docType}
+                      onChange={(e) => setDocType(e.target.value)}
+                      className="w-full p-3 bg-slate-50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all appearance-none cursor-pointer"
+                    >
+                      {DOCUMENT_TYPES.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
+                    {/* Icon Panah Kecil (Chevron Down) */}
+                    <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-slate-500">
+                      <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
+                    </div>
+                  </div>
+                </div>
+
+                {/* UI UPLOAD FILE (EXISTING) */}
                 <div className="w-full">
                   <label className="block mb-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
                     Pilih File PDF
@@ -417,7 +466,7 @@ const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, on
         </main>
       </div>
 
-      {/* 🔥 Render Feature Modal jika showInfo true */}
+      {/* Render Feature Modal jika showInfo true */}
       <FeatureModal isOpen={showInfo} onClose={() => setShowInfo(false)} />
     </div>
   );

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { FaPlus, FaSpinner, FaFileAlt, FaUsers, FaArrowRight, FaBuilding } from "react-icons/fa";
-import { useDashboardDocuments } from "../../hooks/useDashboardDocuments";
+import { useDashboardDocuments } from "../../hooks/Documents/useDashboardDocuments";
 import DocumentFilters from "../../components/DashboardDocuments/DocumentFilters";
 import DocumentCard from "../../components/DashboardDocuments/DocumentCard.jsx";
 import BatchActionBar from "../../components/DashboardDocuments/BatchActionBar";
