@@ -1,7 +1,7 @@
 // File: components/Group/AcceptInviteLinks.jsx
 
 import React, { useEffect, useRef } from 'react'; // ✅ 1. Impor 'useRef'
-import { useAcceptInvitation } from '../../hooks/useGroups'; // Sesuaikan path
+import { useAcceptInvitation } from '../../hooks/Group/useGroups'; // Sesuaikan path
 import toast from 'react-hot-toast';
 import { ImSpinner9 } from "react-icons/im";
 
