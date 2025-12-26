@@ -8,10 +8,12 @@ export const documentService = {
   /**
    * Mengunggah dokumen baru.
    */
-  createDocument: async (file) => {
+createDocument: async (file, type = "General") => { 
     const formData = new FormData();
     formData.append("title", file.name);
+    formData.append("type", type);
     formData.append("documentFile", file);
+    
     try {
       const response = await apiClient.post("/documents", formData, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -25,9 +27,6 @@ export const documentService = {
   /**
    * Mengambil daftar semua dokumen.
    */
-// src/services/documentService.js (Frontend)
-
-// Tambahkan parameter 'config' (default object kosong)
   getAllDocuments: async (search = "", config = {}) => {
     try {
       const response = await apiClient.get("/documents", {
@@ -125,25 +124,42 @@ export const documentService = {
    * @param {string} documentId - ID dokumen.
    * @param {object} options - { signal, purpose: 'view' | 'download' }
    */
-  getDocumentFileUrl: async (documentId, options = {}) => {
+getDocumentFileUrl: async (documentId, options = {}) => {
     const purpose = options.purpose || "view";
     const urlPath = `/documents/${documentId}/file?purpose=${purpose}`;
 
     try {
+      // Pass 'signal' agar request bisa dibatalkan jika komponen unmount
       const response = await apiClient.get(urlPath, { signal: options.signal });
 
-      if (!response.data.url) {
+      // Ambil URL dari response backend
+      // Backend Anda mengirim: { success: true, url: "...", ... }
+      const fileUrl = response.data.url || response.data.data?.url;
+
+      if (!fileUrl) {
         throw new Error("Gagal mendapatkan URL dokumen dari respons API.");
       }
 
-      return response.data.url;
+      return fileUrl;
     } catch (error) {
-      if (error.name === "CanceledError" || error.message === "canceled") {
-        throw error;
-      } else {
-        handleError(error, "Gagal mendapatkan akses ke dokumen.");
-        throw error;
+      // --- SILENT FAIL UNTUK CANCELED REQUEST ---
+      // Jika request dibatalkan oleh Hook (karena ganti dokumen/unmount),
+      // kita lempar error ini agar Hook bisa mengabaikannya (return).
+      if (
+        error.isCanceled || 
+        error.name === "CanceledError" || 
+        error.code === "ERR_CANCELED" ||
+        error.message === "canceled" || 
+        error.message === "Request canceled"
+      ) {
+        throw error; 
       }
+
+      // --- REAL ERROR ---
+      console.error(`❌ Error fetching File URL:`, error);
+      // Opsional: Munculkan toast error global
+      handleError(error, "Gagal mendapatkan akses ke dokumen.");
+      throw error;
     }
   },
 

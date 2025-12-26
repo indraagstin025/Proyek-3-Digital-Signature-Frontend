@@ -1,5 +1,7 @@
+/* eslint-disable no-unused-vars */
 import apiClient from "./apiClient";
 import { handleError } from "./errorHandler";
+import { toast } from "react-hot-toast";
 
 /**
  * @description Kumpulan service untuk berinteraksi dengan
@@ -38,30 +40,54 @@ export const packageService = {
     }
   },
 
-  /**
-   * @description Mengirim semua data TTD (Final Step).
-   * 🔥 PROSES BERAT (Bisa memakan waktu > 1 menit).
-   * Kita override timeout secara eksplisit di sini agar aman.
-   */
-  signPackage: async (packageId, signatures) => {
+  checkServerConnection: async () => {
     try {
-      const payload = { signatures };
-      
-      // Override timeout khusus untuk request ini menjadi 5 menit (300000ms)
-      // Ini memastikan request tidak diputus browser walau global config berubah.
-      const response = await apiClient.post(`/packages/${packageId}/sign`, payload, {
-        timeout: 300000, 
-      });
-      
+      await apiClient.head("/health", { timeout: 5000 });
+      return true;
+    } catch (e) {
+      return false;
+    }
+  },
+
+  signPackage: async (packageId, signatures) => {
+    const handleOffline = () => toast.loading("Koneksi terputus. Menunggu...", { id: "net-status" });
+    const handleOnline = () => toast.success("Terhubung kembali!", { id: "net-status" });
+
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleOnline);
+
+    try {
+      const isOnline = await packageService.checkServerConnection();
+      if (!isOnline) {
+        toast.error("Gagal terhubung ke server. Periksa koneksi Anda.");
+        throw new Error("Offline-Detected");
+      }
+
+      const response = await apiClient.post(
+        `/packages/${packageId}/sign`,
+        { signatures },
+        {
+          withCredentials: true,
+        }
+      );
       return response.data.data;
     } catch (error) {
-      // Deteksi error timeout spesifik untuk memberikan pesan yang lebih jelas
-      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
-         console.error("Sign Package Timeout:", error);
-         // Kita lempar error baru agar UI tau ini masalah waktu, bukan bug
-         throw new Error("Proses tanda tangan memakan waktu terlalu lama. Coba kurangi jumlah dokumen dalam paket.");
+      if (error.message === "Offline-Detected") throw error;
+
+      if (error.response) {
+        throw error;
       }
-      handleError(error, "Gagal menyelesaikan proses tanda tangan paket.");
+
+      if (error.code === "ERR_NETWORK") {
+        if (navigator.onLine) toast.error("Koneksi tidak stabil.");
+        throw new Error("Offline-Detected");
+      }
+
+      throw error;
+    } finally {
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleOnline);
+      toast.dismiss("net-status");
     }
   },
 };

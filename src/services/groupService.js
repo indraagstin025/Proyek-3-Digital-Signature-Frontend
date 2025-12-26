@@ -7,9 +7,6 @@ import { handleError } from "./errorHandler";
 export const groupService = {
   /**
    * Membuat grup baru.
-   * @async
-   * @param {string} name - Nama grup yang akan dibuat.
-   * @returns {Promise<Object>} Data grup yang berhasil dibuat.
    */
   async createGroup(name) {
     try {
@@ -21,19 +18,12 @@ export const groupService = {
   },
 
   /**
-   * @description Mengupload dokumen baru ke grup dan menentukan penanda tangan.
-   * Endpoint: POST /api/groups/:groupId/documents/upload
-   * @param {string} groupId - ID Grup
-   * @param {File} file - File PDF
-   * @param {string} title - Judul Dokumen
-   * @param {string[]} signerUserIds - Array ID user yang wajib tanda tangan
+   * Mengupload dokumen baru ke grup dan menentukan penanda tangan.
    */
   async uploadGroupDocument(groupId, file, title, signerUserIds) {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("title", title);
-    // Mengirim array via FormData harus di-stringify agar terbaca sebagai satu field JSON oleh backend
-    // Backend (Controller) harus mem-parse ini kembali menjadi Array.
     formData.append("signerUserIds", JSON.stringify(signerUserIds));
 
     try {
@@ -92,16 +82,12 @@ export const groupService = {
 
   /**
    * Menghubungkan dokumen (yang sudah ada di draft) ke grup tertentu.
-   * @async
-   * @param {string} groupId - ID grup.
-   * @param {string} documentId - ID dokumen yang akan ditambahkan.
-   * @param {string[]} signerUserIds - Array ID User yang harus tanda tangan.
    */
   async assignDocumentToGroup(groupId, documentId, signerUserIds = []) {
     try {
       const response = await apiClient.put(`/groups/${groupId}/documents`, {
         documentId,
-        signerUserIds, // Mengirim daftar signer ke backend
+        signerUserIds,
       });
       return response.data.data;
     } catch (error) {
@@ -119,11 +105,9 @@ export const groupService = {
   },
 
   /**
-   * [BARU] Memperbarui daftar penanda tangan (Checklist) untuk dokumen yang sudah ada.
-   * Digunakan untuk fitur Edit Signers jika Admin lupa mencentang anggota.
-   * @param {string} groupId
-   * @param {string} documentId
-   * @param {string[]} signerUserIds - Daftar ID user terbaru
+   * [PENTING UNTUK ANTI-DELAY] 
+   * Backend mengembalikan Object Dokumen lengkap di dalam `response.data.data`.
+   * Frontend Hook akan menggunakannya untuk update UI instan.
    */
   async updateDocumentSigners(groupId, documentId, signerUserIds) {
     try {
@@ -131,7 +115,8 @@ export const groupService = {
         `/groups/${groupId}/documents/${documentId}/signers`,
         { signerUserIds }
       );
-      return response.data.data;
+      // Pastikan backend controller mengembalikan format { status: 'success', data: documentObject }
+      return response.data.data; 
     } catch (error) {
       handleError(error, "Gagal memperbarui daftar penanda tangan.");
     }
@@ -183,5 +168,10 @@ export const groupService = {
     } catch (error) {
       handleError(error, "Gagal melepaskan dokumen dari grup.");
     }
+  },
+
+  async deleteGroupDocument(groupId, documentId) {
+    const response = await apiClient.delete(`/groups/${groupId}/documents/${documentId}/delete`);
+    return response.data;
   },
 };

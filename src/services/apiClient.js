@@ -1,138 +1,97 @@
-/**
- * @file apiClient.js
- * @description Konfigurasi Axios final: aman dari error JSON.parse,
- * stabil, mendukung sesi cookie, link production/local otomatis,
- * fitur "Silent Check" untuk 401, DAN Handling Timeout/Network.
- */
-
+/* eslint-disable no-unused-vars */
 import axios from "axios";
-import { toast } from "react-hot-toast"; // 🔥 Tambahkan ini untuk feedback otomatis
+import { toast } from "react-hot-toast";
 
-/* ============================================================
- * 1. KONFIGURASI BASE URL (DYNAMIC)
- * ============================================================ */
 const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
   (import.meta.env.MODE === "production"
     ? "https://api.moodvis.my.id/api"
     : "http://localhost:3000/api");
 
-console.log(`[API Client] Base URL: ${API_BASE_URL}`);
-
-/* ============================================================
- * AXIOS INSTANCE (JSON)
- * ============================================================ */
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
-  withCredentials: true, // cookie session tetap dikirim
-  
-  // 🔥 FIX UTAMA: Timeout 10 Detik
-  // Jika server tidak merespon dalam 10 detik, batalkan request.
-  // Ini mencegah spinner berputar selamanya saat ganti halaman.
-  timeout: 300000, 
+  withCredentials: true,
+  timeout: 15000, 
 });
 
-/* ============================================================
- * OPTIONAL AXIOS INSTANCE (FILE / BLOB DOWNLOAD)
- * ============================================================ */
 export const apiFileClient = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
   responseType: "blob",
-  timeout: 30000, // File download butuh waktu lebih lama (30s)
+  timeout: 30000, 
 });
 
-/* ============================================================
- * REQUEST INTERCEPTOR — AMAN
- * ============================================================ */
+// --- REQUEST INTERCEPTOR ---
 apiClient.interceptors.request.use(
   (config) => {
     const userString = localStorage.getItem("authUser");
-
     if (userString) {
       try {
         const user = JSON.parse(userString);
-        if (user?.token) {
-          config.headers.Authorization = `Bearer ${user.token}`;
+        if (user?.user?.token || user?.token) {
+          const token = user.user?.token || user.token;
+          config.headers.Authorization = `Bearer ${token}`;
         }
       } catch (parseError) {
-        console.warn("[API] JSON.parse(authUser) gagal → token dihapus.");
-        localStorage.removeItem("authUser");
+        // Silent fail
       }
     }
-
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-/* ============================================================
- * RESPONSE INTERCEPTOR — STABIL & PINTAR
- * Menangani 401, network error, Timeout, dan Silent Check.
- * ============================================================ */
+// --- RESPONSE INTERCEPTOR (UPDATED) ---
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     const { code, message, response, config } = error;
 
-    // 1. Cek apakah request dibatalkan (CancelToken) - Abaikan
-    if (axios.isCancel(error) || code === "ERR_CANCELED") {
-      return new Promise(() => {});
+    // 0. Cek Status Online Browser
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+        // 🔥 HAPUS/KOMENTARI INI: Biarkan Service yang handle toast offline
+        // if (!config?._silent) toast.error("Koneksi terputus...", { id: "offline-mode" });
+        return Promise.reject(new Error("Offline-Detected")); // Konsisten dengan logic Service kita
     }
 
-    // 2. Cek apakah ini Request Khusus yang minta skip interceptor (Silent Check)
-    if (config && config._skipSessionCheck) {
-        return Promise.reject(error); 
+    // 1. Cek Pembatalan (Cancel)
+    if (axios.isCancel(error) || code === "ERR_CANCELED" || error.name === "CanceledError") {
+      return Promise.reject({ isCanceled: true, message: "Request canceled" });
     }
 
-    // 3. 🔥 HANDLE TIMEOUT (Penyebab Loading Terus Menerus)
-    if (code === "ECONNABORTED" || message.includes("timeout")) {
-        console.error("[API] Request Timeout");
-        // Opsional: Toast hanya muncul jika bukan silent check
-        if (!config?._silent) toast.error("Koneksi lambat. Permintaan waktu habis.", {
-          id: "timeout-error" 
-        });
-
-        return Promise.reject(new Error("Request Timeout"));
-    }
-
-    // 4. 🔥 HANDLE NETWORK ERROR / OFFLINE
-    if (code === "ERR_NETWORK" || !response) {
-        console.error("[API] Network Error / Offline");
+    // 2. Timeout & Network Error
+    if (code === "ECONNABORTED" || code === "ERR_NETWORK" || message.includes("timeout")) {
+        // 🔥 HAPUS/KOMENTARI INI JUGA
+        // Alasannya: Service kita (packageService/signatureService) sudah punya 
+        // listener window.addEventListener('offline') yang lebih akurat.
+        // if (!config?._silent) toast.error("Gagal terhubung...", { id: "network-error" });
         
-        const isOffline = !navigator.onLine;
-        const errorMsg = isOffline 
-            ? "Anda sedang offline. Periksa koneksi internet." 
-            : "Gagal terhubung ke server. Pastikan backend aktif.";
-
-        if (!config?._silent) toast.error(errorMsg, {
-          id: "network-error"
-        });
-        
-        // Kembalikan error standard agar UI bisa menangani (misal stop loading)
-        return Promise.reject(new Error(errorMsg));
+        return Promise.reject(new Error("Offline-Detected")); // Lempar pesan standar agar ditangkap Service
     }
 
-    // 5. Handle Response Error dari Server
+    // 3. Handle Response Error (400, 401, 500)
     if (response) {
       const status = response.status;
-      const msg = response.data?.message || "";
+      const isJsonResponse = response.headers["content-type"]?.includes("application/json");
 
-      // Handle 401 (Unauthorized) Global
-      if (status === 401) {
-        // Cek pesan spesifik atau anggap semua 401 adalah sesi habis
-        if (msg.includes("Sesi") || msg.includes("berakhir") || msg.includes("Unauthorized") || msg.includes("Token")) {
-          window.dispatchEvent(new CustomEvent("sessionExpired"));
+      // Handle 401 Session Expired
+      if (status === 401 && isJsonResponse) {
+        const msg = response.data?.message || "";
+        if (
+            msg.toLowerCase().includes("token") || 
+            msg.toLowerCase().includes("session") || 
+            msg.toLowerCase().includes("unauthorized")
+        ) {
+             window.dispatchEvent(new CustomEvent("sessionExpired"));
         }
       }
-
-      // 403 Forbidden, 404 Not Found, 500 Server Error -> Biarkan catch di component yang menangani
+      
+      // Kembalikan error utuh (termasuk response body) agar UI bisa baca pesan "Sudah Selesai"
       return Promise.reject(error);
     }
 
-    console.error("[API] Unknown Error:", error);
-    return Promise.reject(new Error("Terjadi kesalahan yang tidak terduga."));
+    return Promise.reject(error);
   }
 );
 

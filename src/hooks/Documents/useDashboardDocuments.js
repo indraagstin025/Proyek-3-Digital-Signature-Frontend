@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { documentService } from "../services/documentService";
-import { packageService } from "../services/packageService";
+import { documentService } from "../../services/documentService";
+import { packageService } from "../../services/packageService";
 import { useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 

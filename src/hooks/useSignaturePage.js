@@ -385,18 +385,42 @@ export const useSignaturePage = () => {
   }, [documentId, savedSignatureUrl]);
 
   // AI Analyze Document
-  const handleAnalyzeDocument = useCallback(async () => {
+const handleAnalyzeDocument = useCallback(async () => {
     if (!documentId) return;
+    
     setIsAnalyzing(true);
-    setIsAiModalOpen(true);
-    setAiData(null);
+    setAiData(null); 
+
     try {
       const result = await signatureService.analyzeDocument(documentId);
-      if (result?.data) setAiData(result.data);
-      else throw new Error("No Data");
+      setAiData(result);
+      toast.success("Analisis AI selesai!", { icon: "🤖" });
     } catch (error) {
-      toast.error("Gagal menganalisis dokumen.");
-      setIsAiModalOpen(false);
+      console.error("AI Analysis Failed:", error);
+      
+      // --- LOGIKA PESAN ERROR YANG LEBIH BAIK ---
+      let displayMessage = "Gagal melakukan analisis dokumen.";
+      const errorString = error.toString(); // Ubah error object jadi string untuk dicek
+
+      // 1. Cek Error Koneksi (Server Mati / Terputus)
+      if (
+        errorString.includes("ECONNREFUSED") || 
+        errorString.includes("Network Error") ||
+        errorString.includes("500") || 
+        errorString.includes("502")
+      ) {
+        displayMessage = "⚠️ Koneksi ke Layanan AI terputus. Pastikan server AI aktif.";
+      } 
+      // 2. Cek Error Spesifik dari Backend (jika ada response.data.message)
+      else if (error.response && error.response.data && error.response.data.message) {
+        displayMessage = error.response.data.message;
+      }
+      // 3. Fallback ke error message bawaan
+      else if (error.message) {
+        displayMessage = error.message;
+      }
+
+      toast.error(displayMessage);
     } finally {
       setIsAnalyzing(false);
     }

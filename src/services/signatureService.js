@@ -6,14 +6,23 @@ export const signatureService = {
    * [PERSONAL] Mengirim data tanda tangan mandiri ke backend.
    * Endpoint: POST /api/signatures/personal
    */
-  addPersonalSignature: async (payload) => {
+addPersonalSignature: async (payload) => {
     try {
-      const response = await apiClient.post("signatures/personal", payload);
+      // Tambahkan parameter ke-3 (config)
+      const response = await apiClient.post("signatures/personal", payload, {
+        _silent: true, // 🔥 Opsional: Memberitahu apiClient jangan cerewet (jika toast di apiClient masih dinyalakan)
+      });
       return response.data;
     } catch (error) {
       console.error("❌ Error addPersonalSignature:", error);
-      const message = error.response?.data?.message || "Gagal menandatangani dokumen.";
-      throw new Error(message);
+
+      // Pastikan response server dilempar ulang
+      if (error.response) {
+        throw error; 
+      }
+      
+      // Lempar error offline standar
+      throw new Error(error.message || "Gagal menandatangani dokumen.");
     }
   },
 
