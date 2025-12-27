@@ -53,6 +53,7 @@ const DashboardDocuments = () => {
     setSearchQuery,
     isUploadModalOpen,
     setIsUploadModalOpen,
+    currentUser
   } = useDashboardDocuments();
 
   const [activeTab, setActiveTab] = useState("personal");
@@ -243,6 +244,7 @@ const DashboardDocuments = () => {
         <DocumentManagementModal
           mode={modalMode}
           initialDocument={selectedDocument}
+          currentUser={currentUser}
           onClose={() => setManagementModalOpen(false)}
           onSuccess={() => fetchDocuments(searchQuery)}
           onViewRequest={(url) => {
