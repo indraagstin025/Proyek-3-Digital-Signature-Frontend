@@ -5,7 +5,7 @@ import { toast } from "react-hot-toast";
 import { signatureService } from "../../services/signatureService";
 import { documentService } from "../../services/documentService";
 
-export const useSignatureManager = ({ documentId, documentVersionId, currentUser, refreshKey }) => {
+export const useSignatureManager = ({ documentId, documentVersionId, currentUser, refreshKey, documentData }) => {
   const [signatures, setSignatures] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -16,9 +16,13 @@ export const useSignatureManager = ({ documentId, documentVersionId, currentUser
       if (!documentId || !currentUser) return;
 
       try {
-        const doc = await documentService.getDocumentById(documentId);
+        // ✅ Jika documentData sudah ada (dari parent), gunakan itu
+        // Jika tidak, fetch dari service
+        const doc = documentData || (await documentService.getDocumentById(documentId));
 
-        if (doc?.status === "completed" || doc?.status === "archived") {
+        if (!doc) return;
+
+        if (doc.status === "completed" || doc.status === "archived") {
           setSignatures([]);
           return;
         }
@@ -46,7 +50,7 @@ export const useSignatureManager = ({ documentId, documentVersionId, currentUser
     };
 
     loadInitialSignatures();
-  }, [documentId, currentUser, refreshKey]);
+  }, [documentId, currentUser, refreshKey, documentData]);
 
   const handleAddSignature = useCallback(
     async (signatureData, savedSignatureUrl, includeQrCode) => {

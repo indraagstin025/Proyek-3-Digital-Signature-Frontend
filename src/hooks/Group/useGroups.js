@@ -77,24 +77,59 @@ export const useAcceptInvitation = () => {
 /**
  * FIX: Menambahkan ID unik berdasarkan userId yang dihapus
  */
+// File: src/hooks/Group/useGroups.js
+
+/**
+ * [UPDATED] useRemoveMember
+ * Menangani penghapusan anggota DAN pembersihan signer pending secara otomatis di UI.
+ */
 export const useRemoveMember = () => {
   const queryClient = useQueryClient();
+
   return useMutation({
-    mutationFn: ({ groupId, userIdToRemove }) => groupService.removeMember(groupId, userIdToRemove),
+    mutationFn: ({ groupId, userIdToRemove }) => 
+      groupService.removeMember(groupId, userIdToRemove),
 
     onSuccess: (data, variables) => {
-      queryClient.setQueryData(["group", Number(variables.groupId)], (old) => {
-        if (!old) return old;
+      const gId = Number(variables.groupId);
+      const userIdToRemove = variables.userIdToRemove;
+      queryClient.setQueryData(["group", gId], (oldGroupData) => {
+        if (!oldGroupData) return oldGroupData;
+        const updatedMembers = oldGroupData.members.filter(
+          (m) => m.user.id !== userIdToRemove
+        );
+
+        const updatedDocuments = oldGroupData.documents.map((doc) => {
+          if (!doc.signerRequests) return doc;
+
+          const newSignerRequests = doc.signerRequests.filter((signer) => {
+            if (signer.userId === userIdToRemove) {
+ 
+              if (signer.status === "PENDING") {
+                return false; 
+              }
+              return true; 
+            }
+            return true;
+          });
+
+          return {
+            ...doc,
+            signerRequests: newSignerRequests,
+          };
+        });
         return {
-          ...old,
-          members: old.members.filter((m) => m.user.id !== variables.userIdToRemove),
+          ...oldGroupData,
+          members: updatedMembers,
+          documents: updatedDocuments,
         };
       });
-      // ✅ FIX: ID unik mencegah duplikasi visual
+
       toast.success("Anggota berhasil dikeluarkan.", { 
-        id: `remove-member-${variables.userIdToRemove}` 
+        id: `remove-member-${userIdToRemove}` 
       });
     },
+
     onError: (error) => {
       const message = error?.response?.data?.message || "Gagal mengeluarkan anggota.";
       toast.error(message, { id: "remove-member-error" });

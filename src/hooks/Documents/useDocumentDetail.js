@@ -28,6 +28,7 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
   // Metadata State
   const [documentTitle, setDocumentTitle] = useState("Memuat...");
   const [documentVersionId, setDocumentVersionId] = useState(null);
+  const [documentData, setDocumentData] = useState(null); // ✅ Store full doc object
 
   // PDF Blob State
   const [pdfFile, setPdfFile] = useState(null);
@@ -63,28 +64,40 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
   }, [currentUser, navigate]);
 
   // ============================================================
-  // 3. EFFECT A: FETCH METADATA & STATUS (Jalan tiap refreshKey)
+  // 3. EFFECT A: FETCH METADATA & STATUS + PDF IN PARALLEL
   // ============================================================
   useEffect(() => {
     const controller = new AbortController();
     let isMounted = true;
+    let objectUrl = null;
 
-    const fetchDocumentMetadata = async () => {
+    const fetchDocumentAndPdf = async () => {
       if (!documentId || !currentUser?.id) return;
 
       try {
         // Hanya set loading jika ini load pertama kali (bukan refresh save ttd)
         if (refreshKey === 0) setIsLoadingDoc(true);
 
-        const doc = await documentService.getDocumentById(documentId, { signal: controller.signal });
+        // ✅ OPTIMASI: Fetch metadata dan PDF URL secara PARALEL
+        const [doc, tempSignedUrl] = await Promise.all([
+          documentService.getDocumentById(documentId, { signal: controller.signal }),
+          documentService.getDocumentFileUrl(documentId).catch((e) => {
+            console.warn("PDF URL fetch failed:", e);
+            return null;
+          }),
+        ]);
 
         if (!doc || !doc.currentVersion?.id) throw new Error("Dokumen tidak ditemukan/rusak.");
 
         if (isMounted) {
           setDocumentTitle(doc.title);
-          // Ini kunci utama: Kita update Version ID.
-          // Effect B di bawah akan mendeteksi perubahan ini.
+          setDocumentData(doc); // ✅ Store full doc untuk useSignatureManager
           setDocumentVersionId(doc.currentVersion.id);
+
+          // ✅ Cache banding untuk PDF (track full doc object)
+          if (loadedVersionRef.current !== doc.currentVersion.id && tempSignedUrl) {
+            loadedVersionRef.current = { versionId: doc.currentVersion.id, fetching: true };
+          }
         }
 
         // --- LOGIKA PENENTUAN STATUS (GROUP VS PERSONAL) ---
@@ -93,7 +106,6 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
 
         if (doc.groupId) {
           setIsGroupDoc(true);
-          // Cari request milik user yang sedang login
           const myRequest = (doc.signerRequests || []).find((s) => s.userId === currentUser.id);
 
           if (myRequest) {
@@ -103,17 +115,14 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
               if (isMounted) setCanSign(false);
               if (myRequest.status === "SIGNED") userHasSigned = true;
 
-              // Toast Info
               if (myRequest.status === "SIGNED" && !isCompleted && refreshKey === 0) {
                 toast.success("Tanda tangan Anda tersimpan. Menunggu pihak lain.", { id: "grp-signed" });
               }
             }
           } else {
-            // Member tapi Viewer
             if (isMounted) setCanSign(false);
           }
         } else {
-          // Dokumen Personal
           setIsGroupDoc(false);
           if (isMounted) setCanSign(!isCompleted);
           if (isCompleted) userHasSigned = true;
@@ -127,9 +136,28 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
             setIsSignedSuccess(false);
           }
         }
+
+        // ✅ FETCH PDF BLOB PARALEL (Jangan tunggu metadata selesai)
+        if (tempSignedUrl && isMounted) {
+          try {
+            const response = await fetch(tempSignedUrl, { signal: controller.signal });
+            if (!response.ok) throw new Error("Gagal mengunduh file PDF.");
+
+            const blob = await response.blob();
+            if (!isMounted) return;
+
+            objectUrl = URL.createObjectURL(blob);
+            setPdfFile(objectUrl);
+          } catch (pdfError) {
+            console.error("PDF fetch error:", pdfError);
+            if (isMounted && pdfError.name !== "AbortError") {
+              toast.error("Gagal memuat file PDF.");
+            }
+          }
+        }
       } catch (error) {
         if (error.name === "CanceledError" || error.message === "canceled") return;
-        console.error("Error fetching document metadata:", error);
+        console.error("Error fetching document:", error);
         if (isMounted) toast.error("Gagal memuat detail dokumen.");
       } finally {
         if (isMounted && refreshKey === 0) {
@@ -138,76 +166,21 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
       }
     };
 
-    fetchDocumentMetadata();
+    fetchDocumentAndPdf();
 
     return () => {
       controller.abort();
       isMounted = false;
-    };
-  }, [documentId, currentUser?.id, refreshKey, navigate]);
-
-  // ============================================================
-  // 4. EFFECT B: FETCH PDF BLOB (Hanya jalan jika Version ID berubah)
-  // ============================================================
-  useEffect(() => {
-    // Jangan jalan jika ID belum ada
-    if (!documentId || !documentVersionId) return;
-
-    // 🔥 OPTIMASI: Jika versi dokumen masih sama dengan yang sudah diload, JANGAN download ulang.
-    if (loadedVersionRef.current === documentVersionId) {
-      console.log("⚡ [PDF Cache] Menggunakan PDF yang sudah ada (Versi sama).");
-      return;
-    }
-
-    let isMounted = true;
-    let objectUrl = null;
-
-    const fetchPdfBlob = async () => {
-      try {
-        setIsLoadingPdf(true); // Loading khusus PDF (bisa dipakai untuk spinner overlay di viewer)
-        console.log(`📥 [PDF Fetch] Mengunduh versi baru: ${documentVersionId}`);
-
-        // 1. Dapatkan Signed URL dari Backend
-        // Pastikan service frontend Anda mengembalikan string URL
-        const tempSignedUrl = await documentService.getDocumentFileUrl(documentId);
-
-        // 2. Fetch File Fisik via Browser
-        const response = await fetch(tempSignedUrl);
-        if (!response.ok) throw new Error("Gagal mengunduh file PDF.");
-
-        const blob = await response.blob();
-
-        if (!isMounted) return;
-
-        // 3. Buat Blob URL (Persistent di sesi browser)
-        objectUrl = URL.createObjectURL(blob);
-        setPdfFile(objectUrl);
-
-        // 4. Update Cache Ref
-        loadedVersionRef.current = documentVersionId;
-      } catch (error) {
-        console.error("Error fetching PDF Blob:", error);
-        if (isMounted) toast.error("Gagal memuat file PDF.");
-      } finally {
-        if (isMounted) setIsLoadingPdf(false);
-      }
-    };
-
-    fetchPdfBlob();
-
-    // Cleanup: Revoke URL saat unmount atau ganti versi untuk cegah memory leak
-    return () => {
-      isMounted = false;
       if (objectUrl) {
-        console.log("🧹 [PDF Cleanup] Membersihkan memori Blob.");
         URL.revokeObjectURL(objectUrl);
       }
     };
-  }, [documentId, documentVersionId]); // ❌ refreshKey TIDAK BOLEH ADA DI SINI
+  }, [documentId, currentUser?.id, refreshKey, navigate]);
 
   return {
     currentUser,
     documentTitle,
+    documentData, // ✅ Buat untuk useSignatureManager
     pdfFile, // Blob URL yang stabil
     documentVersionId,
     isGroupDoc,
