@@ -1,6 +1,5 @@
 /* eslint-disable no-unused-vars */
 import axios from "axios";
-import { toast } from "react-hot-toast";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
@@ -8,86 +7,74 @@ const API_BASE_URL =
     ? "https://api.moodvis.my.id/api"
     : "http://localhost:3000/api");
 
+// 1. Setup Instance Utama
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
-  withCredentials: true,
-  timeout: 15000, 
+  withCredentials: true, // PENTING: Ini yang membuat browser otomatis kirim Cookie
+  timeout: 15000,
 });
 
+// 2. Setup Instance Khusus File (Blob)
 export const apiFileClient = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true,
+  withCredentials: true, // PENTING
   responseType: "blob",
-  timeout: 30000, 
+  timeout: 30000,
 });
 
-// --- REQUEST INTERCEPTOR ---
+// --- REQUEST INTERCEPTOR (DIBERSIHKAN) ---
+// Kita HAPUS logika penyuntikan header 'Authorization'.
+// Biarkan backend membaca token HANYA dari Cookie.
 apiClient.interceptors.request.use(
   (config) => {
-    const userString = localStorage.getItem("authUser");
-    if (userString) {
-      try {
-        const user = JSON.parse(userString);
-        if (user?.user?.token || user?.token) {
-          const token = user.user?.token || user.token;
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-      } catch (parseError) {
-        // Silent fail
-      }
-    }
+    // Debugging (Opsional): Pastikan kredensial dikirim
+    // console.log(`🚀 Requesting: ${config.url}`);
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// --- RESPONSE INTERCEPTOR (UPDATED) ---
+// --- RESPONSE INTERCEPTOR ---
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    const { code, message, response, config } = error;
+    const { code, message, response } = error;
 
-    // 0. Cek Status Online Browser
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-        // 🔥 HAPUS/KOMENTARI INI: Biarkan Service yang handle toast offline
-        // if (!config?._silent) toast.error("Koneksi terputus...", { id: "offline-mode" });
-        return Promise.reject(new Error("Offline-Detected")); // Konsisten dengan logic Service kita
+    // 1. Cek Koneksi / Offline / Timeout
+    // Mengembalikan pesan standar "Offline-Detected" agar Service/Hook bisa menangani UI-nya.
+    if (
+      code === "ECONNABORTED" || 
+      code === "ERR_NETWORK" || 
+      message?.includes("timeout") ||
+      (typeof navigator !== "undefined" && !navigator.onLine)
+    ) {
+        return Promise.reject(new Error("Offline-Detected"));
     }
 
-    // 1. Cek Pembatalan (Cancel)
-    if (axios.isCancel(error) || code === "ERR_CANCELED" || error.name === "CanceledError") {
+    // 2. Handle Cancel Request
+    if (axios.isCancel(error) || code === "ERR_CANCELED") {
       return Promise.reject({ isCanceled: true, message: "Request canceled" });
     }
 
-    // 2. Timeout & Network Error
-    if (code === "ECONNABORTED" || code === "ERR_NETWORK" || message.includes("timeout")) {
-        // 🔥 HAPUS/KOMENTARI INI JUGA
-        // Alasannya: Service kita (packageService/signatureService) sudah punya 
-        // listener window.addEventListener('offline') yang lebih akurat.
-        // if (!config?._silent) toast.error("Gagal terhubung...", { id: "network-error" });
-        
-        return Promise.reject(new Error("Offline-Detected")); // Lempar pesan standar agar ditangkap Service
-    }
-
-    // 3. Handle Response Error (400, 401, 500)
+    // 3. Handle HTTP Errors (401, 403, 500)
     if (response) {
       const status = response.status;
-      const isJsonResponse = response.headers["content-type"]?.includes("application/json");
-
-      // Handle 401 Session Expired
-      if (status === 401 && isJsonResponse) {
-        const msg = response.data?.message || "";
-        if (
-            msg.toLowerCase().includes("token") || 
-            msg.toLowerCase().includes("session") || 
-            msg.toLowerCase().includes("unauthorized")
-        ) {
+      
+      // Deteksi Session Expired (401)
+      if (status === 401) {
+        // Cek apakah response body mengindikasikan token invalid
+        // Backend Anda mengirim: { code: 'SESSION_EXPIRED', ... }
+        const data = response.data;
+        
+        // Trigger event logout global jika sesi benar-benar habis (Refresh Token mati)
+        if (data?.code === 'SESSION_EXPIRED' || data?.message?.toLowerCase().includes("sesi berakhir")) {
+             console.warn("🔒 Session expired via 401. Triggering logout...");
              window.dispatchEvent(new CustomEvent("sessionExpired"));
         }
       }
-      
-      // Kembalikan error utuh (termasuk response body) agar UI bisa baca pesan "Sudah Selesai"
+
+      // Kembalikan error utuh agar React Query bisa menangkap error message dari backend
       return Promise.reject(error);
     }
 
