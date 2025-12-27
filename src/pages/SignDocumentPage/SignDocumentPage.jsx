@@ -36,7 +36,7 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
   }, []);
 
   // 1. Hook Document Detail
-  const { currentUser, documentTitle, pdfFile, documentVersionId, canSign, isSignedSuccess, setIsSignedSuccess, isLoadingDoc, isGroupDoc } = useDocumentDetail(documentId, contextData, refreshKey);
+  const { currentUser, documentTitle, pdfFile, documentVersionId, documentData, canSign, isSignedSuccess, setIsSignedSuccess, isLoadingDoc, isGroupDoc } = useDocumentDetail(documentId, contextData, refreshKey);
 
   // Redirect Logic untuk Dokumen Group
   useEffect(() => {
@@ -53,6 +53,7 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
     currentUser,
     isGroupDoc: false,
     refreshKey,
+    documentData, // ✅ Pass untuk optimize fetching
     onRefreshRequest: () => setRefreshKey((prev) => prev + 1),
   });
 
@@ -63,10 +64,15 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
     }
   }, [isAnalyzing, aiData]);
 
-  // Handlers
+  // ============================================================
+  // 🔥 PERBAIKAN DI SINI (onSaveFromModal)
+  // ============================================================
   const onSaveFromModal = useCallback((dataUrl) => {
-    setSavedSignatureUrl(dataUrl);
-    setIsSignatureModalOpen(false);
+    setSavedSignatureUrl(dataUrl); // 1. Simpan URL Tanda Tangan
+    setIsSignatureModalOpen(false); // 2. Tutup Modal Tanda Tangan
+
+    // ✅ 3. Otomatis Buka Sidebar (Agar user di HP langsung bisa drag/tap)
+    setIsSidebarOpen(true);
   }, []);
 
   const onAddDraft = useCallback(
@@ -77,28 +83,21 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
     [canSign, handleAddSignature, savedSignatureUrl, includeQrCode]
   );
 
-  // ============================================================
-  // 🔥 PERBAIKAN DI SINI (onCommitSave)
-  // ============================================================
   const onCommitSave = async () => {
-    // 1. Cegah Double Submit
     if (isSaving) return;
 
     try {
       await handleFinalSave(includeQrCode);
 
-      // Happy Path
       toast.success("Dokumen selesai ditandatangani!");
       setIsSignedSuccess(true);
       setRefreshKey((prev) => prev + 1);
     } catch (error) {
-      // Ambil pesan error detail
       const backendMessage = error.response?.data?.message || "";
       const errorMessage = error.message || "";
 
       console.log("[Debug Save] Error:", { backendMessage, errorMessage });
 
-      // 2. LOGIC "SUDAH SELESAI" (Tetap Pertahankan Ini)
       if (backendMessage.toLowerCase().includes("selesai") || backendMessage.toLowerCase().includes("completed") || backendMessage.toLowerCase().includes("already signed") || backendMessage.toLowerCase().includes("sudah ditandatangani")) {
         toast.success("Status diperbarui: Dokumen sudah tersimpan.");
         setIsSignedSuccess(true);
@@ -106,17 +105,13 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
         return;
       }
 
-      // 3. LOGIC OFFLINE (PERBAIKAN DI SINI) 🔧
       if (errorMessage === "Offline-Detected" || errorMessage === "Network Error") {
-        // SEBELUMNYA: return; (Diam saja)
-        // SEKARANG: Munculkan toast peringatan
         toast.error("Gagal menyimpan. Koneksi internet terputus.", {
-          id: "save-offline-error", // ID unik agar tidak duplikat dengan toast lain
+          id: "save-offline-error",
         });
         return;
       }
 
-      // 4. Error Lainnya
       toast.error(backendMessage || errorMessage || "Gagal menyimpan.");
     }
   };
@@ -136,7 +131,7 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
         savedSignatureUrl={savedSignatureUrl}
         canSign={canSign}
         isSignedSuccess={isSignedSuccess}
-        isSaving={isSaving} // Layout akan menggunakan ini untuk memunculkan ProcessingModal
+        isSaving={isSaving}
         isAnalyzing={isAnalyzing}
         theme={theme}
         toggleTheme={toggleTheme}
@@ -155,7 +150,7 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
         onUpdateSignature={handleUpdateSignature}
         onDeleteSignature={handleDeleteSignature}
         onSaveFromModal={onSaveFromModal}
-        onCommitSave={onCommitSave} // Function yang sudah diperbaiki
+        onCommitSave={onCommitSave}
         handleAutoTag={handleAutoTag}
         handleAnalyzeDocument={handleAnalyzeDocument}
         handleNavigateToView={handleNavigateToView}
