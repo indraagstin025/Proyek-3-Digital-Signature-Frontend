@@ -31,11 +31,11 @@ export const ManageSignersModal = ({ isOpen, onClose, groupId, documentId, curre
     setSelectedUserIds((prev) => (prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]));
   };
 
+  // [LOGIC BARU] Cek apakah tombol harus dinonaktifkan
+  const isSaveDisabled = selectedUserIds.length === 0;
+
   const handleSave = () => {
-    if (selectedUserIds.length === 0) {
-      toast.error("Pilih setidaknya satu penanda tangan.");
-      return;
-    }
+    if (isSaveDisabled) return; // Double check logic
 
     // 1. Eksekusi Mutasi
     updateSigners(
@@ -47,15 +47,12 @@ export const ManageSignersModal = ({ isOpen, onClose, groupId, documentId, curre
       },
       {
         onError: () => {
-          // Jika gagal, baru kita buka lagi atau kasih alert (jarang terjadi)
           toast.error("Gagal menyimpan, silakan coba lagi.");
         },
-        // onSuccess tidak perlu melakukan onClose lagi karena kita lakukan di bawah
       }
     );
 
-    // 2. 🔥 TUTUP MODAL SECARA INSTAN (ZERO DELAY)
-    // Kita percaya Optimistic Update di useGroups.js akan mengurus UI di belakang.
+    // 2. Tutup Modal
     onClose();
   };
 
@@ -83,8 +80,14 @@ export const ManageSignersModal = ({ isOpen, onClose, groupId, documentId, curre
                   key={member.user.id}
                   onClick={() => toggleUser(member.user.id)}
                   className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
-                    isLocked ? "cursor-not-allowed bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-80" : "cursor-pointer hover:shadow-sm"
-                  } ${isSelected && !isLocked ? "bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800" : "border-slate-100 dark:border-slate-700"}`}
+                    isLocked 
+                      ? "cursor-not-allowed bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-80" 
+                      : "cursor-pointer hover:shadow-sm"
+                  } ${
+                    isSelected && !isLocked 
+                      ? "bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800" 
+                      : "border-slate-100 dark:border-slate-700"
+                  }`}
                 >
                   <div className="flex items-center gap-3">
                     <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold ${isLocked ? "bg-slate-300 text-slate-600" : "bg-blue-100 text-blue-600 dark:bg-slate-700 dark:text-blue-400"}`}>
@@ -110,13 +113,26 @@ export const ManageSignersModal = ({ isOpen, onClose, groupId, documentId, curre
             <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
               Batal
             </button>
+            
+            {/* [MODIFIKASI] Tombol Simpan */}
             <button
               onClick={handleSave}
-              disabled={isSaving}
-              className="flex items-center gap-2 px-5 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-70 transition-all shadow-lg shadow-blue-500/30"
+              disabled={isSaving || isSaveDisabled}
+              className={`
+                flex items-center gap-2 px-5 py-2 text-sm font-medium rounded-lg transition-all
+                ${isSaving || isSaveDisabled
+                  ? "bg-slate-300 text-slate-500 cursor-not-allowed dark:bg-slate-700 dark:text-slate-400" // Style Disabled
+                  : "text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30" // Style Active
+                }
+              `}
             >
-              {/* Karena modal tutup instan, teks loading mungkin tidak sempat terlihat, tapi tetap kita pasang */}
-              {isSaving ? "Memproses..." : "Simpan Perubahan"}
+              {isSaving ? (
+                <>
+                  <ImSpinner9 className="animate-spin" /> Memproses...
+                </>
+              ) : (
+                "Simpan Perubahan"
+              )}
             </button>
           </div>
         </Dialog.Panel>

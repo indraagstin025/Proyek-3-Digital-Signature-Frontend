@@ -1,6 +1,6 @@
 /* eslint-disable no-empty */
 /* eslint-disable no-unused-vars */
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { documentService } from "../../services/documentService.js";
 import toast from "react-hot-toast";
@@ -10,7 +10,7 @@ import {
   FaBolt, FaWhatsapp, FaFileSignature 
 } from "react-icons/fa";
 
-// [BARU] Daftar pilihan tipe dokumen untuk Dropdown
+// Daftar pilihan tipe dokumen untuk Dropdown
 const DOCUMENT_TYPES = [
   "General",
   "Surat Pernyataan",
@@ -103,21 +103,83 @@ const FeatureModal = ({ isOpen, onClose }) => {
 };
 
 // --- 2. KOMPONEN UTAMA: DOCUMENT MANAGEMENT MODAL ---
-const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, onViewRequest }) => {
+// [NOTE] Pastikan prop 'currentUser' dikirim dari parent component (misal: DashboardDocuments.jsx)
+const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, onViewRequest, currentUser }) => {
   const [file, setFile] = useState(null);
-  
-  // [BARU] State untuk menyimpan pilihan tipe dokumen, default "General"
   const [docType, setDocType] = useState("General");
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [versions, setVersions] = useState([]);
   const [isHistoryLoading, setHistoryLoading] = useState(true);
-  
-  // State untuk Info Modal
   const [showInfo, setShowInfo] = useState(false);
 
   const [activeVersionId, setActiveVersionId] = useState(initialDocument?.currentVersionId);
+
+// --- LOGIC PERMISSION: SIAPA YANG BOLEH ROLLBACK/DELETE? ---
+  const canManageVersions = useMemo(() => {
+
+    console.log("🔍 DEBUG CHECK ACCESS:");
+    console.log("1. Current User:", currentUser);
+    console.log("2. Document:", initialDocument);
+    console.log("3. Doc Owner ID:", initialDocument?.userId);
+    console.log("4. My User ID:", currentUser?.id);
+    
+    if (initialDocument?.group) {
+        console.log("5. Group Info:", initialDocument.group);
+        // Cek apakah field members atau adminId ada?
+        // Kemungkinan besar ini UNDEFINED di halaman Dashboard
+    }
+    // 1. Data tidak lengkap -> Block
+    if (!initialDocument || !currentUser) return false;
+
+    // --- PERBAIKAN DI SINI (NORMALISASI USER) ---
+    // Cek apakah 'currentUser' membungkus properti 'user' (seperti di log Anda)
+    // atau apakah dia langsung objek user itu sendiri.
+    const realUser = currentUser.user || currentUser; 
+    
+    // Pastikan ID ada sebelum lanjut
+    if (!realUser || !realUser.id) return false;
+
+    // Normalisasi ID ke String
+    const currentUserIdStr = String(realUser.id);
+    const docOwnerIdStr = String(initialDocument.userId);
+
+    // DEBUG LOG (Bisa dihapus jika sudah jalan)
+    console.log("✅ Fixed User ID Check:", currentUserIdStr, "vs Owner:", docOwnerIdStr);
+
+    // KASUS A: Dokumen Personal (Tidak ada groupId)
+    if (!initialDocument.groupId) {
+      return docOwnerIdStr === currentUserIdStr;
+    }
+
+    // KASUS B: Dokumen Grup
+    // Aturan: Hanya Admin (Pengupload) atau Admin lain yang boleh. Signer DILARANG.
+    
+    // Cek 1: Apakah user ini adalah Pengupload Dokumen? (Owner = Admin)
+    if (docOwnerIdStr === currentUserIdStr) {
+      return true;
+    }
+
+    // Cek 2: Apakah user ini punya role 'admin_group'?
+    if (initialDocument.group) {
+        // Cek via adminId (jika tersedia)
+        if (initialDocument.group.adminId && String(initialDocument.group.adminId) === currentUserIdStr) {
+            return true;
+        }
+
+        // Cek via array members
+        if (Array.isArray(initialDocument.group.members)) {
+           // Cari member yang ID-nya cocok dengan currentUserIdStr (yang sudah diperbaiki)
+           const me = initialDocument.group.members.find(m => String(m.userId) === currentUserIdStr);
+           if (me && me.role === 'admin_group') return true;
+        }
+    }
+
+    // Sisanya (Signer / Viewer) -> False
+    return false;
+  }, [initialDocument, currentUser]);
+  // ------------------------------------------------------------
 
   useEffect(() => {
     if (initialDocument) {
@@ -148,7 +210,7 @@ const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, on
       fetchHistory();
     } else {
       setFile(null);
-      setDocType("General"); // Reset type saat modal dibuka ulang
+      setDocType("General");
       setVersions([]);
       setHistoryLoading(false);
     }
@@ -156,7 +218,6 @@ const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, on
 
   const handleFileChange = (e) => setFile(e.target.files[0] || null);
 
-  // [UPDATED] Handle Submit untuk mengirim type ke service
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -167,9 +228,7 @@ const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, on
     const toastId = toast.loading("Mengunggah dokumen...");
     setIsLoading(true);
     try {
-      // [PENTING] Kirim docType sebagai parameter kedua
       await documentService.createDocument(file, docType);
-      
       toast.success("Dokumen berhasil diunggah!", { id: toastId });
       onSuccess();
       onClose();
@@ -217,7 +276,7 @@ const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, on
   };
 
   const handleDeleteVersion = async (versionId) => {
-    if (!window.confirm("Hapus versi ini?")) return;
+    if (!window.confirm("Hapus versi ini? Tindakan ini tidak dapat dibatalkan.")) return;
     const toastId = toast.loading("Menghapus versi...");
     try {
       await documentService.deleteVersion(initialDocument.id, versionId);
@@ -265,7 +324,6 @@ const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, on
             <h2 className="text-lg font-bold text-slate-800 dark:text-white truncate">
               {mode === "create" ? "Upload Dokumen" : "Riwayat Versi"}
             </h2>
-            {/* Responsif Truncate untuk Judul Panjang */}
             {mode === "update" && (
               <p className="text-sm text-slate-500 dark:text-slate-400 truncate w-full" title={initialDocument?.title}>
                 {initialDocument?.title || "Dokumen"}.pdf
@@ -274,7 +332,6 @@ const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, on
           </div>
 
           <div className="flex items-center gap-2 -mr-2">
-            {/* BUTTON INFO FITUR */}
             <button 
               onClick={() => setShowInfo(true)}
               className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 dark:text-blue-400 rounded-full transition-colors"
@@ -282,8 +339,6 @@ const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, on
             >
               <FaInfoCircle className="w-5 h-5" />
             </button>
-
-            {/* BUTTON CLOSE */}
             <button 
               onClick={onClose} 
               className="p-2 bg-transparent hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-full transition-colors"
@@ -301,7 +356,7 @@ const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, on
             <div className="flex flex-col items-center justify-center py-4">
               <form onSubmit={handleSubmit} className="w-full space-y-6">
                 
-                {/* [BARU] UI DROPDOWN TIPE DOKUMEN */}
+                {/* TIPE DOKUMEN */}
                 <div className="w-full">
                   <label className="block mb-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
                     Kategori Dokumen
@@ -318,19 +373,17 @@ const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, on
                         </option>
                       ))}
                     </select>
-                    {/* Icon Panah Kecil (Chevron Down) */}
                     <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-slate-500">
                       <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
                     </div>
                   </div>
                 </div>
 
-                {/* UI UPLOAD FILE (EXISTING) */}
+                {/* UPLOAD FILE */}
                 <div className="w-full">
                   <label className="block mb-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
                     Pilih File PDF
                   </label>
-
                   <div
                     className={`relative group border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-300 cursor-pointer
                     ${file 
@@ -433,6 +486,8 @@ const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, on
 
                         {/* KANAN: Action Buttons */}
                         <div className="flex items-center justify-between sm:justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-700 sm:w-auto w-full">
+                          
+                          {/* BUTTON: LIHAT & UNDUH (SEMUA ROLE) */}
                           <div className="flex gap-2 w-full sm:w-auto">
                              <button onClick={() => handlePreviewClick(version)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 dark:text-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-lg transition-colors" title="Lihat">
                                 <FaEye /> <span className="sm:hidden">Lihat</span>
@@ -442,19 +497,29 @@ const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, on
                              </button>
                           </div>
 
-                          {!version.isActive && (
+                          {/* BUTTON: ROLLBACK & HAPUS (HANYA ADMIN/OWNER) */}
+                          {!version.isActive && canManageVersions && (
                             <div className="flex gap-2 pl-2 border-l border-slate-200 dark:border-slate-700 ml-2">
-                              <button onClick={() => handleUseVersion(version.id)} className="p-1.5 text-slate-400 hover:text-green-600 dark:hover:text-green-400 transition-colors" title="Rollback">
+                              <button 
+                                onClick={() => handleUseVersion(version.id)} 
+                                className="p-1.5 text-slate-400 hover:text-green-600 dark:hover:text-green-400 transition-colors" 
+                                title="Kembalikan Versi Ini (Rollback)"
+                              >
                                 <FaUndo />
                               </button>
                               
                               {index !== versions.length - 1 && (
-                                <button onClick={() => handleDeleteVersion(version.id)} className="p-1.5 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors" title="Hapus">
+                                <button 
+                                  onClick={() => handleDeleteVersion(version.id)} 
+                                  className="p-1.5 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors" 
+                                  title="Hapus Versi"
+                                >
                                   <FaTrash />
                                 </button>
                               )}
                             </div>
                           )}
+
                         </div>
                       </li>
                     );
@@ -465,8 +530,6 @@ const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, on
           )}
         </main>
       </div>
-
-      {/* Render Feature Modal jika showInfo true */}
       <FeatureModal isOpen={showInfo} onClose={() => setShowInfo(false)} />
     </div>
   );

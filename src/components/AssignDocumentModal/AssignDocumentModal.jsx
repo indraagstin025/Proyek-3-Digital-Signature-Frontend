@@ -1,7 +1,7 @@
 // File: components/Group/AssignDocumentModal.jsx
 
 import React, { useState, useMemo } from "react";
-import { createPortal } from "react-dom"; // 1. Import createPortal
+import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
 import { HiX, HiCheck, HiOutlineDocumentText } from "react-icons/hi";
 import { ImSpinner9 } from "react-icons/im";
@@ -27,7 +27,21 @@ export const AssignDocumentModal = ({ isOpen, onClose, groupId, documentsAlready
   // Filter Dokumen
   const availableDocuments = useMemo(() => {
     const existingIds = new Set(documentsAlreadyInGroup.map((doc) => doc.id));
-    return allMyDocuments?.filter((doc) => !existingIds.has(doc.id) && !doc.groupId) || [];
+    
+    return allMyDocuments?.filter((doc) => {
+      // 1. Cek apakah dokumen sudah ada di grup ini
+      const isAlreadyInGroup = existingIds.has(doc.id);
+      
+      // 2. Cek apakah dokumen ini sebenarnya milik grup lain (Personal doc biasanya groupId = null)
+      const isGroupDoc = !!doc.groupId;
+
+      // 3. [BARU] Filter Status: Jangan tampilkan dokumen yang sudah selesai (Completed) atau diarsipkan.
+      // Ini mencegah bug "Ghost Signature" dimana data tanda tangan lama terbawa ke grup.
+      const isCompletedOrArchived = doc.status === "completed" || doc.status === "archived";
+
+      // HANYA tampilkan jika: Tidak ada di grup && Dokumen Personal (Draft) && Belum Completed
+      return !isAlreadyInGroup && !isGroupDoc && !isCompletedOrArchived;
+    }) || [];
   }, [allMyDocuments, documentsAlreadyInGroup]);
 
   // Handler Checkbox
@@ -60,15 +74,15 @@ export const AssignDocumentModal = ({ isOpen, onClose, groupId, documentsAlready
 
   if (!isOpen) return null;
 
-  // 2. Bungkus Konten Modal ke dalam variabel
+  // Bungkus Konten Modal
   const modalContent = (
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn"
-      onClick={onClose} // Menutup modal jika backdrop diklik
+      onClick={onClose}
     >
       <div
         className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] border border-slate-200 dark:border-slate-700 transform transition-all scale-100"
-        onClick={(e) => e.stopPropagation()} // Mencegah klik di dalam modal menutup modal
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header Modal */}
         <div className="flex justify-between items-center p-5 border-b border-slate-200 dark:border-slate-700">
@@ -92,7 +106,11 @@ export const AssignDocumentModal = ({ isOpen, onClose, groupId, documentsAlready
                 <ImSpinner9 className="animate-spin mr-2" /> Memuat dokumen...
               </div>
             ) : availableDocuments.length === 0 ? (
-              <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-lg text-center text-slate-500 border border-dashed border-slate-300 dark:border-slate-700">Tidak ada dokumen draft yang tersedia.</div>
+              <div className="p-8 bg-slate-50 dark:bg-slate-900 rounded-lg text-center border border-dashed border-slate-300 dark:border-slate-700">
+                <HiOutlineDocumentText className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                <p className="text-slate-500 font-medium">Tidak ada dokumen draft yang tersedia.</p>
+                <p className="text-xs text-slate-400 mt-1">Dokumen yang sudah selesai (Completed) tidak dapat dipindahkan.</p>
+              </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {availableDocuments.map((doc) => (
@@ -177,6 +195,5 @@ export const AssignDocumentModal = ({ isOpen, onClose, groupId, documentsAlready
     </div>
   );
 
-  // 3. Render ke document.body
   return createPortal(modalContent, document.body);
 };
