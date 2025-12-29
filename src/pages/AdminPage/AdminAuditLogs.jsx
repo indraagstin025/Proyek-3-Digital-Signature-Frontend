@@ -1,150 +1,214 @@
 import React, { useState, useEffect } from "react";
 import { adminService } from "../../services/adminService";
-import { HiSearch, HiRefresh, HiDesktopComputer, HiGlobeAlt } from "react-icons/hi";
+import { HiSearch, HiRefresh, HiDesktopComputer, HiGlobeAlt, HiChevronLeft, HiChevronRight } from "react-icons/hi";
 
 const AdminAuditLogs = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // [STATE BARU] Untuk Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const LIMIT = 10; // Maksimal 10 data per halaman
 
-  const fetchLogs = async () => {
+  const fetchLogs = async (page = 1) => {
     try {
       setLoading(true);
-      const data = await adminService.getAuditLogs();
-      setLogs(data || []);
+      // Panggil service dengan parameter page & limit
+      // Pastikan Anda mengupdate adminService frontend juga untuk kirim params
+      const response = await adminService.getAllAuditLogs(page, LIMIT);
+      
+      // Backend response structure: { data: [...], pagination: { ... } }
+      // Sesuaikan dengan struktur return dari backend Anda
+      const logData = response.data || (Array.isArray(response) ? response : []);
+      const pagination = response.pagination || { totalPages: 1 };
+
+      setLogs(logData);
+      setTotalPages(pagination.totalPages);
+      setCurrentPage(page);
     } catch (error) {
-      console.error(error);
+      console.error("Gagal load logs:", error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchLogs();
+    fetchLogs(1); // Load halaman 1 saat pertama kali buka
   }, []);
 
-  // Filter pencarian
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      fetchLogs(newPage);
+    }
+  };
+
+  // Filter Client-side (Hanya memfilter 10 data yang sedang tampil)
+  // Idealnya search juga dilakukan di Backend (server-side filtering), 
+  // tapi untuk sekarang client-side filter pada data page ini cukup.
   const filteredLogs = logs.filter((log) =>
-    log.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    log.actor?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    log.action.toLowerCase().includes(searchTerm.toLowerCase())
+    (log.description || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (log.actor?.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (log.action || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
-    <div className="mx-auto max-w-screen-xl space-y-6 animate-fade-in">
+    <div className="mx-auto max-w-full space-y-4 animate-fade-in pb-8">
       
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Audit System Logs</h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm">
-            Rekam jejak aktivitas admin dan sistem. Total: {logs.length} Data.
-          </p>
+      {/* HEADER & SEARCH (Sama seperti sebelumnya) */}
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-3 bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-blue-600">
+                <HiDesktopComputer className="w-5 h-5"/>
+            </div>
+            <div>
+                <h1 className="text-lg font-bold text-slate-800 dark:text-white leading-tight">Audit Logs</h1>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Halaman {currentPage} dari {totalPages}</p>
+            </div>
         </div>
-        <button onClick={fetchLogs} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200 transition-colors">
-            <HiRefresh className="text-slate-600 dark:text-slate-300"/>
-        </button>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="relative w-full sm:w-64">
+                <HiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input 
+                    type="text" 
+                    placeholder="Filter data halaman ini..." 
+                    className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
+            <button 
+                onClick={() => fetchLogs(currentPage)} 
+                className="p-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 rounded-lg transition-colors text-slate-600 dark:text-slate-300"
+                title="Refresh Data"
+            >
+                <HiRefresh className="w-5 h-5"/>
+            </button>
+        </div>
       </div>
 
-      {/* Search Bar */}
-      <div className="relative">
-        <HiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input 
-            type="text" 
-            placeholder="Cari log (Aksi, Nama Admin, Deskripsi)..." 
-            className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500 outline-none"
-            onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
-
-      {/* Table Audit Log Lengkap */}
-      <div className="bg-white/70 dark:bg-slate-800/50 backdrop-blur-xl rounded-2xl shadow-lg border border-slate-200/80 dark:border-slate-700 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-            <thead className="bg-slate-50/70 dark:bg-slate-700/50">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">Waktu</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">Aktor (Admin)</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">Aksi & Deskripsi</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">Info Perangkat</th>
+      {/* TABLE CONTAINER */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col min-h-[400px]">
+        <div className="overflow-x-auto flex-1">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50/80 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700 text-xs uppercase text-slate-500 font-semibold tracking-wider">
+                <th className="px-4 py-3 w-16 text-center">#</th>
+                <th className="px-4 py-3 min-w-[140px]">Waktu</th>
+                <th className="px-4 py-3 min-w-[180px]">Aktor</th>
+                <th className="px-4 py-3 min-w-[200px]">Aktivitas</th>
+                <th className="px-4 py-3 hidden md:table-cell">IP & Device</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                {loading ? (
-                   <tr><td colSpan="4" className="text-center py-8">Memuat data log...</td></tr>
+                   <tr><td colSpan="5" className="text-center py-20 text-sm text-slate-500">Memuat log aktivitas...</td></tr>
                ) : filteredLogs.length === 0 ? (
-                   <tr><td colSpan="4" className="text-center py-8 text-slate-500">Tidak ada log ditemukan.</td></tr>
+                   <tr><td colSpan="5" className="text-center py-20 text-sm text-slate-500">Tidak ada data ditemukan di halaman ini.</td></tr>
                ) : (
-                   filteredLogs.map((log) => (
-                       <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                   filteredLogs.map((log, index) => (
+                       <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group">
+                           {/* Nomor Urut (Relative to page) */}
+                           <td className="px-4 py-3 text-center text-xs text-slate-400">
+                               {(currentPage - 1) * LIMIT + index + 1}
+                           </td>
                            
-                           {/* 1. Waktu */}
-                           <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                           {/* ... (Kolom Waktu, Aktor, Aksi, IP SAMA SEPERTI SEBELUMNYA) ... */}
+                           <td className="px-4 py-3">
                                <div className="flex flex-col">
-                                   <span className="font-medium text-slate-700 dark:text-slate-300">
-                                       {new Date(log.createdAt).toLocaleDateString("id-ID")}
+                                   <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                                       {new Date(log.createdAt).toLocaleDateString("id-ID", {day: '2-digit', month: 'short', year: '2-digit'})}
                                    </span>
-                                   <span className="text-xs">
-                                       {new Date(log.createdAt).toLocaleTimeString("id-ID")}
+                                   <span className="text-[10px] text-slate-500 font-mono">
+                                       {new Date(log.createdAt).toLocaleTimeString("id-ID", {hour: '2-digit', minute:'2-digit'})}
                                    </span>
                                </div>
                            </td>
-
-                           {/* 2. Aktor */}
-                           <td className="px-6 py-4 whitespace-nowrap">
-                               <div className="flex items-center gap-3">
-                                   <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold">
-                                       {log.actor?.name?.charAt(0) || "S"}
+                           <td className="px-4 py-3">
+                               <div className="flex items-center gap-2.5">
+                                   <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 flex items-center justify-center text-blue-600 dark:text-blue-200 text-[10px] font-bold border border-blue-200 dark:border-blue-800 shrink-0">
+                                       {log.actor?.name?.charAt(0).toUpperCase() || "?"}
                                    </div>
-                                   <div>
-                                       <div className="text-sm font-medium text-slate-900 dark:text-white">
+                                   <div className="min-w-0">
+                                       <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[120px]">
                                            {log.actor?.name || "System"}
-                                       </div>
-                                       <div className="text-xs text-slate-500">{log.actor?.email}</div>
+                                       </p>
+                                       <p className="text-[10px] text-slate-500 truncate max-w-[120px]">
+                                           {log.actor?.email}
+                                       </p>
                                    </div>
                                </div>
                            </td>
-
-                           {/* 3. Aksi */}
-                           <td className="px-6 py-4">
-                               <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide ${
-                                   log.action.includes("DELETE") ? "bg-red-100 text-red-700" :
-                                   log.action.includes("CREATE") ? "bg-green-100 text-green-700" :
-                                   "bg-blue-100 text-blue-700"
-                               }`}>
-                                   {log.action}
-                               </span>
-                               <p className="mt-1 text-sm text-slate-600 dark:text-slate-300 max-w-sm truncate">
+                           <td className="px-4 py-3">
+                               <div className="flex items-center gap-2 mb-1">
+                                   <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border ${getActionStyle(log.action)}`}>
+                                       {log.action.replace(/_/g, " ")}
+                                   </span>
+                               </div>
+                               <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-1 group-hover:line-clamp-none transition-all" title={log.description}>
                                    {log.description}
                                </p>
                            </td>
-
-                           {/* 4. Info Perangkat (IP & User Agent) */}
-                           <td className="px-6 py-4 text-sm text-slate-500">
-                               <div className="flex items-center gap-2 mb-1" title="IP Address">
-                                   <HiGlobeAlt className="text-slate-400" />
-                                   <span className="font-mono bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200">
-                                       {/* JIKA IP KOSONG, TAMPILKAN PLACEHOLDER */}
-                                       {log.ipAddress || "::1 (Localhost)"}
-                                   </span>
-                               </div>
-                               <div className="flex items-center gap-2" title="User Agent">
-                                   <HiDesktopComputer className="text-slate-400" />
-                                   <span className="text-xs truncate max-w-[150px]">
-                                       {log.userAgent || "Unknown Device"}
-                                   </span>
+                           <td className="px-4 py-3 hidden md:table-cell">
+                               <div className="flex items-center gap-2">
+                                   <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 px-2 py-1 rounded border border-slate-200 dark:border-slate-700">
+                                       <HiGlobeAlt className="text-slate-400 w-3 h-3" />
+                                       <span className="text-[10px] font-mono text-slate-600 dark:text-slate-400">
+                                           {log.ipAddress || "Local"}
+                                       </span>
+                                   </div>
+                                   <div className="relative group/tooltip">
+                                       <HiDesktopComputer className="text-slate-300 w-4 h-4 hover:text-blue-500 cursor-help" />
+                                       <div className="absolute bottom-full right-0 mb-2 hidden group-hover/tooltip:block w-48 bg-slate-800 text-white text-[10px] p-2 rounded shadow-lg z-10">
+                                           {log.userAgent || "Unknown Device"}
+                                       </div>
+                                   </div>
                                </div>
                            </td>
-
                        </tr>
                    ))
                )}
             </tbody>
           </table>
         </div>
+
+        {/* --- PAGINATION CONTROLS (FOOTER) --- */}
+        <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+                Halaman <span className="font-bold text-slate-800 dark:text-white">{currentPage}</span> dari {totalPages}
+            </p>
+            
+            <div className="flex items-center gap-2">
+                <button 
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1 || loading}
+                    className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-600 hover:bg-white dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-600 dark:text-slate-300"
+                >
+                    <HiChevronLeft className="w-4 h-4" />
+                </button>
+                <button 
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages || loading}
+                    className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-600 hover:bg-white dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-600 dark:text-slate-300"
+                >
+                    <HiChevronRight className="w-4 h-4" />
+                </button>
+            </div>
+        </div>
       </div>
     </div>
   );
+};
+
+const getActionStyle = (action) => {
+  if (action.includes("DELETE") || action.includes("FORCE")) 
+      return "bg-red-50 text-red-600 border-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/30";
+  if (action.includes("CREATE") || action.includes("SIGN")) 
+      return "bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-900/30";
+  if (action.includes("LOGIN") || action.includes("UPDATE")) 
+      return "bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/30";
+  return "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700";
 };
 
 export default AdminAuditLogs;
