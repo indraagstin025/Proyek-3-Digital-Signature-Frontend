@@ -82,11 +82,12 @@ const getDashboardSummary = async () => {
  * Endpoint: GET /api/admin/audit-logs
  * @returns {Promise<Array>} Array object logs.
  */
-const getAllAuditLogs = async () => {
+const getAllAuditLogs = async (page = 1, limit = 10) => {
     try {
-        const response = await apiClient.get("/admin/audit-logs");
-        // Backend controller biasanya mengembalikan data di dalam property 'data'
-        return response.data?.data || [];
+        // Kirim query param page & limit
+        const response = await apiClient.get(`/admin/audit-logs?page=${page}&limit=${limit}`);
+        // Return full response (data + pagination meta)
+        return response.data; 
     } catch (error) {
         handleError(error, "Gagal mengambil audit logs.");
     }

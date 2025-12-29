@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from "react";
-import { adminService } from "../../services/adminService"; // Pastikan path benar
+import { adminService } from "../../services/adminService"; 
 import toast from "react-hot-toast";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -11,7 +11,7 @@ import {
   HiOutlineClock, HiArrowSmUp, HiArrowSmDown, HiLightningBolt
 } from "react-icons/hi";
 
-// Warna untuk Chart
+// Warna untuk Pie Chart
 const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444"];
 
 // ==========================================
@@ -33,7 +33,6 @@ const CompactStatCard = ({ title, value, icon, color, trend }) => (
       </div>
     </div>
     
-    {/* Trend Indicator (Dinamis dari Backend) */}
     <div className="flex items-center gap-1 mt-auto z-10">
       <span className={`text-xs font-bold flex items-center ${trend >= 0 ? 'text-green-500' : 'text-red-500'}`}>
         {trend >= 0 ? <HiArrowSmUp /> : <HiArrowSmDown />}
@@ -42,13 +41,12 @@ const CompactStatCard = ({ title, value, icon, color, trend }) => (
       <span className="text-[10px] text-slate-400">vs kemarin</span>
     </div>
 
-    {/* Background Decoration */}
     <div className={`absolute -bottom-4 -right-4 w-20 h-20 rounded-full ${color} opacity-5 group-hover:scale-110 transition-transform`} />
   </div>
 );
 
 // ==========================================
-// 2. KOMPONEN: TRAFFIC CHART (Menerima Props Data)
+// 2. KOMPONEN: TRAFFIC CHART (DIPERBAIKI)
 // ==========================================
 const TrafficChart = ({ data }) => (
   <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 h-[300px] flex flex-col">
@@ -58,7 +56,6 @@ const TrafficChart = ({ data }) => (
     </h3>
     <div className="flex-1 w-full min-h-0">
       <ResponsiveContainer width="100%" height="100%">
-        {/* Gunakan data yang dikirim dari props */}
         <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
           <defs>
             <linearGradient id="colorReq" x1="0" y1="0" x2="0" y2="1">
@@ -66,14 +63,40 @@ const TrafficChart = ({ data }) => (
               <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.5} />
-          <XAxis dataKey="name" tick={{fontSize: 10}} stroke="#94A3B8" />
-          <YAxis tick={{fontSize: 10}} stroke="#94A3B8" />
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.2} />
+          
+          {/* Sumbu X: Interval diatur agar tidak menumpuk */}
+          <XAxis 
+            dataKey="name" 
+            tick={{fontSize: 10, fill: '#94A3B8'}} 
+            stroke="#94A3B8" 
+            axisLine={false}
+            tickLine={false}
+            minTickGap={30} 
+          />
+          
+          <YAxis 
+            tick={{fontSize: 10, fill: '#94A3B8'}} 
+            stroke="#94A3B8" 
+            axisLine={false}
+            tickLine={false}
+          />
+          
           <Tooltip 
             contentStyle={{ backgroundColor: '#1E293B', borderColor: '#334155', borderRadius: '8px', color: '#fff' }}
             itemStyle={{ color: '#fff' }}
+            cursor={{ stroke: '#3B82F6', strokeWidth: 1 }}
           />
-          <Area type="monotone" dataKey="requests" stroke="#3B82F6" strokeWidth={2} fillOpacity={1} fill="url(#colorReq)" />
+          
+          <Area 
+            type="monotone" 
+            dataKey="requests" 
+            stroke="#3B82F6" 
+            strokeWidth={3} 
+            fillOpacity={1} 
+            fill="url(#colorReq)" 
+            animationDuration={1500}
+          />
         </AreaChart>
       </ResponsiveContainer>
     </div>
@@ -90,7 +113,7 @@ const CompactAuditTable = ({ logs }) => (
       Aktivitas Terkini
     </h3>
     <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-3">
-      {logs.length === 0 ? (
+      {!logs || logs.length === 0 ? (
         <p className="text-xs text-slate-500 text-center mt-10">Tidak ada aktivitas terbaru.</p>
       ) : (
         logs.slice(0, 10).map((log) => (
@@ -99,7 +122,7 @@ const CompactAuditTable = ({ logs }) => (
               log.action.includes("DELETE") ? "bg-red-500" :
               log.action.includes("CREATE") ? "bg-green-500" : "bg-blue-500"
             }`} />
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
                 {log.description || log.action}
               </p>
@@ -123,58 +146,55 @@ const CompactAuditTable = ({ logs }) => (
 // 4. MAIN PAGE: ADMIN DASHBOARD
 // ==========================================
 const AdminDashboardOverview = () => {
-  // State Tunggal untuk Data Dashboard
   const [dashboardData, setDashboardData] = useState({
     counts: { users: 0, documents: 0, groups: 0, verifications: 0 },
-    traffic: [], // Data grafik akan diisi dari backend
+    traffic: [], 
     trends: { users: 0, documents: 0, groups: 0, verifications: 0 },
   });
 
-  const [logs, setLogs] = useState([]); // Audit Logs terpisah endpointnya (biasanya)
+  const [logs, setLogs] = useState([]); 
   const [loading, setLoading] = useState(true);
 
-  // Data Distribusi Pie Chart (Dihitung dari state)
+  // Data Distribusi Pie Chart
   const pieData = [
     { name: 'Dokumen', value: dashboardData.counts.documents },
     { name: 'Verifikasi', value: dashboardData.counts.verifications },
   ];
 
-useEffect(() => {
+  useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        // Panggil 2 Endpoint: Summary Dashboard & Audit Logs
+        // Panggil 2 Endpoint
         const [summaryRes, logsRes] = await Promise.all([
           adminService.getDashboardSummary(), 
           adminService.getAllAuditLogs()      
         ]);
 
+        // 1. Set Data Summary
         if (summaryRes.data) {
            setDashboardData(summaryRes.data); 
         }
-        if (logsRes.data) {
+
+        // 2. [FIXED] Set Data Logs (Perbaikan Logika)
+        // Service mengembalikan array langsung, bukan object {data: []}
+        if (Array.isArray(logsRes)) {
+           setLogs(logsRes);
+        } else if (logsRes?.data) {
+           // Jaga-jaga jika struktur response berubah
            setLogs(logsRes.data);
         }
+
       } catch (err) {
         console.error("Dashboard Error:", err);
-
-        // --- FILTER ERROR (Agar tidak double toast) ---
         const isAuthError = err.response?.status === 401;
-        
-        // Cek error network/timeout (sesuai pesan dari apiClient.js)
-        const isNetworkError = 
-            err.message === "Request Timeout" || 
-            err.message === "Network Error" ||
-            err.message.includes("offline") ||
-            err.code === "ECONNABORTED";
+        const isNetworkError = err.message === "Network Error" || err.code === "ECONNABORTED";
 
-        // Hanya tampilkan Toast Lokal jika BUKAN Auth & BUKAN Network
         if (!isAuthError && !isNetworkError) {
-           const message = err.response?.data?.message || "Gagal memuat data dashboard.";
-           toast.error(message);
+           // const message = err.response?.data?.message || "Gagal memuat data dashboard.";
+           // toast.error(message);
         }
       } finally {
-        // Spinner Admin berhenti di sini (Sukses/Gagal/Timeout)
         setLoading(false);
       }
     };
@@ -208,7 +228,7 @@ useEffect(() => {
           value={dashboardData.counts.users} 
           icon={<HiUserGroup />} 
           color="bg-blue-500" 
-          trend={dashboardData.trends.users} // Trend dari Backend
+          trend={dashboardData.trends.users} 
         />
         <CompactStatCard 
           title="Dokumen" 
@@ -236,7 +256,7 @@ useEffect(() => {
       {/* 2. ROW: CHARTS (Traffic & Distribution) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         
-        {/* Kiri: Traffic Chart (Lebar) - Pass data dari state ke komponen */}
+        {/* Kiri: Traffic Chart (Lebar) */}
         <div className="lg:col-span-2">
            <TrafficChart data={dashboardData.traffic} />
         </div>
@@ -276,7 +296,7 @@ useEffect(() => {
           {/* Legend */}
           <div className="flex justify-center gap-4 mt-2">
               <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                  <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
                   <span className="text-xs text-slate-500">Docs</span>
               </div>
               <div className="flex items-center gap-1">
@@ -293,7 +313,6 @@ useEffect(() => {
               <CompactAuditTable logs={logs} />
           </div>
           
-          {/* Quick Action Panel (Static UI - Pro Look) */}
           <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-5 text-white flex flex-col justify-center h-[300px] shadow-lg">
               <h3 className="font-bold text-lg mb-2">System Health</h3>
               <div className="flex items-center gap-2 mb-6">
