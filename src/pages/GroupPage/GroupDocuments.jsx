@@ -6,7 +6,7 @@ import {
   HiOutlineEye, HiOutlineUpload, HiOutlineDocumentAdd, 
   HiOutlinePencil, HiCheckCircle, HiUserGroup, 
   HiShieldCheck, HiTrash, HiOutlineDocumentText,
-  HiClock, HiExclamation // [BARU] Tambah Icon
+  HiClock, HiExclamation, HiLockClosed
 } from "react-icons/hi";
 import { FaHistory } from "react-icons/fa";
 import { ImSpinner9 } from "react-icons/im";
@@ -35,13 +35,19 @@ export const GroupDocuments = ({ documents, groupId, members, currentUser, curre
   const { mutate: deleteDoc, isPending: isDeleting } = useDeleteGroupDocument();
   const { mutate: finalizeDoc, isPending: isFinalizing } = useFinalizeDocument();
   
+  // Cek apakah user saat ini adalah Admin Grup
   const isAdmin = useMemo(() => members.some((m) => m.userId === currentUserId && m.role === "admin_group"), [members, currentUserId]);
 
   // --- HANDLERS ---
   const handleDeleteClick = (doc) => { setDocToDelete(doc); setIsConfirmOpen(true); };
   const onConfirmDelete = () => { if (docToDelete) { deleteDoc({ groupId, documentId: docToDelete.id }); setIsConfirmOpen(false); setDocToDelete(null); } };
   const handleOpenManageSigners = (doc) => { setSelectedDocForEdit(doc); setIsManageSignersOpen(true); };
-  const handleFinalize = (docId, docTitle) => { if (confirm(`Apakah Anda yakin ingin finalisasi dokumen "${docTitle}"?`)) { finalizeDoc({ groupId, documentId: docId }); } };
+  
+  const handleFinalize = (docId, docTitle) => { 
+      if (confirm(`Apakah Anda yakin ingin finalisasi dokumen "${docTitle}"? Dokumen akan dikunci permanen.`)) { 
+          finalizeDoc({ groupId, documentId: docId }); 
+      } 
+  };
 
   const handleManage = (doc) => {
     const docWithGroupInfo = {
@@ -58,10 +64,21 @@ export const GroupDocuments = ({ documents, groupId, members, currentUser, curre
 
   return (
     <div className="h-full w-full py-1">
-      {/* --- MODALS (Tetap Sama) --- */}
+      {/* --- MODALS --- */}
       <AssignDocumentModal isOpen={isAssignModalOpen} onClose={() => setIsAssignModalOpen(false)} groupId={groupId} documentsAlreadyInGroup={documents} members={members} />
       <UploadGroupDocumentModal isOpen={isUploadModalOpen} onClose={() => setIsUploadModalOpen(false)} groupId={groupId} members={members} />
-      {selectedDocForEdit && <ManageSignersModal isOpen={isManageSignersOpen} onClose={() => setIsManageSignersOpen(false)} groupId={groupId} documentId={selectedDocForEdit.id} currentSigners={selectedDocForEdit.signerRequests || []} members={members} />}
+      
+      {selectedDocForEdit && (
+        <ManageSignersModal 
+            isOpen={isManageSignersOpen} 
+            onClose={() => setIsManageSignersOpen(false)} 
+            groupId={groupId} 
+            documentId={selectedDocForEdit.id} 
+            currentSigners={selectedDocForEdit.signerRequests || []} 
+            members={members} 
+        />
+      )}
+      
       {isManagementModalOpen && (
         <DocumentManagementModal
           mode="update"
@@ -71,11 +88,12 @@ export const GroupDocuments = ({ documents, groupId, members, currentUser, curre
           onSuccess={() => {}}
         />
       )}
+      
       <ConfirmationModal isOpen={isConfirmOpen} onClose={() => setIsConfirmOpen(false)} onConfirm={onConfirmDelete} title="Hapus Dokumen" message={`Hapus "${docToDelete?.title}"?`} confirmButtonColor="bg-red-600" confirmText={isDeleting ? "Menghapus..." : "Hapus"} />
 
       <div className="flex flex-col h-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
         
-        {/* HEADER (Tetap Sama) */}
+        {/* HEADER */}
         <div className="flex-none px-6 py-5 border-b border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
@@ -84,18 +102,17 @@ export const GroupDocuments = ({ documents, groupId, members, currentUser, curre
             <p className="text-slate-500 dark:text-slate-400 text-sm">Kelola file dan status tanda tangan tim.</p>
           </div>
 
-          {isAdmin && (
-            <div className="flex gap-3 w-full sm:w-auto">
-              <button onClick={() => setIsAssignModalOpen(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300 transition-all shadow-sm">
-                <HiOutlineDocumentAdd className="w-5 h-5" />
-                <span>Pilih Draft</span>
-              </button>
-              <button onClick={() => setIsUploadModalOpen(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-500/20 transition-all transform hover:-translate-y-0.5">
-                <HiOutlineUpload className="w-5 h-5" />
-                <span>Upload Baru</span>
-              </button>
-            </div>
-          )}
+          {/* [LOGIC UPDATE] Tombol Upload/Draft dibuka untuk SEMUA MEMBER */}
+          <div className="flex gap-3 w-full sm:w-auto">
+            <button onClick={() => setIsAssignModalOpen(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300 transition-all shadow-sm">
+              <HiOutlineDocumentAdd className="w-5 h-5" />
+              <span>Pilih Draft</span>
+            </button>
+            <button onClick={() => setIsUploadModalOpen(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-500/20 transition-all transform hover:-translate-y-0.5">
+              <HiOutlineUpload className="w-5 h-5" />
+              <span>Upload Baru</span>
+            </button>
+          </div>
         </div>
 
         {/* LIST DOKUMEN */}
@@ -103,23 +120,29 @@ export const GroupDocuments = ({ documents, groupId, members, currentUser, curre
           {documents.length > 0 ? (
             <ul className="grid grid-cols-1 gap-4">
               {documents.map((doc) => {
+                // Kalkulasi Logic
                 const signersList = doc.signerRequests || doc.groupSigners || [];
                 const totalSigners = signersList.length;
                 const signedCount = signersList.filter((s) => s.status === "SIGNED").length;
                 
                 const isDocCompleted = doc.status === "completed" || doc.status === "archived";
                 const isAllSigned = totalSigners > 0 && signedCount === totalSigners;
-                
-                // [BARU] Status Krusial: Semua TTD sudah lengkap, tapi Admin belum Finalisasi
                 const isWaitingForFinalization = isAllSigned && !isDocCompleted;
 
                 const myRequest = signersList.find((req) => req.userId === currentUserId);
                 const myStatus = myRequest ? myRequest.status : null;
                 const showSignButton = myStatus === "PENDING" && !isDocCompleted;
 
+                // [LOGIC UPDATE] Cek apakah User saat ini adalah PEMILIK dokumen ini
+                const isOwner = doc.userId === currentUserId;
+                
+                // [LOGIC UPDATE] Hak Akses Manage (Edit/Delete/Finalize) = Admin Group ATAU Pemilik Dokumen
+                const canManage = isAdmin || isOwner;
+
                 return (
                   <li key={doc.id} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-blue-200 dark:hover:border-blue-900/50 transition-all duration-300 group">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-5">
+                      
                       {/* Left Info */}
                       <div className="flex-1 min-w-0 w-full">
                         <div className="flex items-center gap-3 mb-2">
@@ -128,12 +151,16 @@ export const GroupDocuments = ({ documents, groupId, members, currentUser, curre
                           </div>
                           
                           <div className="min-w-0 flex-1">
-                            <Link to={`/documents/${doc.id}/view`} className="text-lg font-bold text-slate-800 dark:text-slate-100 hover:text-blue-600 transition-colors block truncate">
-                                {doc.title}
-                            </Link>
+                            <div className="flex items-center gap-2">
+                                <Link to={`/documents/${doc.id}/view`} className="text-lg font-bold text-slate-800 dark:text-slate-100 hover:text-blue-600 transition-colors block truncate">
+                                    {doc.title}
+                                </Link>
+                                {/* Badge Owner jika dokumen milik user sendiri */}
+                                {isOwner && <span className="text-[10px] bg-slate-100 text-slate-600 border border-slate-200 px-1.5 py-0.5 rounded font-medium">Milik Saya</span>}
+                            </div>
                             <p className="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
                                <span className={`inline-block w-2 h-2 rounded-full ${isDocCompleted ? "bg-emerald-500" : "bg-blue-500"}`}></span>
-                               <span className="capitalize">{doc.status || "Draft"}</span> • v{doc.versions?.length || 1}
+                               <span className="capitalize">{doc.status || "Draft"}</span> • v{doc.versions?.length || 1} • {new Date(doc.createdAt).toLocaleDateString()}
                             </p>
                           </div>
                         </div>
@@ -141,7 +168,7 @@ export const GroupDocuments = ({ documents, groupId, members, currentUser, curre
                         {/* Status Bar */}
                         <div className="flex flex-wrap items-center gap-3 pl-[3.25rem]">
                            
-                           {/* Badge Status User Sendiri */}
+                           {/* Badge Status TTD User Sendiri */}
                            {showSignButton && <span className="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide bg-amber-50 text-amber-700 border border-amber-200/60">Perlu TTD</span>}
                            {(myStatus === "SIGNED" || isDocCompleted) && (
                              <span className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200/60">
@@ -149,21 +176,20 @@ export const GroupDocuments = ({ documents, groupId, members, currentUser, curre
                              </span>
                            )}
 
-                           {/* [BARU] Badge Peringatan: Menunggu Finalisasi */}
+                           {/* Badge Peringatan: Menunggu Finalisasi */}
                            {isWaitingForFinalization && (
                              <span className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase bg-yellow-50 text-yellow-700 border border-yellow-200/60 animate-pulse">
                                <HiExclamation className="w-3.5 h-3.5" /> Menunggu Finalisasi
                              </span>
                            )}
 
-                           {/* [BARU] Tooltip Detail Penanda Tangan */}
+                           {/* Tooltip Signer Stats */}
                            <div className="relative group/tooltip">
                               <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 text-xs font-medium cursor-help hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
                                  <HiUserGroup className="w-3.5 h-3.5" />
                                  {signedCount}/{totalSigners} Signed
                               </div>
                               
-                              {/* ISI TOOLTIP */}
                               <div className="absolute left-0 sm:left-1/2 sm:-translate-x-1/2 bottom-full mb-2 hidden group-hover/tooltip:block z-50 w-48 bg-slate-800 text-white text-xs rounded-lg shadow-xl p-3 border border-slate-700">
                                 <p className="font-bold mb-2 pb-1 border-b border-slate-600 text-slate-300">Status Signer:</p>
                                 <ul className="space-y-1.5 max-h-40 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600">
@@ -171,18 +197,16 @@ export const GroupDocuments = ({ documents, groupId, members, currentUser, curre
                                     <li key={signer.userId} className="flex justify-between items-center">
                                       <span className="truncate max-w-[120px]" title={signer.user?.name}>{signer.user?.name || "User"}</span>
                                       {signer.status === 'SIGNED' ? (
-                                        <HiCheckCircle className="text-emerald-400 w-4 h-4" title="Sudah Tanda Tangan" />
+                                        <HiCheckCircle className="text-emerald-400 w-4 h-4" />
                                       ) : (
-                                        <HiClock className="text-amber-400 w-4 h-4" title="Belum Tanda Tangan" />
+                                        <HiClock className="text-amber-400 w-4 h-4" />
                                       )}
                                     </li>
                                   ))}
                                   {signersList.length === 0 && <li className="text-slate-500 italic">Belum ada signer</li>}
                                 </ul>
-                                {/* Panah Tooltip */}
                                 <div className="absolute left-4 sm:left-1/2 sm:-translate-x-1/2 top-full w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-slate-800"></div>
                               </div>
-
                            </div>
                         </div>
                       </div>
@@ -194,19 +218,17 @@ export const GroupDocuments = ({ documents, groupId, members, currentUser, curre
                           <FaHistory className="w-5 h-5" />
                         </button>
 
-                        {/* [MODIFIKASI] Tombol Finalisasi lebih menonjol jika status Waiting */}
-                        {isAdmin && isWaitingForFinalization && (
+                        {/* [LOGIC UPDATE] Tombol Finalisasi muncul untuk Admin ATAU Owner */}
+                        {canManage && isWaitingForFinalization && (
                           <button
                             onClick={() => handleFinalize(doc.id, doc.title)}
                             disabled={isFinalizing}
                             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs font-bold uppercase rounded-lg hover:from-yellow-600 hover:to-orange-600 transition-all shadow-md shadow-orange-500/30 ring-2 ring-yellow-400/50 animate-pulse"
                           >
                             {isFinalizing ? <ImSpinner9 className="animate-spin" /> : <HiShieldCheck className="w-4 h-4" />}
-                            <span>Finalisasi Sekarang</span>
+                            <span>Finalisasi</span>
                           </button>
                         )}
-                        
-                        {/* Jika Admin belum bisa finalisasi (belum lengkap), tombol finalisasi disembunyikan atau disabled (Logic lama: disembunyikan) */}
 
                         {showSignButton ? (
                           <Link to={`/documents/${doc.id}/group-sign`} className="flex-1 sm:flex-none justify-center flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold rounded-xl hover:from-blue-700 hover:to-indigo-700 shadow-md shadow-blue-500/30 transition-all transform hover:-translate-y-0.5">
@@ -220,7 +242,8 @@ export const GroupDocuments = ({ documents, groupId, members, currentUser, curre
                           </Link>
                         )}
 
-                        {isAdmin && (
+                        {/* [LOGIC UPDATE] Tombol Edit Signer & Delete muncul untuk Admin ATAU Owner */}
+                        {canManage && (
                             <div className="flex gap-1 ml-1 pl-2 border-l border-slate-200 dark:border-slate-700">
                                 {!isDocCompleted && (
                                     <button onClick={() => handleOpenManageSigners(doc)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit Signer">
