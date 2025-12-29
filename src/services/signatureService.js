@@ -6,7 +6,7 @@ export const signatureService = {
    * [PERSONAL] Mengirim data tanda tangan mandiri ke backend.
    * Endpoint: POST /api/signatures/personal
    */
-addPersonalSignature: async (payload) => {
+  addPersonalSignature: async (payload) => {
     try {
       // Tambahkan parameter ke-3 (config)
       const response = await apiClient.post("signatures/personal", payload, {
@@ -18,9 +18,9 @@ addPersonalSignature: async (payload) => {
 
       // Pastikan response server dilempar ulang
       if (error.response) {
-        throw error; 
+        throw error;
       }
-      
+
       // Lempar error offline standar
       throw new Error(error.message || "Gagal menandatangani dokumen.");
     }
@@ -85,6 +85,22 @@ addPersonalSignature: async (payload) => {
     } catch (error) {
       console.error("❌ Error analyzeDocument:", error);
       throw new Error(error.response?.data?.message || "Gagal menganalisis dokumen.");
+    }
+  },
+
+  /**
+   * [PUBLIC] Unlock Verification
+   * Endpoint: POST /api/signatures/verify/:id/unlock
+   */
+  unlockVerification: async (signatureId, accessCode) => {
+    try {
+      const response = await apiClient.post(`signatures/verify/${signatureId}/unlock`, { accessCode });
+      return response.data;
+    } catch (error) {
+      console.error("❌ Error unlockVerification:", error);
+      // Lempar error spesifik dari backend (misal: "Kode Akses Salah")
+      const message = error.response?.data?.message || "Gagal membuka kunci dokumen.";
+      throw new Error(message);
     }
   },
 };
