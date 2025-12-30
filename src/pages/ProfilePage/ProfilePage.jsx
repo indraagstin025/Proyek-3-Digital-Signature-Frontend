@@ -93,17 +93,28 @@ const ProfilePage = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleProfileUpdate = useCallback(
+const handleProfileUpdate = useCallback(
     async ({ updateData, newPicture = null, oldPictureId = null }) => {
       setIsUpdating(true);
+      
+      // Tampilkan loading toast
       const toastId = toast.loading("Memperbarui profil...");
+      
       try {
+        // 1. Panggil API Update
         const response = await userService.updateMyProfile(updateData, newPicture, oldPictureId);
+        
+        // 2. Update State Lokal & Parent (DashboardPage)
+        // Fungsi ini akan memicu onProfileUpdate di DashboardPage yang sudah kita perbaiki
         updateStatesFromBackend(response.data);
+        
+        // 3. Beri feedback sukses
         toast.success(response.message || "Profil berhasil diperbarui!", { id: toastId });
         setShowModal(false);
+        
       } catch (err) {
         console.error(err);
+        // Tampilkan error spesifik dari backend jika ada
         toast.error(err.response?.data?.message || "Gagal memperbarui profil.", { id: toastId });
       } finally {
         setIsUpdating(false);

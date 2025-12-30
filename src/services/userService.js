@@ -1,9 +1,13 @@
 import apiClient from "./apiClient";
 
-const TAG = "[UserService]"; // Prefix agar mudah difilter di console
+const TAG = "[UserService]"; 
 
 /**
  * Ambil Profile user yang sedang login.
+ * * [DATA BARU OTOMATIS]:
+ * Karena backend sudah diupdate, fungsi ini sekarang juga akan mengembalikan:
+ * - user.userStatus ("FREE" | "PREMIUM")
+ * - user.premiumUntil (Date String / null)
  */
 const getMyProfile = async () => {
   console.log(`${TAG} 📡 Fetching user profile...`);
@@ -44,7 +48,7 @@ const updateMyProfile = async (updateData = {}, newProfilePicture = null, oldPro
     payload.append("profilePicture", newProfilePicture);
     headers = { "Content-Type": "multipart/form-data" };
 
-    // DEBUG: Intip isi FormData (Karena console.log(formData) biasanya kosong)
+    // DEBUG: Intip isi FormData
     console.log("📦 FormData Content:");
     for (let pair of payload.entries()) {
         console.log(`   - ${pair[0]}:`, pair[1]);
