@@ -1,15 +1,17 @@
+/* eslint-disable no-unused-vars */
 // File: components/Group/GroupDocuments.jsx
 
 import React, { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { 
   HiOutlineEye, HiOutlineUpload, HiOutlineDocumentAdd, 
   HiOutlinePencil, HiCheckCircle, HiUserGroup, 
   HiShieldCheck, HiTrash, HiOutlineDocumentText,
-  HiClock, HiExclamation, HiLockClosed
+  HiClock, HiExclamation, HiLockClosed, HiSparkles
 } from "react-icons/hi";
-import { FaHistory } from "react-icons/fa";
+import { FaHistory } from "react-icons/fa"; // FaCrown masih diimport jika ingin dipakai di tempat lain, atau bisa dihapus
 import { ImSpinner9 } from "react-icons/im";
+import toast from "react-hot-toast";
 
 import { AssignDocumentModal } from "../../components/AssignDocumentModal/AssignDocumentModal";
 import { UploadGroupDocumentModal } from "../../components/UploadGroupDocumentModal/UploadGroupDocumentModal";
@@ -18,7 +20,9 @@ import DocumentManagementModal from "../../components/DocumentManagementModal/Do
 import ConfirmationModal from "../../components/ConfirmationModal/ConfirmationModal.jsx";
 import { useFinalizeDocument, useDeleteGroupDocument } from "../../hooks/Group/useGroups.js";
 
-export const GroupDocuments = ({ documents, groupId, members, currentUser, currentUserId }) => {
+export const GroupDocuments = ({ documents, groupId, groupData, members, currentUser, currentUserId }) => {
+  const navigate = useNavigate();
+  
   // --- STATE ---
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -27,7 +31,6 @@ export const GroupDocuments = ({ documents, groupId, members, currentUser, curre
   
   const [selectedDocForEdit, setSelectedDocForEdit] = useState(null);
   const [selectedDocForManage, setSelectedDocForManage] = useState(null);
-  
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [docToDelete, setDocToDelete] = useState(null);
 
@@ -35,16 +38,66 @@ export const GroupDocuments = ({ documents, groupId, members, currentUser, curre
   const { mutate: deleteDoc, isPending: isDeleting } = useDeleteGroupDocument();
   const { mutate: finalizeDoc, isPending: isFinalizing } = useFinalizeDocument();
   
-  // Cek apakah user saat ini adalah Admin Grup
+  // --- LOGIC LIMIT & HAK AKSES ---
+  
   const isAdmin = useMemo(() => members.some((m) => m.userId === currentUserId && m.role === "admin_group"), [members, currentUserId]);
+  
+  // [FIX LOGIC STATUS PREMIUM] 
+let groupOwnerStatus = "FREE";
+const isCurrentUserOwner = String(groupData?.admin?.id) === String(currentUserId);
+
+if (isCurrentUserOwner) {
+    // Jika saya pemilik, ambil dari context saya (paling update)
+    groupOwnerStatus = currentUser?.userStatus || "FREE";
+} else {
+    // Jika saya anggota, ambil status Admin dari data grup (Backend sudah diperbaiki di atas)
+    groupOwnerStatus = groupData?.admin?.userStatus || "FREE";
+}
+
+const isOwnerPremium = groupOwnerStatus === "PREMIUM" || groupOwnerStatus === "PREMIUM_YEARLY";
+
+  // Limit Backend: Free = 10, Premium = 100
+  const MAX_DOCS = isOwnerPremium ? 100 : 10; 
+  const currentDocCount = documents.length;
+  const isLimitReached = currentDocCount >= MAX_DOCS;
+  const usagePercentage = Math.min((currentDocCount / MAX_DOCS) * 100, 100);
 
   // --- HANDLERS ---
+  
+  const handleUploadClick = () => {
+    if (isLimitReached) {
+        if (isCurrentUserOwner) {
+             toast.error(`Kapasitas Penuh (${MAX_DOCS} Dokumen). Upgrade ke Premium untuk limit 100 dokumen.`, { icon: "🔒", duration: 4000 });
+        } else {
+             toast.error("Grup ini telah mencapai batas penyimpanan. Hubungi Admin Grup.", { icon: "🔒" });
+        }
+        return;
+    }
+    setIsUploadModalOpen(true);
+  };
+
+  const handleAssignClick = () => {
+    if (isLimitReached) {
+        toast.error("Limit Dokumen Grup Tercapai.", { icon: "🔒" });
+        return;
+    }
+    setIsAssignModalOpen(true);
+  };
+
   const handleDeleteClick = (doc) => { setDocToDelete(doc); setIsConfirmOpen(true); };
-  const onConfirmDelete = () => { if (docToDelete) { deleteDoc({ groupId, documentId: docToDelete.id }); setIsConfirmOpen(false); setDocToDelete(null); } };
+  
+  const onConfirmDelete = () => { 
+      if (docToDelete) { 
+          deleteDoc({ groupId, documentId: docToDelete.id }); 
+          setIsConfirmOpen(false); 
+          setDocToDelete(null); 
+      } 
+  };
+  
   const handleOpenManageSigners = (doc) => { setSelectedDocForEdit(doc); setIsManageSignersOpen(true); };
   
   const handleFinalize = (docId, docTitle) => { 
-      if (confirm(`Apakah Anda yakin ingin finalisasi dokumen "${docTitle}"? Dokumen akan dikunci permanen.`)) { 
+      if (confirm(`Apakah Anda yakin ingin finalisasi dokumen "${docTitle}"?`)) { 
           finalizeDoc({ groupId, documentId: docId }); 
       } 
   };
@@ -69,17 +122,10 @@ export const GroupDocuments = ({ documents, groupId, members, currentUser, curre
       <UploadGroupDocumentModal isOpen={isUploadModalOpen} onClose={() => setIsUploadModalOpen(false)} groupId={groupId} members={members} />
       
       {selectedDocForEdit && (
-        <ManageSignersModal 
-            isOpen={isManageSignersOpen} 
-            onClose={() => setIsManageSignersOpen(false)} 
-            groupId={groupId} 
-            documentId={selectedDocForEdit.id} 
-            currentSigners={selectedDocForEdit.signerRequests || []} 
-            members={members} 
-        />
+        <ManageSignersModal isOpen={isManageSignersOpen} onClose={() => setIsManageSignersOpen(false)} groupId={groupId} documentId={selectedDocForEdit.id} currentSigners={selectedDocForEdit.signerRequests || []} members={members} />
       )}
-      
-      {isManagementModalOpen && (
+
+      {isManagementModalOpen && DocumentManagementModal && (
         <DocumentManagementModal
           mode="update"
           initialDocument={selectedDocForManage}
@@ -93,25 +139,106 @@ export const GroupDocuments = ({ documents, groupId, members, currentUser, curre
 
       <div className="flex flex-col h-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
         
-        {/* HEADER */}
-        <div className="flex-none px-6 py-5 border-b border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-              Daftar Dokumen
-            </h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm">Kelola file dan status tanda tangan tim.</p>
+        {/* HEADER CARD - UPDATED UI */}
+        <div className="flex-none px-6 py-5 border-b border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col gap-5">
+          
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <div className="flex items-center gap-3">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-white">
+                  Daftar Dokumen
+                </h3>
+                
+                {/* --- PREMIUM / FREE BADGE --- */}
+                {isOwnerPremium ? (
+                   <div className="relative group/badge cursor-default">
+                     {/* Efek Glow di belakang */}
+                     <div className="absolute inset-0 bg-gradient-to-r from-amber-300 to-orange-400 rounded-full blur opacity-20 group-hover/badge:opacity-40 transition-opacity"></div>
+                     {/* Badge Premium (Tanpa Ikon Mahkota) */}
+                     <div className="relative flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-amber-900/40 dark:to-yellow-900/40 border border-amber-200 dark:border-amber-700/50 text-[10px] font-extrabold text-amber-700 dark:text-amber-400 uppercase tracking-wide shadow-sm">
+                        <span>PREMIUM WORKSPACE</span>
+                     </div>
+                   </div>
+                ) : (
+                   <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                      <span>Free Plan</span>
+                   </div>
+                )}
+              </div>
+              <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Kelola file dan status tanda tangan tim.</p>
+            </div>
+
+            <div className="flex gap-3 w-full sm:w-auto">
+              <button 
+                onClick={handleAssignClick}
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl border transition-all shadow-sm
+                ${isLimitReached 
+                    ? "bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed dark:bg-slate-800/50 dark:text-slate-600 dark:border-slate-700" 
+                    : "text-slate-700 bg-white border-slate-300 hover:bg-slate-50 hover:border-slate-400 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                }`}
+              >
+                {isLimitReached ? <HiLockClosed className="w-4 h-4" /> : <HiOutlineDocumentAdd className="w-4 h-4" />}
+                <span>Pilih Draft</span>
+              </button>
+
+              <button 
+                onClick={handleUploadClick}
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl shadow-lg transition-all transform
+                ${isLimitReached
+                    ? "bg-slate-200 text-slate-500 cursor-not-allowed shadow-none dark:bg-slate-700 dark:text-slate-500"
+                    : "text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-blue-500/20 hover:-translate-y-0.5 active:scale-95"
+                }`}
+              >
+                {isLimitReached ? <HiLockClosed className="w-4 h-4" /> : <HiOutlineUpload className="w-4 h-4" />}
+                <span>Upload Baru</span>
+              </button>
+            </div>
           </div>
 
-          {/* [LOGIC UPDATE] Tombol Upload/Draft dibuka untuk SEMUA MEMBER */}
-          <div className="flex gap-3 w-full sm:w-auto">
-            <button onClick={() => setIsAssignModalOpen(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300 transition-all shadow-sm">
-              <HiOutlineDocumentAdd className="w-5 h-5" />
-              <span>Pilih Draft</span>
-            </button>
-            <button onClick={() => setIsUploadModalOpen(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-500/20 transition-all transform hover:-translate-y-0.5">
-              <HiOutlineUpload className="w-5 h-5" />
-              <span>Upload Baru</span>
-            </button>
+          {/* PROGRESS BAR - REFINED DESIGN */}
+          <div className="w-full bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 border border-slate-100 dark:border-slate-700/50 flex flex-col sm:flex-row items-center gap-4">
+             <div className="flex-1 w-full">
+                <div className="flex justify-between text-xs font-bold mb-2">
+                   <span className={isLimitReached ? "text-red-600 dark:text-red-400" : "text-slate-700 dark:text-slate-300"}>
+                      Penyimpanan ({currentDocCount} / {MAX_DOCS} Dokumen)
+                   </span>
+                   <span className={isLimitReached ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"}>
+                      {Math.round(usagePercentage)}%
+                   </span>
+                </div>
+                <div className="w-full h-2.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                   <div 
+                      className={`h-full rounded-full transition-all duration-700 ease-out shadow-sm ${
+                          isLimitReached 
+                          ? "bg-red-500" 
+                          : usagePercentage > 80 
+                            ? "bg-gradient-to-r from-amber-400 to-orange-500" 
+                            : "bg-gradient-to-r from-blue-400 to-indigo-500"
+                      }`}
+                      style={{ width: `${usagePercentage}%` }}
+                   ></div>
+                </div>
+             </div>
+             
+             {!isOwnerPremium && (
+                 <div className="text-xs text-right sm:max-w-[220px] bg-white dark:bg-slate-800 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
+                    {isLimitReached ? (
+                        <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                           <HiLockClosed className="w-3.5 h-3.5" />
+                           <Link to="/pricing" className="font-bold hover:underline">
+                              Limit Penuh. Upgrade &rarr;
+                           </Link>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                           <span>Butuh lebih? </span>
+                           <Link to="/pricing" className="font-bold text-blue-600 dark:text-blue-400 hover:underline">
+                              Upgrade ke Pro
+                           </Link>
+                        </div>
+                    )}
+                 </div>
+             )}
           </div>
         </div>
 

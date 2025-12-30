@@ -1,6 +1,6 @@
 // File: pages/GroupDetail/GroupDetailPage.jsx
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useOutletContext } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
@@ -15,7 +15,7 @@ import { GroupSettings } from "./GroupSettings";
 import { HiOutlineDocumentText, HiOutlineUsers, HiOutlineCog } from "react-icons/hi";
 import { ImSpinner9 } from "react-icons/im";
 
-// --- KOMPONEN TAB BUTTON ---
+// --- KOMPONEN TAB BUTTON (Tidak Berubah) ---
 const TabButton = ({ icon, label, count, isActive, onClick }) => (
   <button
     onClick={onClick}
@@ -50,12 +50,9 @@ const TabButton = ({ icon, label, count, isActive, onClick }) => (
   </button>
 );
 
-// --- MAIN PAGE COMPONENT ---
 const GroupDetailPage = () => {
   const { groupId } = useParams();
   const navigate = useNavigate();
-  
-  // Mengambil user object dari Outlet Context (MainLayout)
   const { user: currentUser } = useOutletContext(); 
   const queryClient = useQueryClient();
 
@@ -63,65 +60,39 @@ const GroupDetailPage = () => {
   const { data: group, isLoading, error } = useGetGroupById(Number(groupId));
 
   const [currentTab, setCurrentTab] = useState("documents");
-  const userIdRef = useRef(null);
-
-  // Sync ref untuk keperluan socket cleanup jika diperlukan
-  useEffect(() => {
-    if (currentUser?.id) {
-      userIdRef.current = currentUser.id;
-    }
-  }, [currentUser]);
-
+  
   // --- SOCKET IO LOGIC ---
   useEffect(() => {
     if (!groupId) return;
 
-    // 1. Connect & Join Room
     const socket = socketService.connect();
     const gId = Number(groupId);
     
     const joinGroup = () => { 
-        console.log(`🔌 Joining Group Room: ${gId}`);
         socketService.joinGroupRoom(gId); 
     };
 
     if (socket.connected) joinGroup();
     socket.on("connect", joinGroup);
 
-    // 2. Event Handlers
-    const handleMemberUpdate = (data) => {
-      console.log("👥 Member Update Received:", data);
-      queryClient.invalidateQueries(["group", gId]);
-      // Optional: Toast notif jika ada member baru masuk/keluar
-    };
-
+    // Event Handlers
+    const handleMemberUpdate = () => queryClient.invalidateQueries(["group", gId]);
     const handleDocumentUpdate = (data) => {
-      console.log("📄 Document Update Received:", data);
       queryClient.invalidateQueries(["group", gId]);
-      
-      // Toast notifikasi update dokumen
       if (data.action === "new_document") {
           toast.success(`${data.uploaderName || "User"} menambahkan dokumen baru.`);
       } else if (data.action === "finalized") {
           toast.success(`Dokumen "${data.document?.title}" telah difinalisasi!`);
       }
     };
-
     const handleInfoUpdate = (data) => {
-      console.log("ℹ️ Info Update Received:", data);
-      // Optimistic update untuk nama grup
-      queryClient.setQueryData(["group", gId], (old) => { 
-          if (!old) return old; 
-          return { ...old, name: data.group.name }; 
-      });
+      queryClient.setQueryData(["group", gId], (old) => old ? { ...old, name: data.group.name } : old);
     };
 
-    // 3. Listeners
     socketService.onGroupMemberUpdate(handleMemberUpdate);
     socketService.onGroupDocumentUpdate(handleDocumentUpdate);
     socketService.onGroupInfoUpdate(handleInfoUpdate);
 
-    // 4. Cleanup
     return () => {
       socket.off("connect", joinGroup);
       socketService.leaveGroupRoom(gId);
@@ -129,9 +100,8 @@ const GroupDetailPage = () => {
       socketService.offGroupDocumentUpdate(handleDocumentUpdate);
       socketService.offGroupInfoUpdate(handleInfoUpdate);
     };
-  }, [groupId, queryClient, currentUser, navigate]);
+  }, [groupId, queryClient, currentUser]);
 
-  // --- RENDER LOADING / ERROR ---
   if (isLoading) {
     return (
       <div className="flex flex-col justify-center items-center h-[calc(100vh-64px)] gap-4 bg-slate-50 dark:bg-slate-900/50">
@@ -153,7 +123,6 @@ const GroupDetailPage = () => {
     );
   }
 
-  // --- RENDER CONTENT ---
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col mx-auto max-w-screen-xl px-2 sm:px-6 lg:px-8 py-4 sm:py-6">
       
@@ -168,10 +137,12 @@ const GroupDetailPage = () => {
                 </h1>
                 <div className="flex items-center gap-2 mt-2">
                   <div className="flex -space-x-2 overflow-hidden">
-                     <UserAvatar user={group.admin} className="h-6 w-6 text-[10px] ring-2 ring-white dark:ring-slate-800" />
+                     {group.admin && (
+                        <UserAvatar user={group.admin} className="h-6 w-6 text-[10px] ring-2 ring-white dark:ring-slate-800" />
+                     )}
                   </div>
                   <p className="text-sm text-slate-500 dark:text-slate-400">
-                    Dikelola oleh <span className="font-semibold text-slate-700 dark:text-slate-200">{group.admin.name}</span>
+                    Dikelola oleh <span className="font-semibold text-slate-700 dark:text-slate-200">{group.admin?.name || "Admin"}</span>
                   </p>
                 </div>
              </div>
@@ -195,7 +166,6 @@ const GroupDetailPage = () => {
               isActive={currentTab === "members"} 
               onClick={() => setCurrentTab("members")} 
             />
-            {/* Hanya Admin yang bisa melihat Tab Settings */}
             {currentUser && group.adminId === currentUser.id && (
               <TabButton 
                 icon={<HiOutlineCog className="w-5 h-5" />} 
@@ -216,10 +186,10 @@ const GroupDetailPage = () => {
             <GroupDocuments 
                 documents={group.documents || []} 
                 groupId={group.id} 
-                groupAdminId={group.adminId} // Dikirim untuk keperluan cek role di modal
+                groupData={group} // [PENTING] Kirim data lengkap untuk cek limit
                 members={group.members || []} 
-                currentUser={currentUser}    // PENTING: Object user lengkap
-                currentUserId={currentUser.id} // ID User string
+                currentUser={currentUser}    
+                currentUserId={currentUser.id} 
             />
         )}
 
@@ -230,11 +200,12 @@ const GroupDetailPage = () => {
                 members={group.members || []} 
                 groupId={group.id} 
                 adminId={group.adminId} 
+                groupData={group} // [PENTING] Tambahkan ini agar bisa cek limit member
             />
           </div>
         )}
 
-        {/* TAB PENGATURAN (Admin Only) */}
+        {/* TAB PENGATURAN */}
         {currentTab === "settings" && currentUser && group.adminId === currentUser.id && (
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 sm:p-8 h-full overflow-y-auto">
             <GroupSettings 

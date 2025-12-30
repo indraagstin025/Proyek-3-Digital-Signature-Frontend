@@ -1,27 +1,50 @@
+// File: components/Group/GroupMembers.jsx
+
 import React, { useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, Link } from "react-router-dom"; // Tambah Link
 import { useCreateInvitation, useRemoveMember } from "../../hooks/Group/useGroups";
-import { HiOutlineTrash, HiOutlineClipboardCopy, HiPlus } from "react-icons/hi";
+import { HiOutlineTrash, HiPlus, HiLockClosed } from "react-icons/hi"; // Tambah Icon Lock
 import { UserAvatar } from "../../components/UserAvatar/UserAvatar";
 import toast from "react-hot-toast";
 import { InvitationLinkModal } from "../../components/InvitiationGrupModal/InvitationLinkModal";
 
-export const GroupMembers = ({ members, groupId, adminId }) => {
+export const GroupMembers = ({ members, groupId, adminId, groupData }) => {
   const { user: currentUser } = useOutletContext();
   const [role, setRole] = useState("viewer");
   const [generatedLink, setGeneratedLink] = useState(null);
-  const { mutate: createInvite, isLoading: isInviting } = useCreateInvitation();
-  const { mutate: removeMember, isLoading: isRemoving } = useRemoveMember();
+  const { mutate: createInvite, isPending: isInviting } = useCreateInvitation();
+  const { mutate: removeMember, isPending: isRemoving } = useRemoveMember();
 
   const memberDataOfCurrentUser = members.find((m) => m.userId === currentUser?.id);
   const isUserAdmin = currentUser?.id === adminId || memberDataOfCurrentUser?.role === "admin_group";
 
+  // --- LOGIC LIMIT ANGGOTA (Sesuai groupService.js) ---
+  const groupOwnerStatus = groupData?.admin?.userStatus || "FREE";
+  const isOwnerPremium = groupOwnerStatus === "PREMIUM" || groupOwnerStatus === "PREMIUM_YEARLY";
+  
+  const MAX_MEMBERS = isOwnerPremium ? 999 : 5; // Free max 5, Premium unlimited
+  const currentMemberCount = members.length;
+  const isLimitReached = currentMemberCount >= MAX_MEMBERS;
+
   const handleInvite = () => {
-    createInvite({ groupId, role }, { onSuccess: (data) => setGeneratedLink(data.invitationLink), onError: (error) => toast.error(`Gagal: ${error.message}`) });
+    if (isLimitReached) {
+        if (groupData.adminId === currentUser.id) {
+            toast.error("Grup Free maksimal 5 anggota. Upgrade ke Premium!", { icon: "🔒" });
+        } else {
+            toast.error("Grup penuh. Hubungi Admin Grup untuk upgrade.", { icon: "🔒" });
+        }
+        return;
+    }
+
+    createInvite({ groupId, role }, { 
+        onSuccess: (data) => setGeneratedLink(data.invitationLink), 
+        onError: (error) => toast.error(`Gagal: ${error.message}`) 
+    });
   };
+  
   const handleRemove = (userIdToRemove) => {
     if (confirm("Keluarkan anggota ini?")) {
-      removeMember({ groupId, userIdToRemove }, { onSuccess: () => toast.success("Berhasil dikeluarkan."), onError: (error) => toast.error(`Gagal: ${error.message}`) });
+      removeMember({ groupId, userIdToRemove });
     }
   };
 
@@ -31,13 +54,31 @@ export const GroupMembers = ({ members, groupId, adminId }) => {
 
       <div className="flex flex-col h-full bg-white dark:bg-slate-800 rounded-2xl overflow-hidden">
         {/* HEADER */}
+  {/* HEADER - UPDATED UI */}
         <div className="flex-none px-6 py-5 border-b border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-5">
           <div>
-            <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-3">
-              Anggota Tim
-              <span className="bg-blue-50 text-blue-600 text-xs font-extrabold px-2.5 py-1 rounded-md">{members.length}</span>
-            </h3>
-            <p className="text-slate-500 text-sm mt-0.5">Kelola akses dan peran anggota grup.</p>
+            <div className="flex items-center gap-3">
+               <h3 className="text-lg font-bold text-slate-800 dark:text-white">
+                 Anggota Tim
+               </h3>
+               <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full border ${
+                  isLimitReached && !isOwnerPremium
+                  ? "bg-red-50 text-red-600 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800" 
+                  : "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800"
+               }`}>
+                 {currentMemberCount} / {isOwnerPremium ? "∞" : MAX_MEMBERS}
+               </span>
+            </div>
+            
+            <div className="flex items-center gap-2 mt-1">
+               <p className="text-slate-500 text-sm">Kelola akses dan peran anggota grup.</p>
+               {/* Upsell Mini Text */}
+               {!isOwnerPremium && isLimitReached && (
+                  <span className="text-xs text-red-500 font-semibold flex items-center gap-1 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded">
+                     <HiLockClosed className="w-3 h-3" /> Penuh
+                  </span>
+               )}
+            </div>
           </div>
 
           {isUserAdmin && (
@@ -47,13 +88,17 @@ export const GroupMembers = ({ members, groupId, adminId }) => {
                 <option value="signer">Signer</option>
                 <option value="admin_group">Admin</option>
               </select>
-              {/* 🔥 TOMBOL INVITE GRADASI */}
+              
               <button
                 onClick={handleInvite}
-                disabled={isInviting}
-                className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-sm font-bold py-2 px-4 rounded-lg shadow-md transition-all"
+                disabled={isInviting} // Jangan disable button secara visual agar user bisa klik dan lihat pesan error limit
+                className={`flex items-center justify-center gap-2 text-sm font-bold py-2 px-4 rounded-lg shadow-md transition-all ${
+                    isLimitReached 
+                    ? "bg-slate-300 text-slate-500 cursor-not-allowed dark:bg-slate-700 dark:text-slate-400"
+                    : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+                }`}
               >
-                <HiPlus className="w-4 h-4" />
+                {isLimitReached ? <HiLockClosed className="w-4 h-4" /> : <HiPlus className="w-4 h-4" />}
                 {isInviting ? "..." : "Buat Link"}
               </button>
             </div>
@@ -61,17 +106,15 @@ export const GroupMembers = ({ members, groupId, adminId }) => {
         </div>
 
         {/* LIST */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
           <ul className="divide-y divide-slate-50 dark:divide-slate-700/50">
             {members.map((member) => (
               <li key={member.id} className="p-5 hover:bg-slate-50/80 dark:hover:bg-slate-700/20 transition-colors flex flex-col sm:flex-row justify-between items-center gap-4 group">
                 <div className="flex items-center gap-4 w-full sm:w-auto">
-                  
-                  {/* ✅ FIX: Wrapper Gradient dikembalikan agar bulat sempurna */}
                   <div className="flex-shrink-0 h-12 w-12 rounded-full p-[2px] bg-gradient-to-br from-blue-400 to-indigo-400">
                     <UserAvatar 
                       user={member.user} 
-                      className="h-full w-full border-2 border-white dark:border-slate-800" 
+                      className="h-full w-full border-2 border-white dark:border-slate-800 rounded-full" 
                     />
                   </div>
 
