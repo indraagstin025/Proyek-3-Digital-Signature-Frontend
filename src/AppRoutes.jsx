@@ -20,7 +20,7 @@ import SignDocumentPage from "./pages/SignDocumentPage/SignDocumentPage.jsx";
 import ViewDocumentPage from "./pages/ViewDocumentPage/ViewDocumentPage.jsx";
 import SignGroupPage from "./pages/SignGroupPages/SignGroupPage.jsx";
 import SignPackagePage from "./pages/SignPackagePage/SignPackagePage.jsx";
-import VerificationPage from "./pages/VerificationPage/VerificationPage.jsx"; // [PINDAH SINI]
+import VerificationPage from "./pages/VerificationPage/VerificationPage.jsx";
 import NotFoundPage from "./pages/NotFoundPage/NotFoundPage.jsx";
 
 // Pages - Dashboard
@@ -32,6 +32,7 @@ import DashboardHistory from "./pages/DashboardPage/DashboardHistory.jsx";
 import ShortcutsPage from "./pages/DashboardPage/ShortcutPage.jsx";
 import ProfilePage from "./pages/ProfilePage/ProfilePage.jsx";
 import GroupDetailPage from "./pages/GroupPage/GroupDetailPage.jsx";
+import PricingPage from "./pages/PricingPage/PricingPage.jsx";
 
 // Pages - Admin
 import AdminDashboardPage from "./pages/AdminPage/AdminDashboardPage.jsx";
@@ -42,13 +43,25 @@ import AdminAuditLogs from "./pages/AdminPage/AdminAuditLogs.jsx";
 
 /**
  * Layout Wrapper untuk Halaman Publik (Landing Page, Login, dll).
- * Menggabungkan Header (Navbar) dan MainLayout (Background + Footer).
  */
 const PublicLayout = ({ theme, toggleTheme }) => {
   return (
     <>
       <Header theme={theme} toggleTheme={toggleTheme} />
-      <MainLayout /> {/* Outlet (Halaman) akan dirender di dalam MainLayout */}
+      <MainLayout />
+    </>
+  );
+};
+
+// ✅ [DITAMBAHKAN] Definisi Komponen PricingLayout
+const PricingLayout = ({ theme, toggleTheme }) => {
+  return (
+    <>
+      <Header theme={theme} toggleTheme={toggleTheme} />
+      {/* Container dengan padding agar konten tidak tertutup header fixed */}
+      <div className="pt-20 min-h-screen bg-slate-50 dark:bg-slate-900">
+        <PricingPage />
+      </div>
     </>
   );
 };
@@ -57,7 +70,7 @@ const AppRoutes = ({ theme, toggleTheme, onSessionExpired, routeKey }) => {
   return (
     <Routes>
       {/* =================================================================
-          KELOMPOK 1: PUBLIC PAGES (Ada Header & Footer)
+          KELOMPOK 1: PUBLIC PAGES
          ================================================================= */}
       <Route element={<PublicLayout theme={theme} toggleTheme={toggleTheme} />}>
         <Route path="/" element={<HomePage />} />
@@ -70,10 +83,8 @@ const AppRoutes = ({ theme, toggleTheme, onSessionExpired, routeKey }) => {
       </Route>
 
       {/* =================================================================
-          KELOMPOK 2: STANDALONE PAGES (Layar Penuh, Tanpa Header/Footer)
-          Cocok untuk: Verifikasi, Tanda Tangan, View Dokumen.
+          KELOMPOK 2: STANDALONE PAGES
          ================================================================= */}
-      {/* Verification Page dipindah ke sini agar tidak muncul Header/Footer */}
       <Route path="/verify/:signatureId" element={<VerificationPage />} />
       
       <Route path="/documents/:documentId/sign" element={<SignDocumentPage theme={theme} toggleTheme={toggleTheme} onSessionExpired={onSessionExpired} />} />
@@ -81,11 +92,16 @@ const AppRoutes = ({ theme, toggleTheme, onSessionExpired, routeKey }) => {
       <Route path="/documents/:documentId/group-sign" element={<SignGroupPage theme={theme} toggleTheme={toggleTheme} />} />
 
       {/* =================================================================
-          KELOMPOK 3: PROTECTED DASHBOARD (Sidebar Sendiri)
+          KELOMPOK 3: PROTECTED ROUTES
          ================================================================= */}
       <Route element={<ProtectedRoute />}>
+        
+        {/* ✅ Route Pricing (Menggunakan Layout Khusus) */}
+        <Route path="/pricing" element={<PricingLayout theme={theme} toggleTheme={toggleTheme} />} />
+
         <Route path="/packages/sign/:packageId" element={<SignPackagePage theme={theme} toggleTheme={toggleTheme} onSessionExpired={onSessionExpired} />} />
         
+        {/* Dashboard Layout (Sidebar) */}
         <Route path="/dashboard" element={<DashboardPage theme={theme} toggleTheme={toggleTheme} onSessionExpired={onSessionExpired} />}>
           <Route index element={<DashboardOverview theme={theme} />} />
           <Route path="profile" element={<ProfilePage theme={theme} />} />
