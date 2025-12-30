@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "react-hot-toast";
 import { FaPlus, FaSpinner, FaFileAlt, FaUsers, FaArrowRight, FaBuilding } from "react-icons/fa";
-import { useDashboardDocuments } from "../../hooks/Documents/useDashboardDocuments";
+import { useDashboardDocuments } from "../../hooks/Documents/useDashboardDocuments"; // Sesuaikan path hook Anda
 import DocumentFilters from "../../components/DashboardDocuments/DocumentFilters";
 import DocumentCard from "../../components/DashboardDocuments/DocumentCard.jsx";
 import BatchActionBar from "../../components/DashboardDocuments/BatchActionBar";
@@ -10,18 +9,14 @@ import ViewDocumentModal from "../../components/ViewDocumentModal/ViewDocumentMo
 import DocumentManagementModal from "../../components/DocumentManagementModal/DocumentManagementModal.jsx";
 import ConfirmationModal from "../../components/ConfirmationModal/ConfirmationModal.jsx";
 
-// ... (Komponen GroupShortcutView tetap sama, tidak perlu diubah) ...
 const GroupShortcutView = ({ onGoToWorkspace }) => {
   return (
     <div className="flex flex-col items-center justify-center py-20 px-4 text-center animate-fade-in bg-white/50 dark:bg-slate-800/30 rounded-3xl border border-dashed border-slate-300 dark:border-slate-700 mt-4">
       <div className="bg-white dark:bg-slate-800 p-6 rounded-full mb-5 shadow-sm border border-slate-100 dark:border-slate-700">
         <FaUsers className="w-12 h-12 text-blue-500" />
       </div>
-
       <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Belum Ada Dokumen Grup</h3>
-
       <p className="text-slate-500 dark:text-slate-400 max-w-md mb-8 text-sm leading-relaxed">Anda belum tergabung dalam grup manapun atau grup Anda belum memiliki dokumen. Kelola tim dan kolaborasi di Workspace.</p>
-
       <button
         onClick={onGoToWorkspace}
         className="group flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg shadow-blue-500/20 transition-all hover:-translate-y-0.5 active:scale-95"
@@ -53,7 +48,7 @@ const DashboardDocuments = () => {
     setSearchQuery,
     isUploadModalOpen,
     setIsUploadModalOpen,
-    currentUser
+    currentUser // [PENTING] Data user (Free/Premium)
   } = useDashboardDocuments();
 
   const [activeTab, setActiveTab] = useState("personal");
@@ -90,7 +85,17 @@ const DashboardDocuments = () => {
     }
   };
 
-  const openManagementModal = (mode, doc = null) => {
+  // ✅ [FIX UTAMA] Handler Modal yang lebih kuat
+  // Menangani panggilan onManage("update", doc) dari DocumentCard
+  const openManagementModal = (modeInput, docInput = null) => {
+    let mode = modeInput;
+    let doc = docInput;
+
+    // Jika dipanggil: onManage("update", doc) -> ubah "update" jadi "view"
+    if (mode === "update") {
+      mode = "view";
+    }
+
     setModalMode(mode);
     setSelectedDocument(doc);
     setManagementModalOpen(true);
@@ -101,14 +106,9 @@ const DashboardDocuments = () => {
     setIsConfirmOpen(true);
   };
 
-  // ✅ FIX MASALAH KEDUA: Double Toast Delete
   const confirmDelete = async () => {
     if (!documentToDelete) return;
-
-    // Hapus wrapper toast.promise disini.
-    // Kita cukup panggil deleteDocument karena Hook sudah menghandle toast-nya.
     await deleteDocument(documentToDelete);
-
     setIsConfirmOpen(false);
     setDocumentToDelete(null);
   };
@@ -117,16 +117,11 @@ const DashboardDocuments = () => {
 
   const getStatusClass = (status) => {
     switch ((status || "").toLowerCase()) {
-      case "completed":
-        return "bg-emerald-100 text-emerald-700 border-emerald-200";
-      case "pending":
-        return "bg-amber-100 text-amber-700 border-amber-200";
-      case "action_needed":
-        return "bg-blue-100 text-blue-700 border-blue-200 animate-pulse";
-      case "waiting":
-        return "bg-slate-100 text-slate-500 border-slate-200";
-      default:
-        return "bg-slate-100 text-slate-600 border-slate-200";
+      case "completed": return "bg-emerald-100 text-emerald-700 border-emerald-200";
+      case "pending": return "bg-amber-100 text-amber-700 border-amber-200";
+      case "action_needed": return "bg-blue-100 text-blue-700 border-blue-200 animate-pulse";
+      case "waiting": return "bg-slate-100 text-slate-500 border-slate-200";
+      default: return "bg-slate-100 text-slate-600 border-slate-200";
     }
   };
 
@@ -182,7 +177,6 @@ const DashboardDocuments = () => {
           <GroupShortcutView onGoToWorkspace={handleGoToWorkspace} />
         ) : (
           <>
-            {/* Loading */}
             {isLoading && displayedDocuments.length === 0 && (
               <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
                 <FaSpinner className="animate-spin text-4xl text-blue-500 mb-4" />
@@ -190,15 +184,13 @@ const DashboardDocuments = () => {
               </div>
             )}
 
-            {/* Error */}
             {error && <div className="text-center text-red-500 p-4 border border-red-200 bg-red-50 rounded-xl mb-6">{error}</div>}
 
-            {/* List */}
             <div className={`transition-opacity duration-300 ${isSearching ? "opacity-50 pointer-events-none" : "opacity-100"}`}>
               {!isLoading && displayedDocuments.length === 0 && (
                 <div className="text-center py-20 px-4 bg-white/60 dark:bg-slate-800/60 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
                   <div className="bg-slate-50 dark:bg-slate-700 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    {searchQuery ? <span className="text-4xl">剥</span> : <FaFileAlt className="h-8 w-8 text-slate-400" />}
+                    {searchQuery ? <span className="text-4xl">🔍</span> : <FaFileAlt className="h-8 w-8 text-slate-400" />}
                   </div>
                   <h4 className="text-lg font-bold text-slate-800 dark:text-white">{searchQuery ? "Tidak ditemukan" : activeTab === "personal" ? "Belum Ada Dokumen" : "Dokumen Grup Kosong"}</h4>
                   <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{searchQuery ? `Hasil pencarian "${searchQuery}" nihil.` : "Upload dokumen PDF untuk mulai."}</p>
@@ -230,7 +222,6 @@ const DashboardDocuments = () => {
         )}
       </div>
 
-      {/* --- FLOATING ACTION BAR (Hanya Personal) --- */}
       {activeTab === "personal" && (
         <div className="fixed bottom-6 left-0 right-0 z-50 flex justify-center pointer-events-none px-4">
           <div className="pointer-events-auto shadow-2xl w-full sm:w-auto">
@@ -242,9 +233,9 @@ const DashboardDocuments = () => {
       {/* --- MODALS --- */}
       {isManagementModalOpen && (
         <DocumentManagementModal
-          mode={modalMode}
+          mode={modalMode} // Ini sekarang akan bernilai "view" atau "create"
           initialDocument={selectedDocument}
-          currentUser={currentUser}
+          currentUser={currentUser} // Data user untuk logic premium
           onClose={() => setManagementModalOpen(false)}
           onSuccess={() => fetchDocuments(searchQuery)}
           onViewRequest={(url) => {
@@ -254,7 +245,14 @@ const DashboardDocuments = () => {
         />
       )}
 
-      {isUploadModalOpen && <DocumentManagementModal mode="create" onClose={() => setIsUploadModalOpen(false)} onSuccess={() => fetchDocuments(searchQuery)} />}
+      {isUploadModalOpen && (
+        <DocumentManagementModal 
+          mode="create" 
+          currentUser={currentUser} 
+          onClose={() => setIsUploadModalOpen(false)} 
+          onSuccess={() => fetchDocuments(searchQuery)} 
+        />
+      )}
 
       <ViewDocumentModal isOpen={isViewModalOpen} onClose={() => setViewModalOpen(false)} url={selectedDocumentUrl} />
 

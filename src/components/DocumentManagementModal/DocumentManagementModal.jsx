@@ -2,12 +2,13 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom"; // [1] Import useNavigate
 import { documentService } from "../../services/documentService.js";
 import toast from "react-hot-toast";
 import { 
   FaSpinner, FaFileAlt, FaDownload, FaTrash, FaEye, FaCheckCircle, 
   FaUndo, FaTimes, FaCloudUploadAlt, FaHistory, FaInfoCircle, 
-  FaBolt, FaWhatsapp, FaFileSignature 
+  FaBolt, FaWhatsapp, FaFileSignature, FaStar
 } from "react-icons/fa";
 
 // Daftar pilihan tipe dokumen untuk Dropdown
@@ -33,66 +34,42 @@ const FeatureModal = ({ isOpen, onClose }) => {
   return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center px-4 animate-fade-in">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
-
-      {/* Content Card */}
-      <div className="relative z-10 w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden transform scale-100 transition-all">
-        {/* Header */}
-        <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/80 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-            <FaInfoCircle className="text-blue-500" />
-            Fitur Dokumen
-          </h3>
-          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
-            <FaTimes />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
-          {/* Feature 1 */}
-          <div className="flex gap-3">
-            <div className="mt-1 w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400">
-              <FaBolt className="text-sm" />
+      <div 
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" 
+        onClick={onClose}
+      />
+      
+      <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-sm w-full p-6 transform scale-100 transition-all border border-slate-200 dark:border-slate-700">
+        <div className="text-center">
+          <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+            <FaBolt className="text-blue-600 dark:text-blue-400 text-xl" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Fitur Canggih</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+            Dokumen ini dilengkapi dengan fitur pelacakan versi, notifikasi WhatsApp otomatis, dan audit trail lengkap.
+          </p>
+          
+          <div className="space-y-3 text-left mb-6">
+            <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+              <FaWhatsapp className="text-green-500 text-lg" />
+              <div>
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-200">Notifikasi WA</p>
+                <p className="text-[10px] text-slate-500">Otomatis kirim pesan saat ada update.</p>
+              </div>
             </div>
-            <div>
-              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-100">Live Status</h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Pantau status tanda tangan secara <strong>real-time</strong> tanpa perlu refresh halaman.
-              </p>
+            <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+              <FaFileSignature className="text-purple-500 text-lg" />
+              <div>
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-200">Tanda Tangan Digital</p>
+                <p className="text-[10px] text-slate-500">Legal dan terverifikasi QR Code.</p>
+              </div>
             </div>
           </div>
 
-          {/* Feature 2 */}
-          <div className="flex gap-3">
-            <div className="mt-1 w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">
-              <FaWhatsapp className="text-sm" />
-            </div>
-            <div>
-              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-100">Notifikasi WhatsApp</h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Notifikasi otomatis dikirim ke WhatsApp saat dokumen diunggah atau ditandatangani.
-              </p>
-            </div>
-          </div>
-
-          {/* Feature 3 */}
-          <div className="flex gap-3">
-            <div className="mt-1 w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-              <FaFileSignature className="text-sm" />
-            </div>
-            <div>
-              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-100">Versi & Riwayat</h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Setiap perubahan disimpan sebagai versi baru. Anda bisa kembali ke versi sebelumnya kapan saja.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="px-5 py-3 bg-slate-50 dark:bg-slate-900/50 text-center border-t border-slate-100 dark:border-slate-700">
-          <button onClick={onClose} className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">
+          <button 
+            onClick={onClose}
+            className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors"
+          >
             Mengerti
           </button>
         </div>
@@ -102,424 +79,486 @@ const FeatureModal = ({ isOpen, onClose }) => {
   );
 };
 
-// --- 2. KOMPONEN UTAMA: DOCUMENT MANAGEMENT MODAL ---
-// [NOTE] Pastikan prop 'currentUser' dikirim dari parent component (misal: DashboardDocuments.jsx)
-const DocumentManagementModal = ({ mode, initialDocument, onClose, onSuccess, onViewRequest, currentUser }) => {
+// --- 2. KOMPONEN UTAMA ---
+const DocumentManagementModal = ({
+  mode = "view",
+  initialDocument = null,
+  currentUser,
+  onClose,
+  onSuccess,
+  onViewRequest
+}) => {
+  const navigate = useNavigate(); // [2] Init Navigate
+
+  // State
+  const [activeTab, setActiveTab] = useState(mode === "create" ? "upload" : "info");
+  const [documentTitle, setDocumentTitle] = useState(initialDocument?.title || "");
+  const [selectedType, setSelectedType] = useState(initialDocument?.type || "General");
   const [file, setFile] = useState(null);
-  const [docType, setDocType] = useState("General");
   
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  // State Loading & Data
+  const [isUploading, setIsUploading] = useState(false);
   const [versions, setVersions] = useState([]);
-  const [isHistoryLoading, setHistoryLoading] = useState(true);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  
+  // State Modal Info
   const [showInfo, setShowInfo] = useState(false);
 
-  const [activeVersionId, setActiveVersionId] = useState(initialDocument?.currentVersionId);
+  // --- [LOGIC PREMIUM] ---
+  const isPremium = currentUser?.userStatus === "PREMIUM";
+  const MAX_VERSIONS = isPremium ? 20 : 5;
+  const currentVersionCount = versions.length;
+  const isLimitReached = currentVersionCount >= MAX_VERSIONS;
 
-// --- LOGIC PERMISSION: SIAPA YANG BOLEH ROLLBACK/DELETE? ---
-  const canManageVersions = useMemo(() => {
-
-    console.log("🔍 DEBUG CHECK ACCESS:");
-    console.log("1. Current User:", currentUser);
-    console.log("2. Document:", initialDocument);
-    console.log("3. Doc Owner ID:", initialDocument?.userId);
-    console.log("4. My User ID:", currentUser?.id);
-    
-    if (initialDocument?.group) {
-        console.log("5. Group Info:", initialDocument.group);
-        // Cek apakah field members atau adminId ada?
-        // Kemungkinan besar ini UNDEFINED di halaman Dashboard
-    }
-    // 1. Data tidak lengkap -> Block
-    if (!initialDocument || !currentUser) return false;
-
-    // --- PERBAIKAN DI SINI (NORMALISASI USER) ---
-    // Cek apakah 'currentUser' membungkus properti 'user' (seperti di log Anda)
-    // atau apakah dia langsung objek user itu sendiri.
-    const realUser = currentUser.user || currentUser; 
-    
-    // Pastikan ID ada sebelum lanjut
-    if (!realUser || !realUser.id) return false;
-
-    // Normalisasi ID ke String
-    const currentUserIdStr = String(realUser.id);
-    const docOwnerIdStr = String(initialDocument.userId);
-
-    // DEBUG LOG (Bisa dihapus jika sudah jalan)
-    console.log("✅ Fixed User ID Check:", currentUserIdStr, "vs Owner:", docOwnerIdStr);
-
-    // KASUS A: Dokumen Personal (Tidak ada groupId)
-    if (!initialDocument.groupId) {
-      return docOwnerIdStr === currentUserIdStr;
-    }
-
-    // KASUS B: Dokumen Grup
-    // Aturan: Hanya Admin (Pengupload) atau Admin lain yang boleh. Signer DILARANG.
-    
-    // Cek 1: Apakah user ini adalah Pengupload Dokumen? (Owner = Admin)
-    if (docOwnerIdStr === currentUserIdStr) {
-      return true;
-    }
-
-    // Cek 2: Apakah user ini punya role 'admin_group'?
-    if (initialDocument.group) {
-        // Cek via adminId (jika tersedia)
-        if (initialDocument.group.adminId && String(initialDocument.group.adminId) === currentUserIdStr) {
-            return true;
-        }
-
-        // Cek via array members
-        if (Array.isArray(initialDocument.group.members)) {
-           // Cari member yang ID-nya cocok dengan currentUserIdStr (yang sudah diperbaiki)
-           const me = initialDocument.group.members.find(m => String(m.userId) === currentUserIdStr);
-           if (me && me.role === 'admin_group') return true;
-        }
-    }
-
-    // Sisanya (Signer / Viewer) -> False
-    return false;
-  }, [initialDocument, currentUser]);
-  // ------------------------------------------------------------
-
+  // Reset state saat modal dibuka/tutup
   useEffect(() => {
-    if (initialDocument) {
-      setActiveVersionId(initialDocument.currentVersionId);
-    }
-  }, [initialDocument]);
-
-  const fetchHistory = useCallback(async () => {
-    if (!initialDocument?.id) return;
-    setHistoryLoading(true);
-    try {
-      const historyData = await documentService.getDocumentHistory(initialDocument.id);
-      const updated = historyData.map((v) => ({
-        ...v,
-        isActive: v.id === activeVersionId,
-      }));
-      setVersions(updated);
-    } catch (err) {
-      console.error("❌ Failed to fetch history:", err);
-      toast.error(err.message || "Gagal memuat riwayat dokumen.");
-    } finally {
-      setHistoryLoading(false);
-    }
-  }, [initialDocument, activeVersionId]);
-
-  useEffect(() => {
-    if (mode === "update" && initialDocument) {
-      fetchHistory();
+    if (mode === "view" && initialDocument) {
+      setDocumentTitle(initialDocument.title);
+      setSelectedType(initialDocument.type || "General");
+      setActiveTab("info");
     } else {
+      setDocumentTitle("");
+      setSelectedType("General");
       setFile(null);
-      setDocType("General");
-      setVersions([]);
-      setHistoryLoading(false);
+      setActiveTab("upload");
     }
-  }, [mode, initialDocument, fetchHistory]);
+  }, [mode, initialDocument]);
 
-  const handleFileChange = (e) => setFile(e.target.files[0] || null);
+  // Fetch History saat tab "history" aktif
+  useEffect(() => {
+    if (activeTab === "history" && initialDocument?.id) {
+      setIsLoadingHistory(true);
+      documentService.getDocumentHistory(initialDocument.id)
+        .then((data) => {
+          const sorted = Array.isArray(data) 
+            ? data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) 
+            : [];
+          setVersions(sorted);
+        })
+        .catch(() => toast.error("Gagal memuat riwayat."))
+        .finally(() => setIsLoadingHistory(false));
+    }
+  }, [activeTab, initialDocument]);
 
-  const handleSubmit = async (e) => {
+  // --- HANDLERS ---
+
+  // [3] Handler Navigasi ke Pricing
+  const handleUpgradeClick = () => {
+    onClose(); // Tutup modal dulu
+    navigate("/dashboard/pricing"); // Pindah ke halaman pricing
+  };
+
+  const handleFileDrop = (e) => {
     e.preventDefault();
-    setError("");
-    if (mode !== "create" || !file) {
-      if (!file) setError("File wajib diunggah.");
-      return;
+    const droppedFile = e.dataTransfer.files[0];
+    if (droppedFile && droppedFile.type === "application/pdf") {
+      setFile(droppedFile);
+      if (!documentTitle) setDocumentTitle(droppedFile.name.replace(".pdf", ""));
+    } else {
+      toast.error("Hanya file PDF yang diizinkan.");
     }
-    const toastId = toast.loading("Mengunggah dokumen...");
-    setIsLoading(true);
+  };
+
+  const handleUpload = async () => {
+    if (!file || !documentTitle) return toast.error("Lengkapi data dokumen.");
+    
+    setIsUploading(true);
     try {
-      await documentService.createDocument(file, docType);
-      toast.success("Dokumen berhasil diunggah!", { id: toastId });
+      await documentService.createDocument(file, selectedType);
+      toast.success("Dokumen berhasil diunggah!");
       onSuccess();
       onClose();
     } catch (err) {
-      setError(err.message || "Terjadi kesalahan.");
-      toast.error(err.message || "Terjadi kesalahan.", { id: toastId });
+        // Error handling service
     } finally {
-      setIsLoading(false);
+      setIsUploading(false);
+    }
+  };
+
+  const handleUpdateInfo = async () => {
+    if (!documentTitle) return toast.error("Judul tidak boleh kosong.");
+    
+    const toastId = toast.loading("Menyimpan perubahan...");
+    try {
+      await documentService.updateDocument(initialDocument.id, { title: documentTitle, type: selectedType });
+      toast.success("Info dokumen diperbarui.", { id: toastId });
+      onSuccess();
+    } catch (err) {
+      toast.dismiss(toastId);
     }
   };
 
   const handleUseVersion = async (versionId) => {
-    const toastId = toast.loading("Mengganti versi aktif...");
-    try {
-      const updatedDoc = await documentService.useOldVersion(initialDocument.id, versionId);
-      toast.success("Versi berhasil diganti!", { id: toastId });
-      setActiveVersionId(updatedDoc.currentVersionId);
-      if (onSuccess) onSuccess();
-    } catch (err) {
-      toast.error(err.message, { id: toastId });
+    // [PREMIUM CHECK - REDUNDANT TAPI AMAN]
+    if (isLimitReached) {
+      toast.error(`Batas revisi tercapai (${MAX_VERSIONS} versi). Silakan upgrade.`, { icon: "🔒" });
+      return;
     }
-  };
 
-  const handleDownloadVersion = async (version) => {
-    const toastId = toast.loading("Mempersiapkan unduhan...");
+    const toastId = toast.loading("Mengembalikan versi...");
     try {
-      const signedUrl = await documentService.getDocumentVersionFileUrl(initialDocument.id, version.id);
-      let filename = `version-${version.versionNumber || version.id}.pdf`;
-      try {
-        const urlObj = new URL(signedUrl);
-        const filenameParam = urlObj.searchParams.get("download");
-        if (filenameParam) filename = filenameParam;
-      } catch (_) {}
-
-      const link = window.document.createElement("a");
-      link.href = signedUrl;
-      link.setAttribute("download", filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      toast.success("Unduhan dimulai!", { id: toastId });
+      await documentService.useOldVersion(initialDocument.id, versionId);
+      toast.success("Versi berhasil dipulihkan!", { id: toastId });
+      
+      onSuccess();
+      
+      const updatedHistory = await documentService.getDocumentHistory(initialDocument.id);
+      const sorted = Array.isArray(updatedHistory) 
+            ? updatedHistory.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) 
+            : [];
+      setVersions(sorted);
     } catch (err) {
-      toast.error(err.message, { id: toastId });
+      toast.error(err.response?.data?.message || "Gagal restore versi.", { id: toastId });
     }
   };
 
   const handleDeleteVersion = async (versionId) => {
-    if (!window.confirm("Hapus versi ini? Tindakan ini tidak dapat dibatalkan.")) return;
-    const toastId = toast.loading("Menghapus versi...");
+    if(!window.confirm("Hapus versi ini permanen? Tindakan ini tidak dapat dibatalkan.")) return;
+    
+    const toastId = toast.loading("Menghapus...");
     try {
       await documentService.deleteVersion(initialDocument.id, versionId);
-      toast.success("Versi dihapus!", { id: toastId });
-      setVersions((prev) => prev.filter((v) => v.id !== versionId));
-      if (onSuccess) onSuccess();
+      toast.success("Versi dihapus.", { id: toastId });
+      setVersions(prev => prev.filter(v => v.id !== versionId));
     } catch (err) {
-      toast.error(err.message, { id: toastId });
-    }
-  };
-
-  const handlePreviewClick = async (version) => {
-    if (!onViewRequest) return;
-    const toastId = toast.loading("Mempersiapkan pratinjau...");
-    try {
-      const signedUrl = await documentService.getDocumentVersionFileUrl(initialDocument.id, version.id);
-      onViewRequest(signedUrl);
       toast.dismiss(toastId);
-    } catch (error) {
-      toast.error(error.message, { id: toastId });
     }
   };
 
-  const getVersionStatus = (version, index, totalVersions) => {
-    const isFirstVersion = index === totalVersions - 1;
-    const isPackageSigned = version.packages?.length > 0;
-    const isManualSigned = version.signaturesPersonal?.length > 0;
-    const hasGroupSignatures = version.signaturesGroup?.length > 0;
-    const hasSignedHash = !!version.signedFileHash;
-    const isSigned = isManualSigned || isPackageSigned || hasGroupSignatures || hasSignedHash;
-
-    return {
-      showSignedBadge: isSigned && !isFirstVersion,
-      isSigned,
-    };
+  const handleDownload = async () => {
+    const toastId = toast.loading("Menyiapkan unduhan...");
+    try {
+      await documentService.downloadDocument(initialDocument.id);
+      toast.dismiss(toastId);
+    } catch (e) {
+      toast.error("Gagal mengunduh.", { id: toastId });
+    }
   };
 
+  const getVersionStatus = (version) => {
+    if (version.signedFileHash) return { label: "FINAL (SIGNED)", color: "text-green-600 bg-green-50 border-green-200" };
+    if (initialDocument?.currentVersionId === version.id) return { label: "AKTIF", color: "text-blue-600 bg-blue-50 border-blue-200" };
+    return { label: "ARSIP", color: "text-slate-500 bg-slate-50 border-slate-200" };
+  };
+
+  // --- RENDER CONTENT ---
   const modalContent = (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-[9990] p-4 animate-fade-in">
-      <div className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-2xl shadow-2xl w-full max-w-2xl h-auto max-h-[90vh] border border-slate-200 dark:border-slate-700 flex flex-col relative overflow-hidden transition-all duration-300 transform scale-100">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 animate-fade-in">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      
+      <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
-        {/* --- HEADER --- */}
-        <header className="px-5 py-4 flex justify-between items-start gap-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/80 backdrop-blur-sm sticky top-0 z-20">
-          <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-bold text-slate-800 dark:text-white truncate">
-              {mode === "create" ? "Upload Dokumen" : "Riwayat Versi"}
-            </h2>
-            {mode === "update" && (
-              <p className="text-sm text-slate-500 dark:text-slate-400 truncate w-full" title={initialDocument?.title}>
-                {initialDocument?.title || "Dokumen"}.pdf
-              </p>
+        {/* HEADER */}
+        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
+          <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+            {mode === 'create' ? (
+              <>
+                <FaCloudUploadAlt className="text-blue-500" /> Upload Dokumen Baru
+              </>
+            ) : activeTab === 'history' ? (
+              <>
+                <FaHistory className="text-blue-500" /> Riwayat Versi
+              </>
+            ) : (
+              <>
+                <FaFileAlt className="text-blue-500" /> Kelola Dokumen
+              </>
             )}
-          </div>
+          </h3>
+          <button 
+            onClick={onClose}
+            className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500 dark:text-slate-400"
+          >
+            <FaTimes />
+          </button>
+        </div>
 
-          <div className="flex items-center gap-2 -mr-2">
+        {/* TABS (Only for View Mode) */}
+        {mode === "view" && (
+          <div className="flex border-b border-slate-200 dark:border-slate-700 px-6 gap-6 bg-white dark:bg-slate-900">
             <button 
-              onClick={() => setShowInfo(true)}
-              className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 dark:text-blue-400 rounded-full transition-colors"
-              title="Info Fitur"
+              onClick={() => setActiveTab("info")}
+              className={`py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "info" 
+                  ? "border-blue-500 text-blue-600 dark:text-blue-400" 
+                  : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+              }`}
             >
-              <FaInfoCircle className="w-5 h-5" />
+              <div className="flex items-center gap-2">
+                <FaInfoCircle /> Informasi
+              </div>
             </button>
             <button 
-              onClick={onClose} 
-              className="p-2 bg-transparent hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-full transition-colors"
-              title="Tutup"
+              onClick={() => setActiveTab("history")}
+              className={`py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "history" 
+                  ? "border-blue-500 text-blue-600 dark:text-blue-400" 
+                  : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+              }`}
             >
-              <FaTimes className="w-5 h-5" />
+              <div className="flex items-center gap-2">
+                <FaHistory /> Riwayat Versi
+              </div>
             </button>
           </div>
-        </header>
+        )}
 
-        {/* --- CONTENT --- */}
-        <main className="flex-1 overflow-y-auto p-5 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600">
+        {/* MAIN BODY */}
+        <main className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-white dark:bg-slate-900">
           
-          {mode === "create" && (
-            <div className="flex flex-col items-center justify-center py-4">
-              <form onSubmit={handleSubmit} className="w-full space-y-6">
-                
-                {/* TIPE DOKUMEN */}
-                <div className="w-full">
-                  <label className="block mb-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    Kategori Dokumen
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={docType}
-                      onChange={(e) => setDocType(e.target.value)}
-                      className="w-full p-3 bg-slate-50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all appearance-none cursor-pointer"
-                    >
-                      {DOCUMENT_TYPES.map((type) => (
-                        <option key={type} value={type}>
-                          {type}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-slate-500">
-                      <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
-                    </div>
+          {/* --- MODE UPLOAD --- */}
+          {activeTab === "upload" && (
+            <div className="space-y-6">
+              <div 
+                className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all ${
+                  file ? "border-blue-500 bg-blue-50 dark:bg-blue-900/10" : "border-slate-300 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500"
+                }`}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleFileDrop}
+              >
+                {file ? (
+                  <div className="flex flex-col items-center animate-fade-in">
+                    <FaFileAlt className="text-4xl text-blue-500 mb-3" />
+                    <p className="font-semibold text-slate-800 dark:text-white">{file.name}</p>
+                    <p className="text-xs text-slate-500 mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                    <button onClick={() => setFile(null)} className="mt-4 text-xs text-red-500 hover:underline">
+                      Ganti File
+                    </button>
                   </div>
-                </div>
-
-                {/* UPLOAD FILE */}
-                <div className="w-full">
-                  <label className="block mb-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    Pilih File PDF
-                  </label>
-                  <div
-                    className={`relative group border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-300 cursor-pointer
-                    ${file 
-                      ? "border-blue-500 bg-blue-50/50 dark:bg-blue-500/10" 
-                      : "border-slate-300 dark:border-slate-600 hover:border-blue-400 hover:bg-slate-50 dark:hover:bg-slate-700/30"}`}
-                  >
-                    <input type="file" onChange={handleFileChange} accept=".pdf" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" disabled={isLoading} />
-                    <div className="flex flex-col items-center pointer-events-none">
-                      <div className={`p-4 rounded-full mb-3 transition-colors ${file ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400 group-hover:text-blue-500 group-hover:bg-blue-50'}`}>
-                         {file ? <FaFileAlt className="text-2xl" /> : <FaCloudUploadAlt className="text-3xl" />}
-                      </div>
-                      <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate max-w-[250px]">
-                        {file ? file.name : "Klik untuk jelajah file"}
-                      </p>
-                      <p className="text-xs text-slate-400 mt-1">Maksimal 10MB (PDF)</p>
+                ) : (
+                  <div className="flex flex-col items-center">
+                    <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
+                      <FaCloudUploadAlt className="text-3xl text-slate-400" />
                     </div>
-                  </div>
-                </div>
-
-                {error && (
-                  <div className="p-3 bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-300 border border-red-100 dark:border-red-800 rounded-xl text-sm text-center font-medium animate-pulse">
-                    {error}
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Drag & drop file PDF di sini
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1 mb-4">atau</p>
+                    <label className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg cursor-pointer text-sm font-medium transition-colors shadow-lg shadow-blue-500/20">
+                      Pilih File
+                      <input type="file" accept="application/pdf" className="hidden" onChange={(e) => {
+                        if (e.target.files[0]) {
+                          setFile(e.target.files[0]);
+                          setDocumentTitle(e.target.files[0].name.replace(".pdf", ""));
+                        }
+                      }} />
+                    </label>
                   </div>
                 )}
+              </div>
 
-                <button
-                  type="submit"
-                  disabled={isLoading || !file}
-                  className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 active:scale-95 flex items-center justify-center gap-2"
-                >
-                  {isLoading ? <FaSpinner className="animate-spin" /> : <><FaCloudUploadAlt /> Unggah Sekarang</>}
-                </button>
-              </form>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Judul Dokumen</label>
+                  <input 
+                    type="text" 
+                    value={documentTitle}
+                    onChange={(e) => setDocumentTitle(e.target.value)}
+                    placeholder="Contoh: Kontrak Kerja 2024"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Tipe Dokumen</label>
+                  <select 
+                    value={selectedType}
+                    onChange={(e) => setSelectedType(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  >
+                    {DOCUMENT_TYPES.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <button 
+                onClick={handleUpload}
+                disabled={!file || isUploading}
+                className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-blue-500/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex justify-center items-center gap-2"
+              >
+                {isUploading ? <FaSpinner className="animate-spin" /> : <><FaCheckCircle /> Upload Dokumen</>}
+              </button>
             </div>
           )}
 
-          {mode === "update" && (
-            <div className="space-y-5">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                  <FaHistory /> Timeline
-                </h3>
-                <span className="text-xs font-semibold px-2.5 py-1 bg-slate-100 dark:bg-slate-700 rounded-full text-slate-600 dark:text-slate-300">
-                  {versions.length} Versi
-                </span>
+          {/* --- MODE VIEW: INFO --- */}
+          {activeTab === "info" && (
+            <div className="space-y-6 animate-fade-in">
+              <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-800 flex gap-4 items-start">
+                <div className="p-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
+                  <FaFileAlt className="text-2xl text-blue-500" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-800 dark:text-white text-lg">{initialDocument?.title}</h4>
+                  <p className="text-xs text-slate-500 mt-1">Dibuat pada: {new Date(initialDocument?.createdAt).toLocaleDateString("id-ID", { dateStyle: 'full' })}</p>
+                  
+                  <div className="flex gap-2 mt-3">
+                    <button 
+                      onClick={() => setShowInfo(true)}
+                      className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1"
+                    >
+                      <FaBolt /> Lihat Fitur Dokumen
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              {isHistoryLoading ? (
-                <div className="flex flex-col items-center justify-center py-12 gap-3 text-slate-400">
-                  <FaSpinner className="animate-spin text-2xl" />
-                  <span className="text-xs">Memuat data...</span>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Ubah Judul</label>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      value={documentTitle}
+                      onChange={(e) => setDocumentTitle(e.target.value)}
+                      className="flex-1 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                    <button 
+                      onClick={handleUpdateInfo}
+                      className="px-4 py-2 bg-slate-800 dark:bg-white text-white dark:text-slate-900 rounded-xl font-medium hover:bg-slate-700 dark:hover:bg-slate-200 transition-colors"
+                    >
+                      Simpan
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Aksi Cepat</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button 
+                      onClick={handleDownload}
+                      className="p-3 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center gap-2 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      <FaDownload /> Download PDF
+                    </button>
+                    <button 
+                      onClick={() => onViewRequest && onViewRequest(null)} 
+                      className="p-3 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center gap-2 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      <FaEye /> Lihat Dokumen
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* --- MODE VIEW: HISTORY --- */}
+          {activeTab === "history" && (
+            <div className="animate-fade-in">
+              
+              {/* --- [4] UI PREMIUM ALERT BAR --- */}
+              <div className="bg-slate-100 dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 mb-6">
+                <div className="flex justify-between text-xs font-semibold mb-1.5">
+                  <span className={isLimitReached ? "text-red-500" : "text-slate-600 dark:text-slate-300"}>
+                    {isLimitReached ? "Batas Versi Tercapai" : "Penggunaan Slot Versi"}
+                  </span>
+                  <span className="text-slate-500">
+                    {currentVersionCount} / {MAX_VERSIONS}
+                  </span>
+                </div>
+                <div className="w-full bg-slate-300 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full transition-all duration-500 ${isLimitReached ? 'bg-red-500' : 'bg-blue-500'}`} 
+                    style={{ width: `${Math.min((currentVersionCount / MAX_VERSIONS) * 100, 100)}%` }}
+                  />
+                </div>
+                
+                {/* TOMBOL UPGRADE MUNCUL DI SINI */}
+                {!isPremium && isLimitReached && (
+                  <div className="mt-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-lg p-3 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-400">
+                      <FaStar className="text-amber-500 animate-pulse text-sm" />
+                      <span>Kuota versi habis (Max 5).</span>
+                    </div>
+                    <button
+                      onClick={handleUpgradeClick}
+                      className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition-colors shadow-sm whitespace-nowrap"
+                    >
+                      Upgrade Pro
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {isLoadingHistory ? (
+                <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+                  <FaSpinner className="animate-spin text-2xl mb-2" />
+                  <p className="text-xs">Memuat riwayat...</p>
                 </div>
               ) : versions.length === 0 ? (
-                <div className="text-center py-12 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
-                  <p className="text-slate-500 text-sm">Tidak ada riwayat versi.</p>
+                <div className="text-center py-10 text-slate-400">
+                  <p>Belum ada riwayat versi.</p>
                 </div>
               ) : (
-                <ul className="space-y-3 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent dark:before:via-slate-700">
+                <ul className="space-y-4 relative before:absolute before:left-4 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-700">
                   {versions.map((version, index) => {
-                    const versionNumber = versions.length - index;
-                    const { showSignedBadge } = getVersionStatus(version, index, versions.length);
+                    const status = getVersionStatus(version);
+                    const isCurrent = initialDocument?.currentVersionId === version.id;
 
                     return (
-                      <li
-                        key={version.id}
-                        className={`relative z-10 group flex flex-col sm:flex-row gap-3 sm:items-center justify-between p-4 rounded-xl border transition-all duration-200 
-                          ${version.isActive
-                            ? "bg-blue-50/80 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800 shadow-sm"
-                            : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-slate-600 hover:shadow-md"
-                          }`}
-                      >
-                        {/* KIRI: Info Versi */}
-                        <div className="flex items-start gap-4 min-w-0 w-full sm:w-auto">
-                          <div className={`p-2.5 rounded-lg flex-shrink-0 mt-1 sm:mt-0
-                            ${version.isActive ? "bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400" : "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400"}`}>
-                            <FaFileAlt className="text-lg" />
-                          </div>
+                      <li key={version.id} className="relative pl-10 group">
+                        {/* Dot Indicator */}
+                        <div className={`absolute left-[13px] top-6 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 transition-all ${
+                          isCurrent ? "bg-blue-500 scale-125 ring-4 ring-blue-100 dark:ring-blue-900/30" : "bg-slate-400"
+                        }`} />
 
-                          <div className="flex-1 min-w-0">
-                            <div className="flex flex-wrap items-center gap-2 mb-1">
-                              <span className="font-bold text-slate-800 dark:text-white text-sm">
-                                Versi {versionNumber}
-                              </span>
-                              {version.isActive && (
-                                <span className="text-[10px] font-bold text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-500/10 px-2 py-0.5 rounded-md border border-green-200 dark:border-green-900">
-                                  AKTIF
+                        <div className={`p-4 rounded-xl border transition-all ${
+                          isCurrent 
+                            ? "bg-blue-50/50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-800 shadow-sm" 
+                            : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600"
+                        }`}>
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-bold text-sm text-slate-700 dark:text-slate-200">
+                                  Versi {versions.length - index}
                                 </span>
-                              )}
-                              {showSignedBadge && (
-                                <span className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-100 dark:text-indigo-300 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md">
-                                  <FaCheckCircle className="text-[10px]" /> SIGNED
+                                <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold border ${status.color}`}>
+                                  {status.label}
                                 </span>
-                              )}
+                              </div>
+                              <p className="text-xs text-slate-400">
+                                {new Date(version.createdAt).toLocaleString("id-ID", { dateStyle: 'medium', timeStyle: 'short' })}
+                              </p>
                             </div>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                              {new Date(version.createdAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* KANAN: Action Buttons */}
-                        <div className="flex items-center justify-between sm:justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-700 sm:w-auto w-full">
-                          
-                          {/* BUTTON: LIHAT & UNDUH (SEMUA ROLE) */}
-                          <div className="flex gap-2 w-full sm:w-auto">
-                             <button onClick={() => handlePreviewClick(version)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 dark:text-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-lg transition-colors" title="Lihat">
-                                <FaEye /> <span className="sm:hidden">Lihat</span>
-                             </button>
-                             <button onClick={() => handleDownloadVersion(version)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 dark:text-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-lg transition-colors" title="Unduh">
-                                <FaDownload /> <span className="sm:hidden">Unduh</span>
-                             </button>
-                          </div>
-
-                          {/* BUTTON: ROLLBACK & HAPUS (HANYA ADMIN/OWNER) */}
-                          {!version.isActive && canManageVersions && (
-                            <div className="flex gap-2 pl-2 border-l border-slate-200 dark:border-slate-700 ml-2">
+                            
+                            <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                               <button 
-                                onClick={() => handleUseVersion(version.id)} 
-                                className="p-1.5 text-slate-400 hover:text-green-600 dark:hover:text-green-400 transition-colors" 
-                                title="Kembalikan Versi Ini (Rollback)"
+                                onClick={() => onViewRequest && onViewRequest(version.url)}
+                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                title="Lihat Versi Ini"
                               >
-                                <FaUndo />
+                                <FaEye />
                               </button>
-                              
-                              {index !== versions.length - 1 && (
-                                <button 
-                                  onClick={() => handleDeleteVersion(version.id)} 
-                                  className="p-1.5 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors" 
-                                  title="Hapus Versi"
+
+                              {!isCurrent && (
+                                <button
+                                  onClick={() => handleUseVersion(version.id)}
+                                  disabled={isLimitReached}
+                                  className={`p-2 rounded-lg transition-colors ${
+                                    isLimitReached 
+                                      ? "text-slate-300 cursor-not-allowed" 
+                                      : "text-slate-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20"
+                                  }`}
+                                  title={isLimitReached ? "Upgrade untuk restore" : "Pulihkan Versi Ini"}
+                                >
+                                  <FaUndo />
+                                </button>
+                              )}
+
+                              {!isCurrent && (
+                                <button
+                                  onClick={() => handleDeleteVersion(version.id)}
+                                  className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                  title="Hapus Versi Permanen"
                                 >
                                   <FaTrash />
                                 </button>
                               )}
                             </div>
-                          )}
-
+                          </div>
                         </div>
                       </li>
                     );
