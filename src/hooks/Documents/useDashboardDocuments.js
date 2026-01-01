@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { documentService } from "../../services/documentService";
 import { packageService } from "../../services/packageService";
 import { useSearchParams } from "react-router-dom";
+import { useCanPerformAction } from "../useCanPerformAction";
 import toast from "react-hot-toast";
 
 export const useDashboardDocuments = () => {
@@ -74,7 +75,7 @@ export const useDashboardDocuments = () => {
       if (!isAuthError && !isNetworkError) {
         setError("Gagal memuat dokumen.");
       }
-      
+
       // [PENTING] Reset state agar UI tidak crash render
       setDocuments([]);
       setPersonalDocuments([]);
@@ -114,13 +115,13 @@ export const useDashboardDocuments = () => {
         }
         return "pending";
       }
-      
+
       // 2. Cek Dokumen Personal (Logic Signature)
       const version = doc.currentVersion;
       if (version) {
         const isSelfSigned = version.signaturesPersonal && version.signaturesPersonal.some((sig) => sig.signerId === currentUser.id);
         // Jika status masih draft/pending tapi user ini sudah tanda tangan
-        if (isSelfSigned && globalStatus !== 'completed') return "signed";
+        if (isSelfSigned && globalStatus !== "completed") return "signed";
       }
 
       return globalStatus;
@@ -168,20 +169,16 @@ export const useDashboardDocuments = () => {
 
   const clearSelection = () => setSelectedDocIds(new Set());
 
-  // --- 7. START BATCH SIGNING (DENGAN LIMIT PREMIUM) ---
+  // --- 7. START BATCH SIGNING (DENGAN SOFT LOCK) ---
+  const { canPerform: canCreatePackage, reason: createPackageReason } = useCanPerformAction("create_package", selectedDocIds.size);
+
   const startBatchSigning = async () => {
     if (selectedDocIds.size === 0) return;
 
-    // [VALIDASI PREMIUM] Cek Limit Paket
-    const isPremium = currentUser?.userStatus === "PREMIUM";
-    const LIMIT = isPremium ? 20 : 3;
-
-    if (selectedDocIds.size > LIMIT) {
-        toast.error(
-            `Batas Terlampaui! Pengguna ${isPremium ? 'Premium' : 'Free'} maksimal hanya boleh ${LIMIT} dokumen per paket.`,
-            { icon: "🔒", duration: 4000 }
-        );
-        return; 
+    // [SOFT LOCK CHECK]
+    if (!canCreatePackage) {
+      toast.error(createPackageReason, { icon: "🔒", duration: 4000 });
+      return;
     }
 
     setIsSubmittingBatch(true);

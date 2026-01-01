@@ -1,16 +1,24 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useUploadGroupDocument } from "../../hooks/Group/useGroups";
+import { useFileUpload } from "../../hooks/useFileUpload";
+import { useCanPerformAction } from "../../hooks/useCanPerformAction";
 import { HiOutlineUpload, HiX, HiUserGroup, HiCheck } from "react-icons/hi";
 import { ImSpinner9 } from "react-icons/im";
 import { toast } from "react-hot-toast";
 
-export const UploadGroupDocumentModal = ({ isOpen, onClose, groupId, members = [] }) => {
+export const UploadGroupDocumentModal = ({ isOpen, onClose, groupId, members = [], currentDocCount = 0 }) => {
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState("");
 
   // State untuk menyimpan ID anggota yang dipilih (Checklist)
   const [selectedSigners, setSelectedSigners] = useState([]);
+
+  // Hook untuk validasi file size
+  const { validateFileSize, maxFileSizeLabel } = useFileUpload();
+
+  // Hook untuk soft lock check
+  const { canPerform: canCreateDoc, reason: createDocReason } = useCanPerformAction("create_document", currentDocCount);
 
   // Hook Mutation (yang sudah dilengkapi Direct Cache Update)
   const { mutate: uploadDoc, isPending } = useUploadGroupDocument();
@@ -47,10 +55,28 @@ export const UploadGroupDocumentModal = ({ isOpen, onClose, groupId, members = [
   const handleSubmit = (e) => {
     e.preventDefault();
 
+    // Check soft lock first
+    if (!canCreateDoc) {
+      toast.error(createDocReason, {
+        duration: 5000,
+        icon: "🔒",
+      });
+      onClose();
+      return;
+    }
+
     if (!file) {
       toast.error("Pilih file PDF terlebih dahulu.");
       return;
     }
+
+    // Validate file size using hook
+    const validation = validateFileSize(file);
+    if (!validation.valid) {
+      toast.error(validation.error, { duration: 5000, icon: "📁" });
+      return;
+    }
+
     if (!title.trim()) {
       toast.error("Judul dokumen wajib diisi.");
       return;
@@ -120,7 +146,10 @@ export const UploadGroupDocumentModal = ({ isOpen, onClose, groupId, members = [
 
             {/* Input File */}
             <div>
-              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">File PDF</label>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                File PDF
+                <span className="text-xs text-slate-500 ml-1">({maxFileSizeLabel} maksimal)</span>
+              </label>
               <div
                 className={`relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer group transition-colors ${
                   file ? "border-blue-300 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-800" : "border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/30"

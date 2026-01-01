@@ -1,6 +1,6 @@
 import apiClient from "./apiClient";
 
-const TAG = "[UserService]"; 
+const TAG = "[UserService]";
 
 /**
  * Ambil Profile user yang sedang login.
@@ -36,7 +36,7 @@ const updateMyProfile = async (updateData = {}, newProfilePicture = null, oldPro
   if (newProfilePicture) {
     console.log("👉 Mode: Upload New Picture");
     payload = new FormData();
-    
+
     // Append Text Data
     Object.keys(updateData).forEach((key) => {
       if (updateData[key] !== undefined && updateData[key] !== null) {
@@ -51,20 +51,19 @@ const updateMyProfile = async (updateData = {}, newProfilePicture = null, oldPro
     // DEBUG: Intip isi FormData
     console.log("📦 FormData Content:");
     for (let pair of payload.entries()) {
-        console.log(`   - ${pair[0]}:`, pair[1]);
+      console.log(`   - ${pair[0]}:`, pair[1]);
     }
-
-  } 
+  }
   // SKENARIO 2: Update Teks / Foto Lama (JSON)
   else {
     console.log("👉 Mode: Update JSON (Text/History)");
     payload = { ...updateData };
-    
+
     if (oldProfilePictureId) {
       console.log("   - Using Old Picture ID:", oldProfilePictureId);
       payload.profilePictureId = oldProfilePictureId;
     }
-    
+
     console.log("📦 JSON Payload:", payload);
     headers = { "Content-Type": "application/json" };
   }
@@ -73,7 +72,7 @@ const updateMyProfile = async (updateData = {}, newProfilePicture = null, oldPro
     const response = await apiClient.put("/users/me", payload, { headers });
     console.log("✅ Update Success:", response.data);
     console.groupEnd();
-    
+
     return {
       message: response.data.message,
       data: response.data.data,
@@ -108,7 +107,7 @@ const deleteProfilePicture = async (pictureId) => {
   try {
     const response = await apiClient.delete(`/users/me/pictures/${pictureId}`);
     console.log(`${TAG} ✅ Picture deleted successfully.`);
-    
+
     return {
       message: response.data.message,
       data: response.data.data,
@@ -119,9 +118,35 @@ const deleteProfilePicture = async (pictureId) => {
   }
 };
 
+/**
+ * Ambil User Quota dan Limit Information.
+ * Endpoint ini mengembalikan:
+ * - userStatus ("FREE" | "PREMIUM")
+ * - isPremiumActive (boolean)
+ * - premiumUntil (Date string | null)
+ * - limits (object dengan semua limit berdasarkan status)
+ * - usage (object dengan usage saat ini)
+ * - quotaPercentages (object dengan persentase penggunaan)
+ */
+const getQuota = async () => {
+  console.log(`${TAG} 📡 Fetching user quota...`);
+  try {
+    const response = await apiClient.get("/users/me/quota");
+    console.log(`${TAG} ✅ Quota loaded:`, response.data.data);
+    return response.data.data;
+  } catch (error) {
+    console.error(`${TAG} ❌ Failed to fetch quota:`, error);
+    throw error;
+  }
+};
+
 export const userService = {
   getMyProfile,
   updateMyProfile,
   getProfilePictures,
   deleteProfilePicture,
+  getQuota,
 };
+
+// Export getQuota juga sebagai named export untuk kemudahan import
+export { getQuota };

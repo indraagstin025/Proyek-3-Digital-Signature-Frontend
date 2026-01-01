@@ -20,6 +20,7 @@ const DashboardPage = ({ theme, toggleTheme }) => {
     return savedUser ? JSON.parse(savedUser) : null;
   });
 
+  const [isLoadingUser, setIsLoadingUser] = useState(true); // Track loading state
   const [pendingToken, setPendingToken] = useState(null);
   const [userError, setUserError] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1024);
@@ -43,7 +44,11 @@ const DashboardPage = ({ theme, toggleTheme }) => {
 
   useEffect(() => {
     const syncUserData = async () => {
-      if (!userData) return;
+      setIsLoadingUser(true); // Start loading
+      if (!userData) {
+        setIsLoadingUser(false);
+        return;
+      }
       try {
         setUserError("");
         const freshData = await userService.getMyProfile();
@@ -56,6 +61,8 @@ const DashboardPage = ({ theme, toggleTheme }) => {
           console.error("Gagal sinkronisasi data pengguna:", error);
           setUserError("Gagal menyinkronkan data terbaru. Menampilkan data offline.");
         }
+      } finally {
+        setIsLoadingUser(false); // Done loading
       }
     };
     syncUserData();
@@ -136,6 +143,8 @@ const DashboardPage = ({ theme, toggleTheme }) => {
           toggleTheme={toggleTheme}
           // 🔥 [UPDATE] Oper status via Props
           userStatus={userStatus}
+          // 🔥 [NEW] Pass loading state untuk prevent flicker
+          isLoadingUser={isLoadingUser}
         />
 
         {/* MAIN CONTENT */}
