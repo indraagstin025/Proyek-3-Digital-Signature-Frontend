@@ -70,11 +70,14 @@ const FeatureModal = ({ isOpen, onClose }) => {
 };
 
 // --- 2. KOMPONEN UTAMA ---
-const DocumentManagementModal = ({ mode = "view", initialDocument = null, currentUser, onClose, onSuccess, onViewRequest }) => {
+const DocumentManagementModal = ({ mode = "view", initialDocument = null, currentUser, onClose, onSuccess, onViewRequest, initialTab = null }) => {
   const navigate = useNavigate(); // [2] Init Navigate
 
-  // State
-  const [activeTab, setActiveTab] = useState(mode === "create" ? "upload" : "info");
+  // State - Gunakan initialTab jika ada, jika tidak fallback ke logic default
+  const [activeTab, setActiveTab] = useState(() => {
+    if (initialTab) return initialTab;
+    return mode === "create" ? "upload" : "info";
+  });
   const [documentTitle, setDocumentTitle] = useState(initialDocument?.title || "");
   const [selectedType, setSelectedType] = useState(initialDocument?.type || "General");
   const [file, setFile] = useState(null);
@@ -93,6 +96,32 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
   const MAX_VERSIONS = isPremium ? 20 : 5;
   const currentVersionCount = versions.length;
   const isLimitReached = currentVersionCount >= MAX_VERSIONS;
+
+  // --- [HAK AKSES ROLLBACK/DELETE VERSION] ---
+  // User bisa rollback/delete version HANYA jika:
+  // 1. Dokumen Personal: User adalah pemilik dokumen (userId === currentUser.id)
+  // 2. Dokumen Grup: User adalah admin_group ATAU pemilik dokumen (uploader)
+  const canManageVersions = useMemo(() => {
+    if (!initialDocument || !currentUser?.id) return false;
+
+    const currentUserId = String(currentUser.id);
+    const documentOwnerId = String(initialDocument.userId || "");
+
+    // Cek apakah dokumen personal atau grup
+    if (initialDocument.groupId || initialDocument.group) {
+      // Dokumen Grup
+      const isDocumentOwner = documentOwnerId === currentUserId;
+
+      // Cek apakah user adalah admin grup
+      const groupMembers = initialDocument.group?.members || [];
+      const isGroupAdmin = groupMembers.some((m) => String(m.userId) === currentUserId && m.role === "admin_group");
+
+      return isDocumentOwner || isGroupAdmin;
+    } else {
+      // Dokumen Personal - hanya pemilik yang bisa manage
+      return documentOwnerId === currentUserId;
+    }
+  }, [initialDocument, currentUser]);
 
   // --- [SOFT LOCK CHECK] ---
   const { canPerform: canCreateVersion, reason: createVersionReason } = useCanPerformAction("create_version", currentVersionCount);
@@ -428,7 +457,7 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
                 </div>
 
                 {/* TOMBOL UPGRADE MUNCUL DI SINI */}
-                {!isPremium && !canCreateVersion && (
+                {!isPremium && !canCreateVersion && canManageVersions && (
                   <div className="mt-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-lg p-3 flex flex-col sm:flex-row items-center justify-between gap-3">
                     <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-400">
                       <FaStar className="text-amber-500 animate-pulse text-sm" />
@@ -437,6 +466,16 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
                     <button onClick={handleUpgradeClick} className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition-colors shadow-sm whitespace-nowrap">
                       Upgrade Pro
                     </button>
+                  </div>
+                )}
+
+                {/* INFO UNTUK SIGNER TANPA AKSES ROLLBACK */}
+                {!canManageVersions && (
+                  <div className="mt-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-3">
+                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                      <FaInfoCircle className="text-slate-400 text-sm flex-shrink-0" />
+                      <span>Anda hanya dapat melihat riwayat versi. Rollback dan hapus versi hanya tersedia untuk pemilik dokumen atau admin grup.</span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -490,7 +529,8 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
                                 <FaEye />
                               </button>
 
-                              {!isCurrent && (
+                              {/* Tombol Rollback - HANYA untuk pemilik dokumen atau admin grup */}
+                              {!isCurrent && canManageVersions && (
                                 <button
                                   onClick={() => handleUseVersion(version.id)}
                                   disabled={!canCreateVersion}
@@ -501,7 +541,8 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
                                 </button>
                               )}
 
-                              {!isCurrent && (
+                              {/* Tombol Delete Version - HANYA untuk pemilik dokumen atau admin grup */}
+                              {!isCurrent && canManageVersions && (
                                 <button onClick={() => handleDeleteVersion(version.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Hapus Versi Permanen">
                                   <FaTrash />
                                 </button>

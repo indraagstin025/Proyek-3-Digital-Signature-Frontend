@@ -28,7 +28,7 @@ const ViewDocumentPage = ({ theme = "light", toggleTheme }) => {
 
   const [documentUrl, setDocumentUrl] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState(null); 
+  const [loadError, setLoadError] = useState(null);
 
   const [numPages, setNumPages] = useState(0);
   const [pageNumber, setPageNumber] = useState(1);
@@ -45,12 +45,17 @@ const ViewDocumentPage = ({ theme = "light", toggleTheme }) => {
     const saved = typeof window !== "undefined" ? localStorage.getItem("authUser") : null;
     return saved ? JSON.parse(saved) : null;
   });
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
+
+  // ✅ Derive userStatus from userData
+  const userStatus = userData?.userStatus || "FREE";
 
   // --- 1. User Sync Logic ---
   useEffect(() => {
     let mounted = true;
     async function syncUser() {
       try {
+        setIsLoadingUser(true);
         const fresh = await userService.getMyProfile();
         if (!mounted) return;
         const prev = localStorage.getItem("authUser");
@@ -62,6 +67,8 @@ const ViewDocumentPage = ({ theme = "light", toggleTheme }) => {
         }
       } catch {
         // Sync failed silently
+      } finally {
+        if (mounted) setIsLoadingUser(false);
       }
     }
     syncUser();
@@ -409,7 +416,7 @@ const ViewDocumentPage = ({ theme = "light", toggleTheme }) => {
     <div className="min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 overflow-hidden">
       {/* Header */}
       <div className="fixed top-0 left-0 right-0 z-50">
-        <DashboardHeader activePage="documents" theme={theme} toggleTheme={toggleTheme} isSidebarOpen={mainSidebarOpen} onToggleSidebar={toggleMainSidebar} />
+        <DashboardHeader activePage="documents" theme={theme} toggleTheme={toggleTheme} isSidebarOpen={mainSidebarOpen} onToggleSidebar={toggleMainSidebar} userStatus={userStatus} isLoadingUser={isLoadingUser} />
       </div>
 
       {/* Toolbar */}
@@ -470,6 +477,7 @@ const ViewDocumentPage = ({ theme = "light", toggleTheme }) => {
         activePage="documents"
         onClose={() => setMainSidebarOpen(false)}
         theme={theme}
+        isPremium={userStatus === "PREMIUM" || userStatus === "PREMIUM_YEARLY"}
       />
 
       {/* Mobile Preview Modal */}

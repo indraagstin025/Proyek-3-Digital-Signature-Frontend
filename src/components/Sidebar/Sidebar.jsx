@@ -2,12 +2,12 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import authService from "../../services/authService";
 import ConfirmationModal from "../ConfirmationModal/ConfirmationModal";
-import { HiChevronDown, HiChevronRight } from "react-icons/hi";
+import { HiChevronDown, HiChevronRight, HiStar, HiClock } from "react-icons/hi";
 
 import logoWhite from "../../assets/images/WeSignLightMode.png";
 import logoDark from "../../assets/images/WeSignDarkMode.png";
 
-const Sidebar = ({ userName, userEmail, userAvatar, isOpen, activePage, onClose, theme, isPremium }) => {
+const Sidebar = ({ userName, userEmail, userAvatar, isOpen, activePage, onClose, theme, isPremium, premiumUntil }) => {
   const navigate = useNavigate();
   const location = useLocation(); 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -73,6 +73,12 @@ const Sidebar = ({ userName, userEmail, userAvatar, isOpen, activePage, onClose,
     if (window.innerWidth < 1024) {
       onClose();
     }
+  };
+
+  const formatExpiryDate = (dateString) => {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
   };
 
   return (
@@ -173,6 +179,19 @@ const Sidebar = ({ userName, userEmail, userAvatar, isOpen, activePage, onClose,
                 </button>
               );
             })}
+
+            {isPremium && premiumUntil && (
+               <div className="mt-4 mb-2 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-800/30">
+                 <div className="flex items-center gap-2 mb-1">
+                    <HiStar className="text-amber-500" />
+                    <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Premium Active</span>
+                 </div>
+                 <div className="flex items-center gap-1.5 text-[10px] text-amber-600 dark:text-amber-500/80">
+                    <HiClock className="w-3 h-3" />
+                    <span>Berakhir: <b>{formatExpiryDate(premiumUntil)}</b></span>
+                 </div>
+               </div>
+            )}
 
             {/* Banner Upgrade juga ikut di-scroll di bagian tengah */}
             {!isPremium && (

@@ -8,6 +8,9 @@ console.log(`[Socket Service] Base URL derived from API: ${SOCKET_URL}`);
 
 let socket;
 
+// Map untuk menyimpan wrapper functions agar bisa di-cleanup dengan benar
+const groupListeners = new Map();
+
 export const socketService = {
   connect: () => {
     if (socket && socket.connected) {
@@ -121,16 +124,16 @@ export const socketService = {
   /**
    * Bergabung ke Room Grup untuk menerima update Member & Dokumen.
    */
-joinGroupRoom: (groupId) => {
+  joinGroupRoom: (groupId) => {
     if (socket && socket.connected) {
-      // Kita kirim ID mentah, biar Backend yang format jadi "group_ID" 
+      // Kita kirim ID mentah, biar Backend yang format jadi "group_ID"
       // ATAU kita format di sini.
       // Sesuai kode backend Anda sebelumnya (socketHandler.js), dia melakukan:
       // socket.join(`group_${groupId}`);
-      
+
       // Jadi kita kirim ID saja sudah benar.
       console.log(`🔄 [Socket] Request Join Room untuk Group ID: ${groupId}`);
-      socket.emit("join_group_room", groupId); 
+      socket.emit("join_group_room", groupId);
     } else {
       console.warn("⚠️ [Socket] Gagal join, socket belum connect.");
     }
@@ -144,38 +147,83 @@ joinGroupRoom: (groupId) => {
   },
 
   onGroupMemberUpdate: (callback) => {
-    if (socket)
-      socket.on("group_member_update", (data) => {
+    if (socket) {
+      // Hapus listener lama jika ada
+      const existingWrapper = groupListeners.get(`member_${callback}`);
+      if (existingWrapper) {
+        socket.off("group_member_update", existingWrapper);
+      }
+
+      const wrapper = (data) => {
         console.log("👥 [Socket RECV] Member Update:", JSON.stringify(data, null, 2));
         callback(data);
-      });
+      };
+      groupListeners.set(`member_${callback}`, wrapper);
+      socket.on("group_member_update", wrapper);
+    }
   },
   offGroupMemberUpdate: (callback) => {
-    if (socket) socket.off("group_member_update", callback);
+    if (socket) {
+      const wrapper = groupListeners.get(`member_${callback}`);
+      if (wrapper) {
+        socket.off("group_member_update", wrapper);
+        groupListeners.delete(`member_${callback}`);
+      }
+    }
   },
 
   onGroupDocumentUpdate: (callback) => {
-    if (socket)
-      socket.on("group_document_update", (data) => {
+    if (socket) {
+      // Hapus listener lama jika ada (mencegah duplicate)
+      const existingWrapper = groupListeners.get(`doc_${callback}`);
+      if (existingWrapper) {
+        socket.off("group_document_update", existingWrapper);
+      }
+
+      const wrapper = (data) => {
         console.log("📄 [Socket RECV] Document Update:", JSON.stringify(data, null, 2));
         callback(data);
-      });
-  },
-
-  onGroupInfoUpdate: (callback) => {
-    if (socket)
-      socket.on("group_info_update", (data) => {
-        console.log("ℹ️ [Socket RECV] Group Info Update:", data);
-        callback(data);
-      });
+      };
+      groupListeners.set(`doc_${callback}`, wrapper);
+      socket.on("group_document_update", wrapper);
+    }
   },
 
   offGroupDocumentUpdate: (callback) => {
-    if (socket) socket.off("group_document_update", callback);
+    if (socket) {
+      const wrapper = groupListeners.get(`doc_${callback}`);
+      if (wrapper) {
+        socket.off("group_document_update", wrapper);
+        groupListeners.delete(`doc_${callback}`);
+      }
+    }
+  },
+
+  onGroupInfoUpdate: (callback) => {
+    if (socket) {
+      // Hapus listener lama jika ada
+      const existingWrapper = groupListeners.get(`info_${callback}`);
+      if (existingWrapper) {
+        socket.off("group_info_update", existingWrapper);
+      }
+
+      const wrapper = (data) => {
+        console.log("ℹ️ [Socket RECV] Group Info Update:", data);
+        callback(data);
+      };
+      groupListeners.set(`info_${callback}`, wrapper);
+      socket.on("group_info_update", wrapper);
+    }
   },
 
   offGroupInfoUpdate: (callback) => {
-    if (socket) socket.off("group_info_update", callback);
+    if (socket) {
+      const wrapper = groupListeners.get(`info_${callback}`);
+      if (wrapper) {
+        socket.off("group_info_update", wrapper);
+        groupListeners.delete(`info_${callback}`);
+      }
+    }
   },
 
   // Helpers Generic

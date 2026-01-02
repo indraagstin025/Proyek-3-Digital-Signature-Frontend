@@ -121,6 +121,7 @@ const DashboardPage = ({ theme, toggleTheme }) => {
         userAvatar={userData?.profilePictureUrl}
         // 🔥 [UPDATE] Oper status via Props agar Reaktif
         isPremium={isPremium}
+        premiumUntil={userData?.premiumUntil}
         isOpen={isSidebarOpen}
         activePage={activePage}
         onClose={() => setIsSidebarOpen(false)}

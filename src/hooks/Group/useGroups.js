@@ -87,28 +87,24 @@ export const useRemoveMember = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ groupId, userIdToRemove }) => 
-      groupService.removeMember(groupId, userIdToRemove),
+    mutationFn: ({ groupId, userIdToRemove }) => groupService.removeMember(groupId, userIdToRemove),
 
     onSuccess: (data, variables) => {
       const gId = Number(variables.groupId);
       const userIdToRemove = variables.userIdToRemove;
       queryClient.setQueryData(["group", gId], (oldGroupData) => {
         if (!oldGroupData) return oldGroupData;
-        const updatedMembers = oldGroupData.members.filter(
-          (m) => m.user.id !== userIdToRemove
-        );
+        const updatedMembers = oldGroupData.members.filter((m) => m.user.id !== userIdToRemove);
 
         const updatedDocuments = oldGroupData.documents.map((doc) => {
           if (!doc.signerRequests) return doc;
 
           const newSignerRequests = doc.signerRequests.filter((signer) => {
             if (signer.userId === userIdToRemove) {
- 
               if (signer.status === "PENDING") {
-                return false; 
+                return false;
               }
-              return true; 
+              return true;
             }
             return true;
           });
@@ -125,8 +121,8 @@ export const useRemoveMember = () => {
         };
       });
 
-      toast.success("Anggota berhasil dikeluarkan.", { 
-        id: `remove-member-${userIdToRemove}` 
+      toast.success("Anggota berhasil dikeluarkan.", {
+        id: `remove-member-${userIdToRemove}`,
       });
     },
 
@@ -154,8 +150,8 @@ export const useUpdateGroup = () => {
       });
 
       // ✅ FIX: ID unik per grup
-      toast.success("Nama grup berhasil diperbarui!", { 
-        id: `update-group-${variables.groupId}` 
+      toast.success("Nama grup berhasil diperbarui!", {
+        id: `update-group-${variables.groupId}`,
       });
     },
     onError: (error) => {
@@ -173,12 +169,12 @@ export const useDeleteGroup = () => {
     onSuccess: (data, groupId) => {
       queryClient.removeQueries({ queryKey: ["group", groupId] });
       queryClient.invalidateQueries({ queryKey: ["groups"] });
-      
+
       navigate("/dashboard/workspaces");
-      
+
       // ✅ FIX: ID unik
-      toast.success("Grup berhasil dihapus.", { 
-        id: `delete-group-${groupId}` 
+      toast.success("Grup berhasil dihapus.", {
+        id: `delete-group-${groupId}`,
       });
     },
     onError: (error) => {
@@ -205,10 +201,10 @@ export const useAssignDocumentToGroup = () => {
       });
 
       queryClient.invalidateQueries({ queryKey: ["group", variables.groupId] });
-      
+
       // ✅ FIX: ID unik per dokumen
-      toast.success("Dokumen berhasil ditambahkan ke grup!", { 
-        id: `assign-doc-${variables.documentId}` 
+      toast.success("Dokumen berhasil ditambahkan ke grup!", {
+        id: `assign-doc-${variables.documentId}`,
       });
     },
     onError: (error) => {
@@ -234,8 +230,8 @@ export const useUnassignDocumentFromGroup = () => {
       });
 
       // ✅ FIX: ID unik
-      toast.success("Dokumen berhasil dilepaskan dari grup.", { 
-        id: `unassign-doc-${variables.documentId}` 
+      toast.success("Dokumen berhasil dilepaskan dari grup.", {
+        id: `unassign-doc-${variables.documentId}`,
       });
     },
     onError: (error) => {
@@ -249,8 +245,7 @@ export const useUploadGroupDocument = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ groupId, file, title, signerUserIds }) => 
-      groupService.uploadGroupDocument(groupId, file, title, signerUserIds),
+    mutationFn: ({ groupId, file, title, signerUserIds }) => groupService.uploadGroupDocument(groupId, file, title, signerUserIds),
 
     onSuccess: (newDocument, variables) => {
       const gId = Number(variables.groupId);
@@ -262,9 +257,9 @@ export const useUploadGroupDocument = () => {
           documents: [newDocument, ...oldGroupData.documents],
         };
       });
-  
+
       queryClient.invalidateQueries({ queryKey: ["group", gId] });
-      toast.success("Dokumen berhasil diupload!", { id: "upload-doc-success" });
+      // Toast dihilangkan - notifikasi akan datang dari socket untuk user lain
     },
 
     onError: (error) => {
@@ -339,8 +334,8 @@ export const useUpdateDocumentSigners = () => {
         });
       }
 
-      toast.success("Daftar penanda tangan diperbarui!", { 
-        id: `update-signer-${variables.documentId}` 
+      toast.success("Daftar penanda tangan diperbarui!", {
+        id: `update-signer-${variables.documentId}`,
       });
     },
   });
@@ -376,9 +371,9 @@ export const useFinalizeDocument = () => {
       queryClient.invalidateQueries({ queryKey: ["document", variables.documentId] });
 
       // ✅ FIX: ID unik
-      toast.success("Dokumen berhasil difinalisasi!", { 
+      toast.success("Dokumen berhasil difinalisasi!", {
         icon: "✅",
-        id: `finalize-${variables.documentId}`
+        id: `finalize-${variables.documentId}`,
       });
     },
 
@@ -407,10 +402,10 @@ export const useDeleteGroupDocument = () => {
       });
 
       queryClient.invalidateQueries({ queryKey: ["group", gId] });
-      
+
       // ✅ FIX: ID unik
-      toast.success("Dokumen berhasil dihapus permanen.", { 
-        id: `delete-doc-${variables.documentId}` 
+      toast.success("Dokumen berhasil dihapus permanen.", {
+        id: `delete-doc-${variables.documentId}`,
       });
     },
     onError: (error) => {

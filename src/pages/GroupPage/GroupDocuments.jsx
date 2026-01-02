@@ -156,7 +156,9 @@ export const GroupDocuments = ({ documents, groupId, groupData, members, current
         <ManageSignersModal isOpen={isManageSignersOpen} onClose={() => setIsManageSignersOpen(false)} groupId={groupId} documentId={selectedDocForEdit.id} currentSigners={selectedDocForEdit.signerRequests || []} members={members} />
       )}
 
-      {isManagementModalOpen && DocumentManagementModal && <DocumentManagementModal mode="update" initialDocument={selectedDocForManage} currentUser={currentUser} onClose={() => setIsManagementModalOpen(false)} onSuccess={() => {}} />}
+      {isManagementModalOpen && DocumentManagementModal && (
+        <DocumentManagementModal mode="view" initialDocument={selectedDocForManage} currentUser={currentUser} onClose={() => setIsManagementModalOpen(false)} onSuccess={() => {}} initialTab="history" />
+      )}
 
       <ConfirmationModal
         isOpen={isConfirmOpen}

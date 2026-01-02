@@ -1,11 +1,7 @@
 /* eslint-disable no-unused-vars */
 import axios from "axios";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.MODE === "production"
-    ? "https://api.moodvis.my.id/api"
-    : "http://localhost:3000/api");
+const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.MODE === "production" ? "https://api.moodvis.my.id/api" : "http://localhost:3000/api");
 
 // 1. Setup Instance Utama
 const apiClient = axios.create({
@@ -23,6 +19,23 @@ export const apiFileClient = axios.create({
   timeout: 30000,
 });
 
+// ============================================================
+// 3. REFRESH TOKEN QUEUE - Mengatasi Race Condition
+// ============================================================
+// Jika multiple request gagal dengan 401 bersamaan, hanya 1 yang akan
+// memicu refresh di backend. Request lainnya akan menunggu dan retry.
+let isRefreshing = false;
+let refreshSubscribers = [];
+
+const subscribeToRefresh = (callback) => {
+  refreshSubscribers.push(callback);
+};
+
+const onRefreshComplete = (success) => {
+  refreshSubscribers.forEach((callback) => callback(success));
+  refreshSubscribers = [];
+};
+
 // --- REQUEST INTERCEPTOR (DIBERSIHKAN) ---
 // Kita HAPUS logika penyuntikan header 'Authorization'.
 // Biarkan backend membaca token HANYA dari Cookie.
@@ -38,18 +51,13 @@ apiClient.interceptors.request.use(
 // --- RESPONSE INTERCEPTOR ---
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
-    const { code, message, response } = error;
+  async (error) => {
+    const { code, message, response, config } = error;
 
     // 1. Cek Koneksi / Offline / Timeout
     // Mengembalikan pesan standar "Offline-Detected" agar Service/Hook bisa menangani UI-nya.
-    if (
-      code === "ECONNABORTED" || 
-      code === "ERR_NETWORK" || 
-      message?.includes("timeout") ||
-      (typeof navigator !== "undefined" && !navigator.onLine)
-    ) {
-        return Promise.reject(new Error("Offline-Detected"));
+    if (code === "ECONNABORTED" || code === "ERR_NETWORK" || message?.includes("timeout") || (typeof navigator !== "undefined" && !navigator.onLine)) {
+      return Promise.reject(new Error("Offline-Detected"));
     }
 
     // 2. Handle Cancel Request
@@ -60,17 +68,74 @@ apiClient.interceptors.response.use(
     // 3. Handle HTTP Errors (401, 403, 500)
     if (response) {
       const status = response.status;
-      
-      // Deteksi Session Expired (401)
+      const data = response.data;
+
+      // ============================================================
+      // DETEKSI 401 - RETRY LOGIC UNTUK RACE CONDITION
+      // ============================================================
       if (status === 401) {
-        // Cek apakah response body mengindikasikan token invalid
-        // Backend Anda mengirim: { code: 'SESSION_EXPIRED', ... }
-        const data = response.data;
-        
-        // Trigger event logout global jika sesi benar-benar habis (Refresh Token mati)
-        if (data?.code === 'SESSION_EXPIRED' || data?.message?.toLowerCase().includes("sesi berakhir")) {
-             console.warn("🔒 Session expired via 401. Triggering logout...");
-             window.dispatchEvent(new CustomEvent("sessionExpired"));
+        // Jangan retry jika sudah pernah retry (hindari infinite loop)
+        if (config._retry) {
+          console.warn("🔒 Retry sudah dilakukan, tetap 401. Triggering logout...");
+          window.dispatchEvent(new CustomEvent("sessionExpired"));
+          return Promise.reject(error);
+        }
+
+        // Cek apakah ini MISSING_TOKEN (belum ada cookie) atau SESSION_EXPIRED (refresh gagal total)
+        const errorCode = data?.code || "";
+
+        // Jika SESSION_EXPIRED dengan refresh token gagal, logout langsung
+        if (errorCode === "SESSION_EXPIRED") {
+          console.warn("🔒 Session expired (refresh gagal). Triggering logout...");
+          window.dispatchEvent(new CustomEvent("sessionExpired"));
+          return Promise.reject(error);
+        }
+
+        // Jika MISSING_TOKEN atau token invalid, coba retry sekali
+        // (kemungkinan race condition - request lain sedang refresh)
+        config._retry = true;
+
+        // Jika sudah ada proses refresh yang berjalan, tunggu
+        if (isRefreshing) {
+          console.log("⏳ Menunggu refresh dari request lain...");
+          return new Promise((resolve, reject) => {
+            subscribeToRefresh((success) => {
+              if (success) {
+                // Retry request asli
+                resolve(apiClient(config));
+              } else {
+                reject(error);
+              }
+            });
+          });
+        }
+
+        // Tandai sedang refresh
+        isRefreshing = true;
+        console.log("🔄 Mencoba retry request setelah delay singkat...");
+
+        // Delay singkat untuk memberi waktu cookie ter-set dari request sebelumnya
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        try {
+          // Retry request
+          const retryResponse = await apiClient(config);
+
+          // Berhasil! Notify subscribers
+          onRefreshComplete(true);
+          return retryResponse;
+        } catch (retryError) {
+          // Gagal juga, notify subscribers
+          onRefreshComplete(false);
+
+          // Jika masih 401 setelah retry, trigger logout
+          if (retryError.response?.status === 401) {
+            console.warn("🔒 Retry tetap gagal 401. Triggering logout...");
+            window.dispatchEvent(new CustomEvent("sessionExpired"));
+          }
+          return Promise.reject(retryError);
+        } finally {
+          isRefreshing = false;
         }
       }
 

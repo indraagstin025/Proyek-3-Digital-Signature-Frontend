@@ -149,8 +149,16 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
             objectUrl = URL.createObjectURL(blob);
             setPdfFile(objectUrl);
           } catch (pdfError) {
+            // ✅ Cek semua kemungkinan abort/cancel error
+            const isAborted = pdfError.name === "AbortError" || pdfError.message?.includes("aborted") || pdfError.message?.includes("canceled") || controller.signal.aborted;
+
+            if (isAborted) {
+              // Ini normal saat komponen unmount, tidak perlu log error
+              return;
+            }
+
             console.error("PDF fetch error:", pdfError);
-            if (isMounted && pdfError.name !== "AbortError") {
+            if (isMounted) {
               toast.error("Gagal memuat file PDF.");
             }
           }

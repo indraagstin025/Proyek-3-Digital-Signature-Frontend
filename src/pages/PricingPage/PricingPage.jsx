@@ -1,18 +1,20 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { FiCheck, FiArrowRight, FiZap, FiStar, FiShield, FiCpu } from "react-icons/fi";
+import { FaSpinner } from "react-icons/fa"; // [BARU] Import Spinner
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import paymentService from "../../services/paymentService";
 import apiClient from "../../services/apiClient";
 
 // --- MIDTRANS CONFIG (KHUSUS VITE) ---
-// Menggunakan import.meta.env untuk Vite
 const MIDTRANS_CLIENT_KEY = import.meta.env.VITE_MIDTRANS_CLIENT_KEY;
 const MIDTRANS_SCRIPT_URL = import.meta.env.VITE_MIDTRANS_SNAP_URL || "https://app.sandbox.midtrans.com/snap/snap.js"; 
 
 // --- COMPONENT: PricingCard (Compact Version) ---
-const PricingCard = ({ title, price, features, isPremium, onAction, buttonText = "Pilih Paket", index, isYearly }) => {
+// [UPDATE] Menerima props 'isLoading'
+const PricingCard = ({ title, price, features, isPremium, onAction, buttonText = "Pilih Paket", index, isYearly, isLoading }) => {
   const displayPrice = isYearly && price !== "Rp 0" ? `Rp ${(parseInt(price.replace(/\D/g, "")) * 10).toLocaleString("id-ID")}` : price;
 
   return (
@@ -66,15 +68,25 @@ const PricingCard = ({ title, price, features, isPremium, onAction, buttonText =
 
       <button
         onClick={onAction}
+        disabled={isLoading} // [UPDATE] Disable button saat loading
         className={`relative w-full py-3.5 px-6 rounded-2xl font-bold text-sm uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-2 overflow-hidden group ${
           isPremium ? "bg-white text-blue-600 hover:bg-slate-50 shadow-xl hover:shadow-2xl" : "bg-slate-900 dark:bg-blue-600 text-white hover:bg-slate-800 dark:hover:bg-blue-700 shadow-lg"
-        }`}
+        } ${isLoading ? "opacity-80 cursor-not-allowed" : ""}`}
       >
         <span className="relative z-10 flex items-center gap-2 font-bold">
-          {buttonText}
-          <FiArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+          {isLoading ? (
+            <>
+              <FaSpinner className="w-4 h-4 animate-spin" />
+              <span>Memproses...</span>
+            </>
+          ) : (
+            <>
+              {buttonText}
+              <FiArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </>
+          )}
         </span>
-        <div className={`absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity bg-current`} />
+        {!isLoading && <div className={`absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity bg-current`} />}
       </button>
     </motion.div>
   );
@@ -85,10 +97,12 @@ const PricingPage = () => {
   const navigate = useNavigate();
   const [isYearly, setIsYearly] = useState(false);
   const [isSnapLoaded, setIsSnapLoaded] = useState(false);
+  
+  // [BARU] State untuk melacak paket mana yang sedang diproses
+  // Bernilai 'PREMIUM_MONTHLY', 'PREMIUM_YEARLY', atau null
+  const [processingPlan, setProcessingPlan] = useState(null);
 
-  // --- MEMUAT SCRIPT MIDTRANS (VITE COMPATIBLE) ---
   useEffect(() => {
-    // Safety check: Pastikan KEY ada
     if (!MIDTRANS_CLIENT_KEY) {
         console.error("VITE_MIDTRANS_CLIENT_KEY tidak ditemukan di .env");
         toast.error("Konfigurasi pembayaran belum lengkap.");
@@ -104,7 +118,6 @@ const PricingPage = () => {
 
     const script = document.createElement("script");
     script.src = MIDTRANS_SCRIPT_URL;
-    // Penting: Masukkan Client Key dari variable
     script.setAttribute("data-client-key", MIDTRANS_CLIENT_KEY);
     script.async = true;
     
@@ -133,33 +146,42 @@ const PricingPage = () => {
         return;
     }
 
+    if (processingPlan) return; 
+
     console.log(`[DEBUG] Memulai upgrade ke: ${planType}`);
+    
+    setProcessingPlan(planType);
     const loadingToast = toast.loading("Menyiapkan pembayaran...");
     let currentOrderId = null;
 
     try {
-      // 1. Request Token ke Backend
       const data = await paymentService.createSubscription(planType);
       currentOrderId = data.orderId;
 
       console.log("[DEBUG] Snap Token diterima:", data.snapToken);
 
-      // 2. Munculkan Popup Snap
       window.snap.pay(data.snapToken, {
         onSuccess: async (result) => {
           console.log("[PAYMENT] Success:", result);
-          toast.loading("Verifikasi pembayaran...", { id: loadingToast });
+          
+          // 1. Dismiss loading awal
+          toast.dismiss(loadingToast);
+
+          // 2. Tampilkan Toast Verifikasi (Agar user tahu sedang loading)
+          const verifyToast = toast.loading("Pembayaran diterima! Memverifikasi status premium...");
           
           try {
-            // Polling untuk update status user secara real-time di UI
+            // Polling: Cek status ke backend
             let attempts = 0;
-            const maxAttempts = 10;
+            const maxAttempts = 5; // Kurangi jadi 5x saja biar ga kelamaan nunggu
             let isPremium = false;
             let updatedUser = null;
 
             while (attempts < maxAttempts && !isPremium) {
-              await new Promise((resolve) => setTimeout(resolve, 1500)); // Delay sedikit lebih lama
+              await new Promise((resolve) => setTimeout(resolve, 2000)); // Cek tiap 2 detik
               attempts++;
+              
+              // Bypass Cache browser dengan timestamp
               const response = await apiClient.get(`/users/me?t=${Date.now()}`);
               updatedUser = response.data?.data;
               
@@ -168,32 +190,54 @@ const PricingPage = () => {
               }
             }
 
-            if (isPremium && updatedUser) {
-              const oldAuthData = JSON.parse(localStorage.getItem("authUser") || "{}");
-              const newAuthData = { ...oldAuthData, user: { ...(oldAuthData.user || oldAuthData), ...updatedUser } };
-              localStorage.setItem("authUser", JSON.stringify(newAuthData));
-              window.dispatchEvent(new Event("storage"));
-
-              toast.success("Upgrade Berhasil! Selamat datang di Premium.", { id: loadingToast });
-              setTimeout(() => window.location.href = "/dashboard", 1000);
-            } else {
-              toast.success("Pembayaran diterima. Mohon tunggu update status.", { id: loadingToast });
-              setTimeout(() => window.location.href = "/dashboard", 1500);
+            // 3. Update Local Storage & Redirect
+            if (updatedUser) {
+               const oldAuthData = JSON.parse(localStorage.getItem("authUser") || "{}");
+               // Merge data baru (terutama userStatus & premiumUntil)
+               const newAuthData = { 
+                   ...oldAuthData, 
+                   user: { ...(oldAuthData.user || oldAuthData), ...updatedUser } 
+               };
+               localStorage.setItem("authUser", JSON.stringify(newAuthData));
+               
+               // Trigger event agar Sidebar/Header langsung update tanpa refresh
+               window.dispatchEvent(new Event("storage"));
             }
+
+            toast.dismiss(verifyToast);
+
+            if (isPremium) {
+              toast.success("Upgrade Berhasil! Mengalihkan...", { duration: 3000 });
+            } else {
+              // Jika Webhook belum masuk (Localhost issue), beri info ini
+              toast.success("Pembayaran berhasil! Status akan update sebentar lagi.", { icon: "⏳" });
+            }
+
+            // 4. Force Redirect (Apapun yang terjadi, pindahkan user)
+            setTimeout(() => {
+                window.location.href = "/dashboard";
+            }, 1000);
+
           } catch (updateError) {
             console.error(updateError);
-            toast.dismiss(loadingToast);
+            toast.dismiss(verifyToast);
             window.location.href = "/dashboard";
+          } finally {
+            setProcessingPlan(null);
           }
         },
         onPending: (result) => {
           console.log("[PAYMENT] Pending:", result);
-          toast.success("Menunggu pembayaran...", { id: loadingToast });
+          toast.dismiss(loadingToast);
+          toast("Menunggu pembayaran...", { icon: "⏳" });
+          setProcessingPlan(null);
           setTimeout(() => window.location.href = "/dashboard", 1000);
         },
         onError: (result) => {
           console.error("[PAYMENT] Error:", result);
-          toast.error("Pembayaran Gagal/Ditolak.", { id: loadingToast });
+          toast.dismiss(loadingToast);
+          toast.error("Pembayaran Gagal/Ditolak.");
+          setProcessingPlan(null);
         },
         onClose: async () => {
           console.log("[PAYMENT] Closed without finishing");
@@ -205,11 +249,14 @@ const PricingPage = () => {
           } else {
             toast.dismiss(loadingToast);
           }
+          setProcessingPlan(null);
         },
       });
     } catch (error) {
       console.error(error);
-      toast.error("Gagal memulai transaksi. Coba lagi nanti.", { id: loadingToast });
+      toast.dismiss(loadingToast); // Pastikan toast loading hilang kalau error
+      toast.error("Gagal memulai transaksi. Coba lagi nanti.");
+      setProcessingPlan(null);
     }
   };
 
@@ -227,6 +274,7 @@ const PricingPage = () => {
       ],
       onAction: () => navigate("/dashboard"),
       buttonText: "Tetap Free",
+      planId: "FREE" // Identifier untuk free
     },
     {
       title: "PRO TIER",
@@ -242,6 +290,7 @@ const PricingPage = () => {
       ],
       onAction: () => handlePremiumUpgrade(isYearly ? "PREMIUM_YEARLY" : "PREMIUM_MONTHLY"),
       buttonText: "Upgrade Sekarang",
+      planId: isYearly ? "PREMIUM_YEARLY" : "PREMIUM_MONTHLY" // Identifier untuk premium
     },
   ];
 
@@ -295,7 +344,14 @@ const PricingPage = () => {
 
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 0.4 }} className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mb-16 md:mb-20">
           {tiers.map((tier, index) => (
-            <PricingCard key={index} {...tier} index={index} isYearly={isYearly} />
+            <PricingCard 
+              key={index} 
+              {...tier} 
+              index={index} 
+              isYearly={isYearly} 
+              // [UPDATE] Pass prop isLoading jika planId cocok dengan yang sedang diproses
+              isLoading={processingPlan === tier.planId}
+            />
           ))}
         </motion.div>
 
