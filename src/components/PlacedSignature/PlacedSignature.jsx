@@ -1,17 +1,22 @@
+// file: src/components/PlacedSignature/PlacedSignature.jsx
+
 import React, { useEffect, useRef, useState } from "react";
 import interact from "interactjs";
-import { FaTimes } from "react-icons/fa";
+import { FaTimes, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
-// Konstanta Ukuran (Harus sesuai dengan CSS Padding)
 const CSS_PADDING = 12;
 const CSS_BORDER = 1;
-const CONTENT_OFFSET = CSS_PADDING + CSS_BORDER; // 13px
-const TOTAL_REDUCTION = CONTENT_OFFSET * 2; // 26px
+const CONTENT_OFFSET = CSS_PADDING + CSS_BORDER;
+const TOTAL_REDUCTION = CONTENT_OFFSET * 2;
 
-const PlacedSignature = ({ signature, onUpdate, onDelete, readOnly = false, documentId }) => {
+const PlacedSignature = ({ signature, onUpdate, onDelete, readOnly = false, documentId, totalPages = 1, isSelected = false, onSelect = () => {} }) => {
   const elementRef = useRef(null);
 
-  
+  const propsRef = useRef({ onUpdate, onSelect, onDelete, signature, totalPages });
+  useEffect(() => {
+    propsRef.current = { onUpdate, onSelect, onDelete, signature, totalPages };
+  }, [onUpdate, onSelect, onDelete, signature, totalPages]);
+
   const positionRef = useRef({
     x: signature.x_display || 0,
     y: signature.y_display || 0,
@@ -19,14 +24,12 @@ const PlacedSignature = ({ signature, onUpdate, onDelete, readOnly = false, docu
     h: signature.height_display || 0,
   });
 
-  // State Interaction
-  const [isActive, setIsActive] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
 
-  // -----------------------------------------------------------------------
-  // INIT POSITION (Saat pertama kali load halaman)
-  // -----------------------------------------------------------------------
+  const isActive = isSelected || isDragging || isResizing;
+
+  // --- INIT POSITION (WAJIB PIXEL PRIORITY) ---
   useEffect(() => {
     const element = elementRef.current;
     if (!element || !element.parentElement) return;
@@ -36,13 +39,25 @@ const PlacedSignature = ({ signature, onUpdate, onDelete, readOnly = false, docu
       if (parentRect.width < 50) return;
 
       const isMine = !readOnly;
-      // Jika punya kita, sudah ada posisi di layar, dan sedang aktif -> Jangan reset
-      if (isMine && positionRef.current.w > 0 && (isDragging || isResizing || isActive)) {
+      if (isMine && positionRef.current.w > 0 && (isDragging || isResizing)) {
         return;
       }
 
-      // Gunakan data props (dari DB) jika valid
-      if (signature.positionX !== null && !isNaN(signature.positionX)) {
+      // Gunakan data pixel (x_display) agar sinkron dengan Marquee
+      if (signature.x_display != null && signature.y_display != null && signature.width_display != null && signature.height_display != null) {
+        positionRef.current = {
+          x: signature.x_display,
+          y: signature.y_display,
+          w: signature.width_display,
+          h: signature.height_display,
+        };
+
+        element.style.transform = `translate(${signature.x_display}px, ${signature.y_display}px)`;
+        element.style.width = `${signature.width_display}px`;
+        element.style.height = `${signature.height_display}px`;
+      }
+      // Fallback ke persen (untuk data legacy)
+      else if (signature.positionX !== null && !isNaN(signature.positionX)) {
         const calculatedX = signature.positionX * parentRect.width - CONTENT_OFFSET;
         const calculatedY = signature.positionY * parentRect.height - CONTENT_OFFSET;
         const calculatedW = signature.width * parentRect.width + TOTAL_REDUCTION;
@@ -57,37 +72,12 @@ const PlacedSignature = ({ signature, onUpdate, onDelete, readOnly = false, docu
 
     const resizeObserver = new ResizeObserver(() => calculatePosition());
     resizeObserver.observe(element.parentElement);
-    calculatePosition(); // Run once immediately
+    calculatePosition();
 
     return () => resizeObserver.disconnect();
-  }, [
-    signature.id,
-    signature.positionX,
-    signature.positionY,
-    signature.width,
-    signature.height,
-    readOnly,
-    isDragging,
-    isResizing,
-    isActive, // Dependencies
-  ]);
+  }, [signature.x_display, signature.y_display, signature.width_display, signature.height_display, signature.id, signature.positionX, signature.positionY, signature.width, signature.height, readOnly, isDragging, isResizing]);
 
-  // -----------------------------------------------------------------------
-  // HANDLE CLICK OUTSIDE
-  // -----------------------------------------------------------------------
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (elementRef.current && !elementRef.current.contains(e.target)) {
-        setIsActive(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  // -----------------------------------------------------------------------
-  // INTERACT.JS CONFIGURATION (Drag & Resize Lokal)
-  // -----------------------------------------------------------------------
+  // --- INTERACT.JS SETUP ---
   useEffect(() => {
     const element = elementRef.current;
     if (!element || readOnly) return;
@@ -97,11 +87,10 @@ const PlacedSignature = ({ signature, onUpdate, onDelete, readOnly = false, docu
         listeners: {
           start(event) {
             setIsDragging(true);
-            setIsActive(true);
+            propsRef.current.onSelect(propsRef.current.signature.id, event.shiftKey);
             event.target.style.cursor = "grabbing";
           },
           move(event) {
-            // Update posisi ref lokal
             positionRef.current.x += event.dx;
             positionRef.current.y += event.dy;
             event.target.style.transform = `translate(${positionRef.current.x}px, ${positionRef.current.y}px)`;
@@ -109,19 +98,16 @@ const PlacedSignature = ({ signature, onUpdate, onDelete, readOnly = false, docu
           end(event) {
             setIsDragging(false);
             event.target.style.cursor = "grab";
-
-            // Update ke Parent React State (untuk save ke DB nanti)
             const parent = event.target.parentElement;
             if (!parent) return;
             const parentRect = parent.getBoundingClientRect();
-
             const realImageW = positionRef.current.w - TOTAL_REDUCTION;
             const realImageH = positionRef.current.h - TOTAL_REDUCTION;
             const realImageX = positionRef.current.x + CONTENT_OFFSET;
             const realImageY = positionRef.current.y + CONTENT_OFFSET;
 
-            onUpdate({
-              ...signature,
+            propsRef.current.onUpdate({
+              ...propsRef.current.signature,
               x_display: positionRef.current.x,
               y_display: positionRef.current.y,
               width_display: positionRef.current.w,
@@ -134,74 +120,58 @@ const PlacedSignature = ({ signature, onUpdate, onDelete, readOnly = false, docu
           },
         },
         inertia: true,
-        modifiers: [interact.modifiers.restrictRect({ restriction: "parent", endOnly: true })],
+        modifiers: [interact.modifiers.restrictRect({ restriction: "parent", endOnly: false })],
       })
       .resizable({
         edges: { left: true, right: true, bottom: true, top: true },
         listeners: {
-          start() {
+          start(event) {
             setIsResizing(true);
+            propsRef.current.onSelect(propsRef.current.signature.id, event.shiftKey);
           },
           move(event) {
             const { x: oldX, y: oldY, w: oldW, h: oldH } = positionRef.current;
             const { deltaRect, edges } = event;
-
-            // Hitung ukuran baru
             let newWidth = oldW - (deltaRect.left || 0) + (deltaRect.right || 0);
             let newHeight = oldH - (deltaRect.top || 0) + (deltaRect.bottom || 0);
-            newWidth = Math.max(newWidth, 80); // Min size outer
+            newWidth = Math.max(newWidth, 80);
             newHeight = Math.max(newHeight, 50);
 
-            // Maintain Aspect Ratio (jika ada)
             const imgRatio = parseFloat(event.target.dataset.ratio) || (oldW > TOTAL_REDUCTION && oldH > TOTAL_REDUCTION ? (oldW - TOTAL_REDUCTION) / (oldH - TOTAL_REDUCTION) : null);
-
             if (imgRatio) {
               let innerW = newWidth - TOTAL_REDUCTION;
               let innerH = newHeight - TOTAL_REDUCTION;
-              if (edges.top || edges.bottom) {
-                innerW = innerH * imgRatio;
-              } else {
-                innerH = innerW / imgRatio;
-              }
+              if (edges.top || edges.bottom) innerW = innerH * imgRatio;
+              else innerH = innerW / imgRatio;
               newWidth = innerW + TOTAL_REDUCTION;
               newHeight = innerH + TOTAL_REDUCTION;
             }
 
-            // Adjust posisi jika resize dari kiri/atas
             let x = oldX;
             let y = oldY;
             if (edges.left) x = oldX + oldW - newWidth;
             if (edges.top) y = oldY + oldH - newHeight;
 
-            // Apply ke DOM & Ref
             positionRef.current = { x, y, w: newWidth, h: newHeight };
             Object.assign(event.target.style, {
               width: `${newWidth}px`,
               height: `${newHeight}px`,
               transform: `translate(${x}px, ${y}px)`,
             });
-
-            // Kirim Socket
-            if (documentId) {
-              const parent = event.target.parentElement;
-              if (!parent) return;
-              const parentRect = parent.getBoundingClientRect();
-            }
           },
           end(event) {
             setIsResizing(false);
             const parent = event.target.parentElement;
             if (!parent) return;
             const parentRect = parent.getBoundingClientRect();
-
             const { x, y, w, h } = positionRef.current;
             const realImageW = w - TOTAL_REDUCTION;
             const realImageH = h - TOTAL_REDUCTION;
             const realImageX = x + CONTENT_OFFSET;
             const realImageY = y + CONTENT_OFFSET;
 
-            onUpdate({
-              ...signature,
+            propsRef.current.onUpdate({
+              ...propsRef.current.signature,
               width_display: w,
               height_display: h,
               x_display: x,
@@ -217,14 +187,20 @@ const PlacedSignature = ({ signature, onUpdate, onDelete, readOnly = false, docu
       });
 
     return () => interactable.unset();
-  }, [readOnly, signature.id, onUpdate, documentId]);
+  }, [readOnly, documentId]);
 
-  // -----------------------------------------------------------------------
-  // RENDER JSX
-  // -----------------------------------------------------------------------
+  // --- Handlers ---
+  const handlePageChange = (newPage) => {
+    const { signature, totalPages, onUpdate } = propsRef.current;
+    if (newPage < 1 || newPage > totalPages) return;
+    onUpdate({ ...signature, pageNumber: newPage });
+  };
+
+  const handleDelete = () => {
+    propsRef.current.onDelete(propsRef.current.signature.id);
+  };
+
   const handleStyle = "absolute w-3 h-3 bg-white border border-blue-600 rounded-full z-[60] pointer-events-auto";
-
-  // Style border dinamis
   let borderClass = "";
   if (isActive && !readOnly) borderClass = "border border-blue-500";
   else if (!readOnly) borderClass = "hover:border hover:border-blue-300 hover:border-dashed";
@@ -233,48 +209,89 @@ const PlacedSignature = ({ signature, onUpdate, onDelete, readOnly = false, docu
     <div
       ref={elementRef}
       data-ratio={signature.ratio || ""}
-      className={`absolute select-none touch-none group flex flex-col ${isActive ? "z-50" : "z-10"}`}
+      data-id={signature.id}
+      className={`placed-signature absolute select-none touch-none group flex flex-col ${isActive ? "z-50" : "z-20"}`}
       style={{
         left: 0,
         top: 0,
-        // Gunakan posisi dari REF untuk render awal, selanjutnya dimanipulasi DOM
         transform: `translate(${positionRef.current.x}px, ${positionRef.current.y}px)`,
-        // Transisi halus hanya jika bukan drag (agar responsif saat drag)
         transition: isDragging || isResizing ? "none" : "transform 0.1s linear",
         width: positionRef.current.w ? `${positionRef.current.w}px` : "auto",
         height: positionRef.current.h ? `${positionRef.current.h}px` : "auto",
         cursor: readOnly ? "default" : isDragging ? "grabbing" : "grab",
       }}
-      data-id={signature.id}
       onMouseDown={(e) => {
         if (!readOnly) {
-          e.stopPropagation();
-          setIsActive(true);
+          console.log(`✋ SELECT: Signature ${signature.id} (mouse)`);
+          onSelect(signature.id, e.shiftKey);
         }
       }}
-      onTouchStart={(e) => {
-        if (!readOnly) {
-          e.stopPropagation();
-          setIsActive(true);
-        }
-      }}
+      // ❌ HAPUS onPointerDown yang stopPropagation, karena menganggu interact.js drag
+      // Marquee selection sudah ada check: if (e.target.closest(".placed-signature")) return;
+      // Jadi tidak perlu stopPropagation di sini. Event akan flow ke interact.js untuk drag detection.
     >
       <div style={{ padding: `${CSS_PADDING}px` }} className={`relative w-full h-full flex items-center justify-center transition-all duration-100 ${borderClass}`}>
-        {/* Tombol Hapus (Hanya muncul jika aktif & milik sendiri) */}
+        {isActive && !readOnly && (
+          <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-white border border-slate-300 shadow-lg rounded-md p-1 z-[70] whitespace-nowrap">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePageChange(signature.pageNumber - 1);
+              }}
+              className="p-1.5 text-slate-600 hover:bg-slate-100 rounded disabled:opacity-30 transition-colors"
+              disabled={signature.pageNumber <= 1}
+            >
+              <FaChevronLeft size={10} />
+            </button>
+            <div className="h-4 w-[1px] bg-slate-200 mx-1"></div>
+            <div className="relative group/select">
+              <select
+                value={signature.pageNumber}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  handlePageChange(Number(e.target.value));
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                className="appearance-none bg-transparent font-bold text-xs text-slate-700 py-1 pl-2 pr-6 rounded hover:bg-slate-50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              >
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
+                  <option key={num} value={num}>
+                    Hal {num}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-1 top-1.5 pointer-events-none text-slate-400">
+                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </div>
+            </div>
+            <div className="h-4 w-[1px] bg-slate-200 mx-1"></div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePageChange(signature.pageNumber + 1);
+              }}
+              className="p-1.5 text-slate-600 hover:bg-slate-100 rounded disabled:opacity-30 transition-colors"
+              disabled={signature.pageNumber >= totalPages}
+            >
+              <FaChevronRight size={10} />
+            </button>
+          </div>
+        )}
+
         {isActive && !readOnly && (
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onDelete(signature.id);
+              handleDelete();
             }}
-            className="absolute -top-3 -right-3 w-6 h-6 bg-blue-600 text-white rounded-md flex items-center justify-center shadow-sm hover:bg-blue-700 z-[70] pointer-events-auto"
-            title="Hapus"
+            className="absolute -top-3 -right-3 w-6 h-6 bg-blue-600 text-white rounded-full border-2 border-white flex items-center justify-center shadow-md hover:bg-blue-700 z-[70] pointer-events-auto"
           >
-            <FaTimes size={12} />
+            <FaTimes size={10} />
           </button>
         )}
 
-        {/* Resize Handles */}
         {isActive && !readOnly && (
           <>
             <div className={`${handleStyle} -top-1.5 -left-1.5 cursor-nw-resize`}></div>
@@ -284,7 +301,6 @@ const PlacedSignature = ({ signature, onUpdate, onDelete, readOnly = false, docu
           </>
         )}
 
-        {/* Konten Gambar Tanda Tangan */}
         <div className={`w-full h-full relative overflow-hidden transition-colors duration-200 ${isActive && !readOnly ? "border-red-400 border" : "border-transparent"}`}>
           {signature.signatureImageUrl ? (
             <img
@@ -292,38 +308,30 @@ const PlacedSignature = ({ signature, onUpdate, onDelete, readOnly = false, docu
               alt="Signature"
               style={{ imageRendering: "high-quality", WebkitFontSmoothing: "antialiased" }}
               className="w-full h-full object-contain pointer-events-none select-none"
-              // Handler onLoad untuk set rasio awal (sama seperti kode lama)
               onLoad={(e) => {
                 const hasDbSize = signature.width && signature.width > 0;
                 const hasDisplaySize = positionRef.current.w > 0;
                 if (hasDbSize || hasDisplaySize) return;
-
                 const parentRect = elementRef.current?.parentElement?.getBoundingClientRect();
                 if (!parentRect) return;
-
                 const naturalWidth = e.target.naturalWidth;
                 const naturalHeight = e.target.naturalHeight;
                 const aspectRatio = naturalWidth / naturalHeight;
-
                 const defaultWidthDisplay = Math.max(parentRect.width * 0.2, 150);
                 const defaultHeightDisplay = defaultWidthDisplay / aspectRatio;
-
                 const innerW = defaultWidthDisplay - TOTAL_REDUCTION;
                 const innerH = innerW / aspectRatio;
                 const finalDisplayW = innerW + TOTAL_REDUCTION;
                 const finalDisplayH = innerH + TOTAL_REDUCTION;
-
                 positionRef.current.w = finalDisplayW;
                 positionRef.current.h = finalDisplayH;
-
                 elementRef.current.style.width = `${finalDisplayW}px`;
                 elementRef.current.style.height = `${finalDisplayH}px`;
-
                 if (!readOnly) {
                   const realX = positionRef.current.x + CONTENT_OFFSET;
                   const realY = positionRef.current.y + CONTENT_OFFSET;
-                  onUpdate({
-                    ...signature,
+                  propsRef.current.onUpdate({
+                    ...propsRef.current.signature,
                     width_display: finalDisplayW,
                     height_display: finalDisplayH,
                     ratio: aspectRatio,
@@ -331,6 +339,8 @@ const PlacedSignature = ({ signature, onUpdate, onDelete, readOnly = false, docu
                     height: innerH / parentRect.height,
                     positionX: realX / parentRect.width,
                     positionY: realY / parentRect.height,
+                    x_display: positionRef.current.x,
+                    y_display: positionRef.current.y,
                   });
                 }
               }}

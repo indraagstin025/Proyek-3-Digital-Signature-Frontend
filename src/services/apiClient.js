@@ -1,138 +1,149 @@
-/**
- * @file apiClient.js
- * @description Konfigurasi Axios final: aman dari error JSON.parse,
- * stabil, mendukung sesi cookie, link production/local otomatis,
- * fitur "Silent Check" untuk 401, DAN Handling Timeout/Network.
- */
-
+/* eslint-disable no-unused-vars */
 import axios from "axios";
-import { toast } from "react-hot-toast"; // 🔥 Tambahkan ini untuk feedback otomatis
 
-/* ============================================================
- * 1. KONFIGURASI BASE URL (DYNAMIC)
- * ============================================================ */
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.MODE === "production"
-    ? "https://api.moodvis.my.id/api"
-    : "http://localhost:3000/api");
+const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.MODE === "production" ? "https://api.moodvis.my.id/api" : "http://localhost:3000/api");
 
-console.log(`[API Client] Base URL: ${API_BASE_URL}`);
-
-/* ============================================================
- * AXIOS INSTANCE (JSON)
- * ============================================================ */
+// 1. Setup Instance Utama
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
-  withCredentials: true, // cookie session tetap dikirim
-  
-  // 🔥 FIX UTAMA: Timeout 10 Detik
-  // Jika server tidak merespon dalam 10 detik, batalkan request.
-  // Ini mencegah spinner berputar selamanya saat ganti halaman.
-  timeout: 300000, 
+  withCredentials: true, // PENTING: Ini yang membuat browser otomatis kirim Cookie
+  timeout: 15000,
 });
 
-/* ============================================================
- * OPTIONAL AXIOS INSTANCE (FILE / BLOB DOWNLOAD)
- * ============================================================ */
+// 2. Setup Instance Khusus File (Blob)
 export const apiFileClient = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true,
+  withCredentials: true, // PENTING
   responseType: "blob",
-  timeout: 30000, // File download butuh waktu lebih lama (30s)
+  timeout: 30000,
 });
 
-/* ============================================================
- * REQUEST INTERCEPTOR — AMAN
- * ============================================================ */
+// ============================================================
+// 3. REFRESH TOKEN QUEUE - Mengatasi Race Condition
+// ============================================================
+// Jika multiple request gagal dengan 401 bersamaan, hanya 1 yang akan
+// memicu refresh di backend. Request lainnya akan menunggu dan retry.
+let isRefreshing = false;
+let refreshSubscribers = [];
+
+const subscribeToRefresh = (callback) => {
+  refreshSubscribers.push(callback);
+};
+
+const onRefreshComplete = (success) => {
+  refreshSubscribers.forEach((callback) => callback(success));
+  refreshSubscribers = [];
+};
+
+// --- REQUEST INTERCEPTOR (DIBERSIHKAN) ---
+// Kita HAPUS logika penyuntikan header 'Authorization'.
+// Biarkan backend membaca token HANYA dari Cookie.
 apiClient.interceptors.request.use(
   (config) => {
-    const userString = localStorage.getItem("authUser");
-
-    if (userString) {
-      try {
-        const user = JSON.parse(userString);
-        if (user?.token) {
-          config.headers.Authorization = `Bearer ${user.token}`;
-        }
-      } catch (parseError) {
-        console.warn("[API] JSON.parse(authUser) gagal → token dihapus.");
-        localStorage.removeItem("authUser");
-      }
-    }
-
+    // Debugging (Opsional): Pastikan kredensial dikirim
+    // console.log(`🚀 Requesting: ${config.url}`);
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-/* ============================================================
- * RESPONSE INTERCEPTOR — STABIL & PINTAR
- * Menangani 401, network error, Timeout, dan Silent Check.
- * ============================================================ */
+// --- RESPONSE INTERCEPTOR ---
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     const { code, message, response, config } = error;
 
-    // 1. Cek apakah request dibatalkan (CancelToken) - Abaikan
+    // 1. Cek Koneksi / Offline / Timeout
+    // Mengembalikan pesan standar "Offline-Detected" agar Service/Hook bisa menangani UI-nya.
+    if (code === "ECONNABORTED" || code === "ERR_NETWORK" || message?.includes("timeout") || (typeof navigator !== "undefined" && !navigator.onLine)) {
+      return Promise.reject(new Error("Offline-Detected"));
+    }
+
+    // 2. Handle Cancel Request
     if (axios.isCancel(error) || code === "ERR_CANCELED") {
-      return new Promise(() => {});
+      return Promise.reject({ isCanceled: true, message: "Request canceled" });
     }
 
-    // 2. Cek apakah ini Request Khusus yang minta skip interceptor (Silent Check)
-    if (config && config._skipSessionCheck) {
-        return Promise.reject(error); 
-    }
-
-    // 3. 🔥 HANDLE TIMEOUT (Penyebab Loading Terus Menerus)
-    if (code === "ECONNABORTED" || message.includes("timeout")) {
-        console.error("[API] Request Timeout");
-        // Opsional: Toast hanya muncul jika bukan silent check
-        if (!config?._silent) toast.error("Koneksi lambat. Permintaan waktu habis.", {
-          id: "timeout-error" 
-        });
-
-        return Promise.reject(new Error("Request Timeout"));
-    }
-
-    // 4. 🔥 HANDLE NETWORK ERROR / OFFLINE
-    if (code === "ERR_NETWORK" || !response) {
-        console.error("[API] Network Error / Offline");
-        
-        const isOffline = !navigator.onLine;
-        const errorMsg = isOffline 
-            ? "Anda sedang offline. Periksa koneksi internet." 
-            : "Gagal terhubung ke server. Pastikan backend aktif.";
-
-        if (!config?._silent) toast.error(errorMsg, {
-          id: "network-error"
-        });
-        
-        // Kembalikan error standard agar UI bisa menangani (misal stop loading)
-        return Promise.reject(new Error(errorMsg));
-    }
-
-    // 5. Handle Response Error dari Server
+    // 3. Handle HTTP Errors (401, 403, 500)
     if (response) {
       const status = response.status;
-      const msg = response.data?.message || "";
+      const data = response.data;
 
-      // Handle 401 (Unauthorized) Global
+      // ============================================================
+      // DETEKSI 401 - RETRY LOGIC UNTUK RACE CONDITION
+      // ============================================================
       if (status === 401) {
-        // Cek pesan spesifik atau anggap semua 401 adalah sesi habis
-        if (msg.includes("Sesi") || msg.includes("berakhir") || msg.includes("Unauthorized") || msg.includes("Token")) {
+        // Jangan retry jika sudah pernah retry (hindari infinite loop)
+        if (config._retry) {
+          console.warn("🔒 Retry sudah dilakukan, tetap 401. Triggering logout...");
           window.dispatchEvent(new CustomEvent("sessionExpired"));
+          return Promise.reject(error);
+        }
+
+        // Cek apakah ini MISSING_TOKEN (belum ada cookie) atau SESSION_EXPIRED (refresh gagal total)
+        const errorCode = data?.code || "";
+
+        // Jika SESSION_EXPIRED dengan refresh token gagal, logout langsung
+        if (errorCode === "SESSION_EXPIRED") {
+          console.warn("🔒 Session expired (refresh gagal). Triggering logout...");
+          window.dispatchEvent(new CustomEvent("sessionExpired"));
+          return Promise.reject(error);
+        }
+
+        // Jika MISSING_TOKEN atau token invalid, coba retry sekali
+        // (kemungkinan race condition - request lain sedang refresh)
+        config._retry = true;
+
+        // Jika sudah ada proses refresh yang berjalan, tunggu
+        if (isRefreshing) {
+          console.log("⏳ Menunggu refresh dari request lain...");
+          return new Promise((resolve, reject) => {
+            subscribeToRefresh((success) => {
+              if (success) {
+                // Retry request asli
+                resolve(apiClient(config));
+              } else {
+                reject(error);
+              }
+            });
+          });
+        }
+
+        // Tandai sedang refresh
+        isRefreshing = true;
+        console.log("🔄 Mencoba retry request setelah delay singkat...");
+
+        // Delay singkat untuk memberi waktu cookie ter-set dari request sebelumnya
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        try {
+          // Retry request
+          const retryResponse = await apiClient(config);
+
+          // Berhasil! Notify subscribers
+          onRefreshComplete(true);
+          return retryResponse;
+        } catch (retryError) {
+          // Gagal juga, notify subscribers
+          onRefreshComplete(false);
+
+          // Jika masih 401 setelah retry, trigger logout
+          if (retryError.response?.status === 401) {
+            console.warn("🔒 Retry tetap gagal 401. Triggering logout...");
+            window.dispatchEvent(new CustomEvent("sessionExpired"));
+          }
+          return Promise.reject(retryError);
+        } finally {
+          isRefreshing = false;
         }
       }
 
-      // 403 Forbidden, 404 Not Found, 500 Server Error -> Biarkan catch di component yang menangani
+      // Kembalikan error utuh agar React Query bisa menangkap error message dari backend
       return Promise.reject(error);
     }
 
-    console.error("[API] Unknown Error:", error);
-    return Promise.reject(new Error("Terjadi kesalahan yang tidak terduga."));
+    return Promise.reject(error);
   }
 );
 

@@ -2,20 +2,17 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import authService from "../../services/authService";
 import ConfirmationModal from "../ConfirmationModal/ConfirmationModal";
-import { HiChevronDown, HiChevronRight } from "react-icons/hi";
+import { HiChevronDown, HiChevronRight, HiStar, HiClock } from "react-icons/hi";
 
 import logoWhite from "../../assets/images/WeSignLightMode.png";
 import logoDark from "../../assets/images/WeSignDarkMode.png";
 
-const Sidebar = ({ userName, userEmail, userAvatar, isOpen, activePage, onClose, theme }) => {
+const Sidebar = ({ userName, userEmail, userAvatar, isOpen, activePage, onClose, theme, isPremium, premiumUntil }) => {
   const navigate = useNavigate();
   const location = useLocation(); 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
-  // State dropdown workspace
   const [isWorkspaceOpen, setIsWorkspaceOpen] = useState(true);
 
-  // Efek samping: Jika user masuk ke halaman detail grup, otomatis buka dropdown workspace
   useEffect(() => {
     if (location.pathname.startsWith("/dashboard/group")) {
       setIsWorkspaceOpen(true);
@@ -23,14 +20,12 @@ const Sidebar = ({ userName, userEmail, userAvatar, isOpen, activePage, onClose,
   }, [location.pathname]);
 
   const navLinks = [
-
     { 
-    id: "shortcuts", 
-    path: "/dashboard/shortcuts", 
-    label: "Pintasan", 
-    // Ikon Grid / Menu
-    icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg> 
-  },
+      id: "shortcuts", 
+      path: "/dashboard/shortcuts", 
+      label: "Pintasan", 
+      icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg> 
+    },
     { 
       id: "overview", 
       path: "/dashboard", 
@@ -80,8 +75,15 @@ const Sidebar = ({ userName, userEmail, userAvatar, isOpen, activePage, onClose,
     }
   };
 
+  const formatExpiryDate = (dateString) => {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+  };
+
   return (
     <>
+      {/* Overlay Mobile */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/30 dark:bg-black/50 z-40 lg:hidden"
@@ -89,32 +91,33 @@ const Sidebar = ({ userName, userEmail, userAvatar, isOpen, activePage, onClose,
         />
       )}
 
+      {/* SIDEBAR MAIN CONTAINER */}
       <div
-        className={`w-64 bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-white/10 flex flex-col fixed inset-y-0 left-0 z-50 transition-transform duration-300 ease-in-out
+        className={`w-64 h-screen bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-white/10 flex flex-col fixed inset-y-0 left-0 z-50 transition-transform duration-300 ease-in-out overflow-hidden
           ${isOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
         
-        <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
-          
-          <div className="px-4 pt-6 mb-4">
-            <img 
-              src={theme === 'dark' ? logoDark : logoWhite} 
-              alt="Signify Logo" 
-              className="h-30 w-auto ml-2" 
-            />
-          </div>
-          
-          <div className="px-4 space-y-2 pb-4">
+        {/* === 1. BAGIAN LOGO (STICKY/DIAM) === */}
+        {/* shrink-0 memastikan area ini tidak mengecil. Tidak masuk ke area scroll */}
+        <div className="px-4 pt-6 pb-2 shrink-0 bg-white dark:bg-slate-900 z-10">
+          <img 
+            src={theme === 'dark' ? logoDark : logoWhite} 
+            alt="Signify Logo" 
+            className="h-30 w-auto ml-2" 
+          />
+        </div>
+        
+        {/* === 2. BAGIAN MENU (SCROLLABLE) === */}
+        {/* flex-1: Mengambil sisa ruang di antara Logo dan Profil */}
+        {/* overflow-y-auto: Mengaktifkan scroll di area ini saja */}
+        <div className="flex-1 overflow-y-auto min-h-0 px-4 space-y-2 py-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
             {navLinks.map((link) => {
-              // 🔥 LOGIKA BARU: Cek Active State
               const isActive = 
                 activePage === link.id || 
                 (link.children && link.children.some(child => location.pathname === child.path)) ||
-                // Tambahan: Jika link adalah workspaces DAN kita sedang buka detail grup (/dashboard/group/...)
                 (link.id === "workspaces" && location.pathname.startsWith("/dashboard/group"));
 
               if (link.children) {
-                // RENDER PARENT WITH CHILDREN (WORKSPACE)
                 return (
                   <div key={link.id} className="space-y-1">
                     <button
@@ -176,9 +179,38 @@ const Sidebar = ({ userName, userEmail, userAvatar, isOpen, activePage, onClose,
                 </button>
               );
             })}
-          </div>
+
+            {isPremium && premiumUntil && (
+               <div className="mt-4 mb-2 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-800/30">
+                 <div className="flex items-center gap-2 mb-1">
+                    <HiStar className="text-amber-500" />
+                    <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Premium Active</span>
+                 </div>
+                 <div className="flex items-center gap-1.5 text-[10px] text-amber-600 dark:text-amber-500/80">
+                    <HiClock className="w-3 h-3" />
+                    <span>Berakhir: <b>{formatExpiryDate(premiumUntil)}</b></span>
+                 </div>
+               </div>
+            )}
+
+            {/* Banner Upgrade juga ikut di-scroll di bagian tengah */}
+            {!isPremium && (
+              <div className="mt-4 mb-2">
+                <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-lg shadow-blue-200 dark:shadow-blue-900/20">
+                  <p className="text-xs font-bold mb-1 opacity-80 uppercase tracking-widest">Upgrade Pro</p>
+                  <p className="text-[10px] leading-tight mb-3 font-medium">Dapatkan akses tak terbatas dan legalitas penuh.</p>
+                  <button 
+                    onClick={() => handleLinkClick('/pricing')}
+                    className="w-full py-2 bg-white text-blue-600 rounded-xl text-xs font-bold hover:bg-blue-50 transition-colors shadow-sm"
+                  >
+                    Upgrade Sekarang
+                  </button>
+                </div>
+              </div>
+            )}
         </div>
 
+        {/* === 3. BAGIAN PROFIL (STICKY/DIAM DI BAWAH) === */}
         <div className="p-4 border-t border-slate-200/80 dark:border-white/10 shrink-0 z-20 bg-white dark:bg-slate-900">
           <div className="flex items-center gap-3 mb-4">
             <img

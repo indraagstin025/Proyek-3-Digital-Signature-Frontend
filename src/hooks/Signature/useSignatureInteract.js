@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import interact from "interactjs";
-import { socketService } from "../services/socketService";
-import { throttle } from "../utils/throttle";
+import { socketService } from "../../services/socketService";
+import { throttle } from "../../utils/throttle";
 
 const CSS_PADDING = 12;
 const CSS_BORDER = 1;

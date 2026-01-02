@@ -3,8 +3,8 @@ import { useParams, useNavigate, useOutletContext } from "react-router-dom";
 import { toast } from "react-hot-toast";
 
 import SignDocumentLayoutGroup from "../../layouts/SignDocumentLayoutGroup";
-import { useDocumentDetail } from "../../hooks/useDocumentDetail";
-import { useSignatureManagerGroup } from "../../hooks/useSignatureManagerGroup"; 
+import { useDocumentDetail } from "../../hooks/Documents/useDocumentDetail";
+import { useSignatureManagerGroup } from "../../hooks/Signature/useSignatureManagerGroup"; 
 
 const SignGroupPage = ({ theme, toggleTheme }) => {
   const { documentId } = useParams();

@@ -1,5 +1,3 @@
-// file: src/components/SignatureSidebar/SignatureSidebar.jsx
-
 import React, { useEffect } from "react";
 import interact from "interactjs";
 import { FaPenNib, FaTimes, FaRobot, FaLock, FaEye } from "react-icons/fa";
@@ -13,86 +11,81 @@ const SignatureSidebar = ({
   setIncludeQrCode, 
   isOpen, 
   onClose,
-  // onAutoTag dihapus karena tidak jadi dipakai
   onAnalyze,
   readOnly = false,
-  
-  // Props untuk menangani status sukses
   isSignedSuccess = false, 
   onViewResult = () => {} 
 }) => {
   
-  // --- LOGIKA DRAG & DROP DARI SIDEBAR ---
-  // --- LOGIKA DRAG & DROP DARI SIDEBAR ---
+  // --- LOGIKA DRAG & DROP DARI SIDEBAR (OPTIMIZED GPU) ---
   useEffect(() => {
-    // Jika belum ada TTD, atau ReadOnly, atau SUDAH SUKSES SIGN -> Jangan aktifkan drag
     if (!savedSignatureUrl || readOnly || isSignedSuccess) return;
 
     let clone = null;
-    // Kita simpan offset agar mouse berada di tengah gambar saat drag
-    let offset = { x: 0, y: 0 }; 
+    let offset = { x: 0, y: 0 };
 
     interact(".draggable-signature").draggable({
-      inertia: false, // Matikan inertia agar responsif instan
+      inertia: false,
       autoScroll: false, 
       listeners: {
         start(event) {
           const original = event.target;
           const rect = original.getBoundingClientRect();
           
-          // Hitung offset agar kursor berada di tengah elemen clone
-          // (Atau biarkan 0,0 jika ingin pojok kiri atas menempel di mouse)
+          // Hitung offset agar kursor berada di tengah
           offset.x = rect.width / 2;
           offset.y = rect.height / 2;
 
           clone = original.cloneNode(true);
           
-          // Style Clone
-          clone.style.position = "fixed"; 
-          // Set posisi awal langsung menempel mouse
-          clone.style.left = `${event.clientX - offset.x}px`;
-          clone.style.top = `${event.clientY - offset.y}px`;
-          
+          // --- ⚡ PERFORMANCE OPTIMIZATION ---
+          clone.style.position = "fixed";
+          clone.style.left = "0px";
+          clone.style.top = "0px";
           clone.style.width = `${rect.width}px`;
           clone.style.height = `${rect.height}px`;
-          clone.style.zIndex = "99999"; // Z-Index Super Tinggi
-          clone.style.opacity = "0.9";
-          clone.style.pointerEvents = "none"; // PENTING: Tembus event ke bawah
+          clone.style.zIndex = "99999"; 
+          clone.style.pointerEvents = "none"; // Wajib agar drop tembus
           clone.style.touchAction = "none";
-          clone.style.boxShadow = "0 10px 25px rgba(0,0,0,0.3)"; // Tambah shadow biar melayang
-          clone.style.transform = "scale(1.05)"; // Sedikit membesar saat diangkat
-          clone.style.transition = "transform 0.1s"; // Animasi halus saat start
+          
+          // Gunakan will-change agar browser menyiapkan layer GPU
+          clone.style.willChange = "transform"; 
+          
+          // ❌ HAPUS TRANSISI SAAT DRAG (Penyebab utama delay)
+          clone.style.transition = "none"; 
 
-          clone.classList.add("dragging-clone");
+          // Style visual
+          clone.style.opacity = "0.9";
+          clone.style.boxShadow = "0 15px 30px rgba(0,0,0,0.3)";
+          
+          // Set posisi awal menggunakan Transform (GPU)
+          const x = event.clientX - offset.x;
+          const y = event.clientY - offset.y;
+          clone.style.transform = `translate3d(${x}px, ${y}px, 0) scale(1.05)`;
+
+          clone.classList.add("dragging-signature-clone");
           document.body.appendChild(clone);
 
-          original.style.opacity = "0.3"; // Bikin aslinya transparan
+          original.style.opacity = "0.5"; 
         },
         move(event) {
           if (!clone) return;
           
-          // LOGIKA BARU: Ikuti posisi mouse secara absolut
+          // Hitung posisi baru
           const x = event.clientX - offset.x;
           const y = event.clientY - offset.y;
           
-          // Update posisi langsung (tanpa translate) agar lebih akurat
-          clone.style.left = `${x}px`;
-          clone.style.top = `${y}px`;
+          // ⚡ Update posisi menggunakan transform translate3d (Super Cepat)
+          // scale(1.05) agar tetap terlihat 'terangkat'
+          clone.style.transform = `translate3d(${x}px, ${y}px, 0) scale(1.05)`;
         },
         end(event) {
           if (clone) {
-             // Opsional: Animasi mengecil sebelum hilang (seperti masuk ke kertas)
-             clone.style.transform = "scale(0)";
-             clone.style.opacity = "0";
-             
-             setTimeout(() => {
-                 if(clone) clone.remove();
-                 clone = null;
-             }, 100);
+             clone.remove();
+             clone = null;
           }
           event.target.style.opacity = "1";
 
-          // Auto-Close Sidebar (Khusus Mobile) setelah drop
           if (window.innerWidth < 1024) { 
              onClose();
           }
@@ -103,6 +96,7 @@ const SignatureSidebar = ({
     return () => interact(".draggable-signature").unset();
   }, [savedSignatureUrl, onClose, readOnly, isSignedSuccess]);
 
+  // ... (SISA KODE JSX DI BAWAH INI SAMA PERSIS SEPERTI SEBELUMNYA) ...
   return (
     <aside
       className={`
@@ -219,7 +213,6 @@ const SignatureSidebar = ({
       {/* Footer */}
       <div className="p-6 border-t border-slate-200/80 dark:border-slate-700/50 mt-auto bg-slate-50/50 dark:bg-slate-800/30 shrink-0 z-20 pb-24 lg:pb-6">
         
-        {/* Toggle QR Code: Disembunyikan jika sudah sukses sign */}
         {!isSignedSuccess && (
             <div className={`flex items-center justify-between mb-4 ${readOnly ? 'opacity-50 pointer-events-none' : ''}`}>
               <label htmlFor="qr-toggle" className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer select-none">
@@ -238,9 +231,6 @@ const SignatureSidebar = ({
 
         <button
           onClick={isSignedSuccess ? onViewResult : onSave}
-          // Disable jika Loading
-          // ATAU (Jika belum sukses DAN belum ada TTD)
-          // ATAU (Jika ReadOnly DAN belum sukses)
           disabled={isLoading || (!savedSignatureUrl && !isSignedSuccess) || (readOnly && !isSignedSuccess)}
           
           className={`w-full flex justify-center items-center text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all transform hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed disabled:shadow-none

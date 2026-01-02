@@ -1,95 +1,61 @@
 /* eslint-disable no-unused-vars */
-import React, { useState } from 'react'; // ✅ Impor useState
-import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+import { useUpdateGroup, useDeleteGroup } from "../../hooks/Group/useGroups";
 
-// ✅ Impor hook baru kita
-import { useUpdateGroup, useDeleteGroup } from '../../hooks/useGroups'; 
-
-/**
- * @param {object} group - Objek detail grup
- * @param {string} currentUserId - ID user yang sedang login (wajib)
- */
 export const GroupSettings = ({ group, currentUserId }) => {
   const navigate = useNavigate();
-  
-  // State untuk input nama
   const [name, setName] = useState(group.name);
-
-  // Gunakan hook mutasi
   const { mutate: updateGroup, isPending: isUpdating } = useUpdateGroup();
   const { mutate: deleteGroup, isPending: isDeleting } = useDeleteGroup();
 
-  // Cek apakah user ini adalah admin
-  // Backend akan cek lagi, tapi ini bagus untuk menyembunyikan UI
-  const isAdmin = group.members.some(m => m.userId === currentUserId && m.role === 'admin_group');
-  // Cek admin utama (hanya dia yang bisa hapus)
+  const isAdmin = group.members.some((m) => m.userId === currentUserId && m.role === "admin_group");
   const isMainAdmin = group.adminId === currentUserId;
 
-  // Handler Ganti Nama
-  const handleUpdateName = () => {
-    if (name.trim() === "" || name === group.name) {
-      setName(group.name); // Reset jika kosong atau tidak berubah
-      return;
-    }
-    updateGroup({ groupId: group.id, name });
-  };
+  const handleUpdateName = () => { if (name.trim() === "" || name === group.name) { setName(group.name); return; } updateGroup({ groupId: group.id, name }); };
+  const handleDeleteGroup = () => { if (confirm(`Hapus grup "${group.name}"?`)) { deleteGroup(group.id); } };
 
-  // Handler Hapus Grup
-  const handleDeleteGroup = () => {
-    if (confirm(`Anda yakin ingin menghapus grup "${group.name}"? Tindakan ini tidak dapat dibatalkan.`)) {
-      deleteGroup(group.id);
-    }
-  };
+  if (!isAdmin) return <div className="p-4 bg-yellow-50 text-yellow-800 rounded-lg">Akses Terbatas.</div>;
 
-  // ✅ JIKA BUKAN ADMIN, jangan tampilkan pengaturan
-  if (!isAdmin) {
-    return (
-      <div className="max-w-2xl mx-auto p-4 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700/50 rounded-lg">
-        <h4 className="font-semibold text-lg text-yellow-800 dark:text-yellow-300">
-          Akses Terbatas
-        </h4>
-        <p className="text-sm text-yellow-700 dark:text-yellow-300">
-          Hanya admin grup yang dapat mengubah pengaturan.
-        </p>
-      </div>
-    );
-  }
-
-  // ✅ JIKA ADMIN, tampilkan ini:
   return (
-    <div className="max-w-2xl mx-auto">
-      <h3 className="text-xl font-semibold text-slate-800 dark:text-white mb-4">Pengaturan Grup</h3>
-      
-      {/* Ganti Nama Grup */}
-      <div className="mb-6 p-4 bg-white dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/50 rounded-lg shadow">
-        <h4 className="font-semibold text-lg text-slate-800 dark:text-white mb-3">Nama Grup</h4>
-        <input 
-          type="text" 
-          value={name} // Gunakan state
-          onChange={(e) => setName(e.target.value)} // Perbarui state
-          className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-gray-700 rounded-lg py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <button 
-          className="mt-3 bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
-          onClick={handleUpdateName}
-          disabled={isUpdating || name === group.name} // Nonaktifkan jika sedang loading atau nama sama
-        >
-          {isUpdating ? "Menyimpan..." : "Simpan Perubahan"}
-        </button>
+    <div className="max-w-3xl mx-auto">
+      <div className="mb-8">
+         <h3 className="text-xl font-bold text-slate-800 dark:text-white">Pengaturan Umum</h3>
+         <p className="text-slate-500 text-sm mt-1">Sesuaikan informasi dasar grup ini.</p>
       </div>
 
-      {/* Zona Berbahaya (Hanya untuk ADMIN UTAMA) */}
+      {/* Card Nama Grup */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm mb-8">
+        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Nama Tampilan Grup</label>
+        <div className="flex gap-3">
+            <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl py-2.5 px-4 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+            />
+            <button
+            onClick={handleUpdateName}
+            disabled={isUpdating || name === group.name}
+            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-md disabled:opacity-50 disabled:shadow-none transition-all"
+            >
+            {isUpdating ? "..." : "Simpan"}
+            </button>
+        </div>
+      </div>
+
+      {/* Zona Berbahaya */}
       {isMainAdmin && (
-        <div className="p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700/50 rounded-lg shadow">
-          <h4 className="font-semibold text-lg text-red-800 dark:text-red-300 mb-3">Zona Berbahaya</h4>
-          <p className="text-sm text-red-700 dark:text-red-300 mb-4">
-            Hanya pemilik utama yang dapat menghapus grup. Tindakan ini bersifat permanen dan tidak dapat dibatalkan.
+        <div className="border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-900/10 rounded-xl p-6">
+          <h4 className="font-bold text-red-700 dark:text-red-400 text-lg mb-2">Zona Berbahaya</h4>
+          <p className="text-sm text-red-600/80 dark:text-red-300/70 mb-5">
+            Menghapus grup ini akan menghapus semua dokumen dan riwayat aktivitas secara permanen. Tindakan ini tidak dapat dibatalkan.
           </p>
-          <button 
+          <button
             onClick={handleDeleteGroup}
-            disabled={isDeleting} // Nonaktifkan jika sedang loading
-            className="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+            disabled={isDeleting}
+            className="px-5 py-2.5 bg-white border border-red-300 text-red-600 font-bold rounded-xl hover:bg-red-600 hover:text-white transition-colors shadow-sm"
           >
             {isDeleting ? "Menghapus..." : "Hapus Grup Ini"}
           </button>

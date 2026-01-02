@@ -2,13 +2,29 @@
 
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom"; // <--- 1. IMPORT PORTAL
+import { useCanPerformAction } from "../../hooks/useCanPerformAction";
+import { toast } from "react-hot-toast";
 
-const CreateGroupModal = ({ isOpen, onClose, onGroupCreate, isLoading }) => {
+const CreateGroupModal = ({ isOpen, onClose, onGroupCreate, isLoading, currentGroupCount = 0 }) => {
   const [groupName, setGroupName] = useState("");
   const [groupDescription, setGroupDescription] = useState("");
 
+  // Soft lock check untuk create group
+  const { canPerform: canCreateGroup, reason: createGroupReason } = useCanPerformAction("create_group", currentGroupCount);
+
   const handleCreate = () => {
     if (isLoading) return;
+
+    // Check soft lock
+    if (!canCreateGroup) {
+      toast.error(createGroupReason, {
+        duration: 5000,
+        icon: "🔒",
+      });
+      onClose();
+      return;
+    }
+
     onGroupCreate({ name: groupName, description: groupDescription });
   };
 
@@ -27,10 +43,7 @@ const CreateGroupModal = ({ isOpen, onClose, onGroupCreate, isLoading }) => {
     // Gunakan z-[9999] untuk memastikan di atas Sidebar
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn">
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-2xl w-full max-w-sm border border-slate-200 dark:border-slate-700 relative">
-        
-        <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">
-          Buat Grup Baru
-        </h3>
+        <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Buat Grup Baru</h3>
 
         <div className="space-y-4">
           <div>
@@ -47,7 +60,7 @@ const CreateGroupModal = ({ isOpen, onClose, onGroupCreate, isLoading }) => {
               placeholder="Contoh: Tim Marketing"
             />
           </div>
-          
+
           <div>
             <label htmlFor="groupDescription" className="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-1">
               Deskripsi

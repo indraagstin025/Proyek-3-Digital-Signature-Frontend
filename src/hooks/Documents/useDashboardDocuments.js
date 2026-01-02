@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { documentService } from "../services/documentService";
-import { packageService } from "../services/packageService";
+import { documentService } from "../../services/documentService";
+import { packageService } from "../../services/packageService";
 import { useSearchParams } from "react-router-dom";
+import { useCanPerformAction } from "../useCanPerformAction";
 import toast from "react-hot-toast";
 
 export const useDashboardDocuments = () => {
@@ -24,19 +25,23 @@ export const useDashboardDocuments = () => {
   const abortControllerRef = useRef(null);
   const [searchParams] = useSearchParams();
 
-  // --- 1. USER DATA ---
+  // --- 1. USER DATA (FIXED: Parse dengan Aman) ---
   const [currentUser] = useState(() => {
     try {
       const storedUser = localStorage.getItem("authUser");
-      return storedUser ? JSON.parse(storedUser) : null;
+      if (!storedUser) return null;
+      const parsed = JSON.parse(storedUser);
+      // [PERBAIKAN] Pastikan mengambil object user yang benar (kadang terbungkus property 'user')
+      return parsed?.user || parsed;
     } catch (e) {
       console.warn("Gagal parsing user dari storage", e);
       return null;
     }
   });
 
-  // --- 2. FETCH DATA ---
+  // --- 2. FETCH DATA (FIXED: Anti Crash / Anti Stuck) ---
   const fetchDocuments = useCallback(async (query = "") => {
+    // Batalkan request sebelumnya jika ada (mencegah memory leak / race condition)
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -51,10 +56,16 @@ export const useDashboardDocuments = () => {
         signal: abortControllerRef.current.signal,
       });
 
-      setDocuments(allDocs);
-      setPersonalDocuments(allDocs.filter((doc) => !doc.groupId));
-      setGroupDocuments(allDocs.filter((doc) => doc.groupId));
+      // [PERBAIKAN UTAMA] Validasi Array!
+      // Jika API error dan return null/undefined, kita paksa jadi array kosong []
+      // Ini mencegah error "filter of undefined" yang bikin web stuck.
+      const validDocs = Array.isArray(allDocs) ? allDocs : [];
+
+      setDocuments(validDocs);
+      setPersonalDocuments(validDocs.filter((doc) => !doc.groupId));
+      setGroupDocuments(validDocs.filter((doc) => doc.groupId));
     } catch (err) {
+      // Abaikan error jika request dibatalkan user (pindah halaman/ketik cepat)
       if (err.name === "CanceledError" || err.name === "AbortError") return;
 
       console.error("Error fetching docs:", err);
@@ -64,6 +75,11 @@ export const useDashboardDocuments = () => {
       if (!isAuthError && !isNetworkError) {
         setError("Gagal memuat dokumen.");
       }
+
+      // [PENTING] Reset state agar UI tidak crash render
+      setDocuments([]);
+      setPersonalDocuments([]);
+      setGroupDocuments([]);
     } finally {
       setIsLoading(false);
       setIsSearching(false);
@@ -90,6 +106,7 @@ export const useDashboardDocuments = () => {
       if (!currentUser) return doc.status;
       const globalStatus = doc.status;
 
+      // 1. Cek Dokumen Grup (Logic Signer)
       if (doc.groupId && globalStatus === "pending") {
         const myRequest = doc.signerRequests?.find((req) => req.userId === currentUser.id);
         if (myRequest) {
@@ -98,17 +115,25 @@ export const useDashboardDocuments = () => {
         }
         return "pending";
       }
+
+      // 2. Cek Dokumen Personal (Logic Signature)
+      const version = doc.currentVersion;
+      if (version) {
+        const isSelfSigned = version.signaturesPersonal && version.signaturesPersonal.some((sig) => sig.signerId === currentUser.id);
+        // Jika status masih draft/pending tapi user ini sudah tanda tangan
+        if (isSelfSigned && globalStatus !== "completed") return "signed";
+      }
+
       return globalStatus;
     },
     [currentUser]
   );
 
-  // --- 5. DELETE DENGAN FEEDBACK (TOAST DISINI SAJA) ---
+  // --- 5. DELETE DENGAN FEEDBACK ---
   const deleteDocument = async (docId) => {
     const deletePromise = documentService.deleteDocument(docId);
 
     try {
-      // ✅ KITA PERTAHANKAN TOAST DISINI
       await toast.promise(deletePromise, {
         loading: "Menghapus dokumen...",
         success: "Dokumen berhasil dihapus",
@@ -144,28 +169,30 @@ export const useDashboardDocuments = () => {
 
   const clearSelection = () => setSelectedDocIds(new Set());
 
+  // --- 7. START BATCH SIGNING (DENGAN SOFT LOCK) ---
+  const { canPerform: canCreatePackage, reason: createPackageReason } = useCanPerformAction("create_package", selectedDocIds.size);
+
   const startBatchSigning = async () => {
     if (selectedDocIds.size === 0) return;
 
+    // [SOFT LOCK CHECK]
+    if (!canCreatePackage) {
+      toast.error(createPackageReason, { icon: "🔒", duration: 4000 });
+      return;
+    }
+
     setIsSubmittingBatch(true);
-    // 1. Simpan ID toast loading
     const toastId = toast.loading("Membuat paket tanda tangan...");
 
     try {
       const docIdsArray = Array.from(selectedDocIds);
       const newPackage = await packageService.createPackage("Batch Sign " + new Date().toLocaleDateString(), docIdsArray);
 
-      // ✅ FIX MASALAH PERTAMA:
-      // Jangan pakai toast.success karena akan muncul telat di halaman berikutnya.
-      // Cukup matikan loading, lalu pindah. User tau itu berhasil karena halamannya berubah.
       toast.dismiss(toastId);
-
       navigate(`/packages/sign/${newPackage.id}`);
     } catch (err) {
       console.error(err);
       const msg = err.response?.data?.message || err.message || "Gagal membuat paket.";
-
-      // Jika error, ubah loading menjadi error (ini tetap perlu ditampilkan)
       toast.error(msg, { id: toastId });
     } finally {
       setIsSubmittingBatch(false);

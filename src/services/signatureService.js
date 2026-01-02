@@ -8,12 +8,21 @@ export const signatureService = {
    */
   addPersonalSignature: async (payload) => {
     try {
-      const response = await apiClient.post("signatures/personal", payload);
+      // Tambahkan parameter ke-3 (config)
+      const response = await apiClient.post("signatures/personal", payload, {
+        _silent: true, // 🔥 Opsional: Memberitahu apiClient jangan cerewet (jika toast di apiClient masih dinyalakan)
+      });
       return response.data;
     } catch (error) {
       console.error("❌ Error addPersonalSignature:", error);
-      const message = error.response?.data?.message || "Gagal menandatangani dokumen.";
-      throw new Error(message);
+
+      // Pastikan response server dilempar ulang
+      if (error.response) {
+        throw error;
+      }
+
+      // Lempar error offline standar
+      throw new Error(error.message || "Gagal menandatangani dokumen.");
     }
   },
 
@@ -76,6 +85,22 @@ export const signatureService = {
     } catch (error) {
       console.error("❌ Error analyzeDocument:", error);
       throw new Error(error.response?.data?.message || "Gagal menganalisis dokumen.");
+    }
+  },
+
+  /**
+   * [PUBLIC] Unlock Verification
+   * Endpoint: POST /api/signatures/verify/:id/unlock
+   */
+  unlockVerification: async (signatureId, accessCode) => {
+    try {
+      const response = await apiClient.post(`signatures/verify/${signatureId}/unlock`, { accessCode });
+      return response.data;
+    } catch (error) {
+      console.error("❌ Error unlockVerification:", error);
+      // Lempar error spesifik dari backend (misal: "Kode Akses Salah")
+      const message = error.response?.data?.message || "Gagal membuka kunci dokumen.";
+      throw new Error(message);
     }
   },
 };

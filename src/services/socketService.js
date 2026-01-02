@@ -1,11 +1,6 @@
 import { io } from "socket.io-client";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.MODE === "production"
-    ? "https://api.moodvis.my.id"
-    : "http://localhost:3000");
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (import.meta.env.MODE === "production" ? "https://api.moodvis.my.id" : "http://localhost:3000");
 
 const SOCKET_URL = API_BASE_URL.replace(/\/api\/?$/, "");
 
@@ -13,18 +8,17 @@ console.log(`[Socket Service] Base URL derived from API: ${SOCKET_URL}`);
 
 let socket;
 
+// Map untuk menyimpan wrapper functions agar bisa di-cleanup dengan benar
+const groupListeners = new Map();
+
 export const socketService = {
   connect: () => {
     if (socket && socket.connected) {
-      console.log("⚡ [Socket] Sudah terhubung, menggunakan koneksi aktif.");
+      // console.log("⚡ [Socket] Sudah terhubung.");
       return socket;
     }
 
     console.log("🔌 [Socket] Mencoba connect ke:", SOCKET_URL);
-    
-    // DEBUG: Cek apakah cookie terbaca oleh JS (Hanya jika tidak HttpOnly)
-    // Jika HttpOnly, ini string kosong, tapi browser tetap mengirimnya.
-    console.log("🍪 [Socket] Cookie Visible (Document):", document.cookie);
 
     socket = io(SOCKET_URL, {
       withCredentials: true,
@@ -40,59 +34,39 @@ export const socketService = {
 
     socket.on("connect_error", (err) => {
       console.error("❌ [Socket] Connection Error:", err.message);
-      
-      // Cek detail error dari backend (kadang ada di err.data)
-      if (err.data) console.error("   Detail:", err.data);
-
-      if (err.message.includes("Authentication error") || err.message.includes("token missing")) {
-        console.warn("🔒 Auth gagal. Server menolak token/cookie.");
-        // Opsi: Jangan langsung disconnect biar bisa retry jika token di-refresh
-        // socket.disconnect(); 
+      if (err.message.includes("Authentication error")) {
+        // Handle auth error if needed
       }
     });
 
     socket.on("disconnect", (reason) => {
-       console.warn(`⚠️ [Socket] Disconnected. Reason: ${reason}`);
+      console.warn(`⚠️ [Socket] Disconnected. Reason: ${reason}`);
     });
 
     return socket;
   },
 
+  disconnect: () => {
+    if (socket) {
+      console.log("🛑 [Socket] Disconnect manual.");
+      socket.disconnect();
+      socket = null;
+    }
+  },
+
+  // =========================================
+  // 1. DOCUMENT ROOM (SIGNING & EDITING)
+  // =========================================
   joinRoom: (documentId) => {
     if (socket && socket.connected) {
-        console.log(`🚪 [Socket] Joining Room: ${documentId}`);
-        socket.emit("join_room", documentId);
-    } else {
-        console.warn("⚠️ [Socket] Gagal Join Room: Socket belum connect.");
+      console.log(`🚪 [Socket] Joining Doc Room: ${documentId}`);
+      socket.emit("join_room", documentId);
     }
   },
 
   leaveRoom: (documentId) => {
     if (socket) {
-        console.log(`👋 [Socket] Leaving Room: ${documentId}`);
-        socket.emit("leave_room", documentId);
-    }
-  },
-
-  emitDrag: (data) => {
-    if (socket && socket.connected) {
-        // LOG PENTING: Cek Document ID sebelum kirim
-        // console.log("📤 [Socket] Emit Drag:", data); 
-        socket.emit("drag_signature", data);
-    }
-  },
-
-  emitAddSignature: (documentId, signature) => {
-    if (socket && socket.connected) {
-        console.log("✨ [Socket] Emit Add Signature ke Room:", documentId);
-        socket.emit("add_signature_live", { documentId, signature });
-    }
-  },
-
-  emitRemoveSignature: (documentId, signatureId) => {
-    if (socket && socket.connected) {
-        console.log("🗑️ [Socket] Emit Remove Signature:", signatureId);
-        socket.emit("remove_signature_live", { documentId, signatureId });
+      socket.emit("leave_room", documentId);
     }
   },
 
@@ -100,51 +74,163 @@ export const socketService = {
     if (socket && socket.connected) socket.emit("trigger_reload", documentId);
   },
 
+  // Emit Actions
+  emitDrag: (data) => {
+    if (socket && socket.connected) socket.emit("drag_signature", data);
+  },
+  emitAddSignature: (documentId, signature) => {
+    if (socket && socket.connected) socket.emit("add_signature_live", { documentId, signature });
+  },
+  emitRemoveSignature: (documentId, signatureId) => {
+    if (socket && socket.connected) socket.emit("remove_signature_live", { documentId, signatureId });
+  },
   emitCursorMove: (data) => {
     if (socket && socket.connected) socket.emit("cursor_move", data);
   },
 
-  // --- LISTENERS ---
+  // Listeners Document
   onPositionUpdate: (callback) => {
     if (socket) socket.on("update_signature_position", callback);
   },
-
   onAddSignatureLive: (callback) => {
-    if (socket) socket.on("add_signature_live", (data) => {
-        console.log("📥 [Socket] Terima Signature Baru dari Teman:", data);
-        callback(data);
-    });
+    if (socket) socket.on("add_signature_live", callback);
   },
-
   onRemoveSignatureLive: (callback) => {
     if (socket) socket.on("remove_signature_live", callback);
   },
-
   onRefetchData: (callback) => {
-    if (socket) socket.on("refetch_data", () => {
-        console.log("🔄 [Socket] Diminta Reload Data oleh Server");
-        callback();
-    });
+    if (socket) socket.on("refetch_data", callback);
   },
-
   onCursorMove: (callback) => {
     if (socket) socket.on("cursor_move", callback);
   },
 
-  // Helpers
+  // Listeners Document Status (Finalized)
+  onDocumentStatusUpdate: (callback) => {
+    if (socket)
+      socket.on("document_status_update", (data) => {
+        console.log("🔔 [Socket] Doc Status Update:", data);
+        callback(data);
+      });
+  },
+  offDocumentStatusUpdate: (callback) => {
+    if (socket) socket.off("document_status_update", callback);
+  },
+
+  // =========================================
+  // 2. GROUP ROOM (DASHBOARD REALTIME)
+  // =========================================
+
+  /**
+   * Bergabung ke Room Grup untuk menerima update Member & Dokumen.
+   */
+  joinGroupRoom: (groupId) => {
+    if (socket && socket.connected) {
+      // Kita kirim ID mentah, biar Backend yang format jadi "group_ID"
+      // ATAU kita format di sini.
+      // Sesuai kode backend Anda sebelumnya (socketHandler.js), dia melakukan:
+      // socket.join(`group_${groupId}`);
+
+      // Jadi kita kirim ID saja sudah benar.
+      console.log(`🔄 [Socket] Request Join Room untuk Group ID: ${groupId}`);
+      socket.emit("join_group_room", groupId);
+    } else {
+      console.warn("⚠️ [Socket] Gagal join, socket belum connect.");
+    }
+  },
+
+  leaveGroupRoom: (groupId) => {
+    if (socket) {
+      console.log(`👋 [Socket] Leaving Group Room: ${groupId}`);
+      socket.emit("leave_group_room", groupId);
+    }
+  },
+
+  onGroupMemberUpdate: (callback) => {
+    if (socket) {
+      // Hapus listener lama jika ada
+      const existingWrapper = groupListeners.get(`member_${callback}`);
+      if (existingWrapper) {
+        socket.off("group_member_update", existingWrapper);
+      }
+
+      const wrapper = (data) => {
+        console.log("👥 [Socket RECV] Member Update:", JSON.stringify(data, null, 2));
+        callback(data);
+      };
+      groupListeners.set(`member_${callback}`, wrapper);
+      socket.on("group_member_update", wrapper);
+    }
+  },
+  offGroupMemberUpdate: (callback) => {
+    if (socket) {
+      const wrapper = groupListeners.get(`member_${callback}`);
+      if (wrapper) {
+        socket.off("group_member_update", wrapper);
+        groupListeners.delete(`member_${callback}`);
+      }
+    }
+  },
+
+  onGroupDocumentUpdate: (callback) => {
+    if (socket) {
+      // Hapus listener lama jika ada (mencegah duplicate)
+      const existingWrapper = groupListeners.get(`doc_${callback}`);
+      if (existingWrapper) {
+        socket.off("group_document_update", existingWrapper);
+      }
+
+      const wrapper = (data) => {
+        console.log("📄 [Socket RECV] Document Update:", JSON.stringify(data, null, 2));
+        callback(data);
+      };
+      groupListeners.set(`doc_${callback}`, wrapper);
+      socket.on("group_document_update", wrapper);
+    }
+  },
+
+  offGroupDocumentUpdate: (callback) => {
+    if (socket) {
+      const wrapper = groupListeners.get(`doc_${callback}`);
+      if (wrapper) {
+        socket.off("group_document_update", wrapper);
+        groupListeners.delete(`doc_${callback}`);
+      }
+    }
+  },
+
+  onGroupInfoUpdate: (callback) => {
+    if (socket) {
+      // Hapus listener lama jika ada
+      const existingWrapper = groupListeners.get(`info_${callback}`);
+      if (existingWrapper) {
+        socket.off("group_info_update", existingWrapper);
+      }
+
+      const wrapper = (data) => {
+        console.log("ℹ️ [Socket RECV] Group Info Update:", data);
+        callback(data);
+      };
+      groupListeners.set(`info_${callback}`, wrapper);
+      socket.on("group_info_update", wrapper);
+    }
+  },
+
+  offGroupInfoUpdate: (callback) => {
+    if (socket) {
+      const wrapper = groupListeners.get(`info_${callback}`);
+      if (wrapper) {
+        socket.off("group_info_update", wrapper);
+        groupListeners.delete(`info_${callback}`);
+      }
+    }
+  },
+
+  // Helpers Generic
   on: (event, callback) => {
     if (socket) socket.on(event, callback);
   },
-
   off: (event, callback) => {
     if (socket) socket.off(event, callback);
-  },
-
-  disconnect: () => {
-    if (socket) {
-      console.log("🛑 [Socket] Disconnect manual dipanggil.");
-      socket.disconnect();
-      socket = null;
-    }
   },
 };

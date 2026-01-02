@@ -20,9 +20,12 @@ const DashboardPage = ({ theme, toggleTheme }) => {
     return savedUser ? JSON.parse(savedUser) : null;
   });
 
+  const [isLoadingUser, setIsLoadingUser] = useState(true); // Track loading state
   const [pendingToken, setPendingToken] = useState(null);
   const [userError, setUserError] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1024);
+  const userStatus = userData?.userStatus || "FREE";
+  const isPremium = userStatus === "PREMIUM";
 
   // --- Effects ---
   useEffect(() => {
@@ -41,7 +44,11 @@ const DashboardPage = ({ theme, toggleTheme }) => {
 
   useEffect(() => {
     const syncUserData = async () => {
-      if (!userData) return;
+      setIsLoadingUser(true); // Start loading
+      if (!userData) {
+        setIsLoadingUser(false);
+        return;
+      }
       try {
         setUserError("");
         const freshData = await userService.getMyProfile();
@@ -54,6 +61,8 @@ const DashboardPage = ({ theme, toggleTheme }) => {
           console.error("Gagal sinkronisasi data pengguna:", error);
           setUserError("Gagal menyinkronkan data terbaru. Menampilkan data offline.");
         }
+      } finally {
+        setIsLoadingUser(false); // Done loading
       }
     };
     syncUserData();
@@ -90,11 +99,11 @@ const DashboardPage = ({ theme, toggleTheme }) => {
     >
       {/* [2] PASANG TOASTER GLOBAL DI SINI */}
       {/* zIndex 99999 (5 angka 9) menjamin selalu di atas Modal (biasanya 9999) */}
-      <Toaster 
-        position="top-center" 
-        containerStyle={{ 
-           zIndex: 99999 
-        }} 
+      <Toaster
+        position="top-center"
+        containerStyle={{
+          zIndex: 99999,
+        }}
       />
 
       {/* Background Blobs */}
@@ -106,7 +115,18 @@ const DashboardPage = ({ theme, toggleTheme }) => {
 
       {pendingToken && <AcceptInviteLinks token={pendingToken} onDone={handleInviteDone} />}
 
-      <Sidebar userName={userData?.name} userEmail={userData?.email} userAvatar={userData?.profilePictureUrl} isOpen={isSidebarOpen} activePage={activePage} onClose={() => setIsSidebarOpen(false)} theme={theme} />
+      <Sidebar
+        userName={userData?.name}
+        userEmail={userData?.email}
+        userAvatar={userData?.profilePictureUrl}
+        // 🔥 [UPDATE] Oper status via Props agar Reaktif
+        isPremium={isPremium}
+        premiumUntil={userData?.premiumUntil}
+        isOpen={isSidebarOpen}
+        activePage={activePage}
+        onClose={() => setIsSidebarOpen(false)}
+        theme={theme}
+      />
 
       <div
         className={`
@@ -116,7 +136,17 @@ const DashboardPage = ({ theme, toggleTheme }) => {
           relative z-10 
         `}
       >
-        <DashboardHeader activePage={activePage} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} isSidebarOpen={isSidebarOpen} theme={theme} toggleTheme={toggleTheme} />
+        <DashboardHeader
+          activePage={activePage}
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          isSidebarOpen={isSidebarOpen}
+          theme={theme}
+          toggleTheme={toggleTheme}
+          // 🔥 [UPDATE] Oper status via Props
+          userStatus={userStatus}
+          // 🔥 [NEW] Pass loading state untuk prevent flicker
+          isLoadingUser={isLoadingUser}
+        />
 
         {/* MAIN CONTENT */}
         <main className="flex-1 pt-20 h-full overflow-hidden flex flex-col relative">

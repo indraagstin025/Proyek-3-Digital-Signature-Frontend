@@ -1,7 +1,10 @@
-import React from "react";
-import { HiSun, HiMoon } from "react-icons/hi";
+import { HiMoon, HiSun } from "react-icons/hi";
+import BadgeUser from "../BadgeUser/BadgeUser.jsx";
 
-const DashboardHeader = ({ activePage, onToggleSidebar, isSidebarOpen = false, theme, toggleTheme }) => {
+// [UPDATE] Menerima prop 'userStatus' dan 'isLoadingUser' dari DashboardPage
+const DashboardHeader = ({ activePage, onToggleSidebar, isSidebarOpen = false, theme, toggleTheme, userStatus, isLoadingUser = false }) => {
+  // LOGIC HAPUS: const authData = ... (Sekarang data datang dari props agar reaktif)
+
   const key = String(activePage || "").toLowerCase();
   const getTitle = () => {
     switch (key) {
@@ -13,6 +16,8 @@ const DashboardHeader = ({ activePage, onToggleSidebar, isSidebarOpen = false, t
         return "Workspace";
       case "history":
         return "Riwayat";
+      case "profile":
+        return "Profil Pengguna";
       default:
         return "Dashboard";
     }
@@ -58,8 +63,9 @@ const DashboardHeader = ({ activePage, onToggleSidebar, isSidebarOpen = false, t
 
       {/* Right section */}
       <div className="flex items-center gap-4">
+        {/* [UPDATE] Pass isLoading prop untuk prevent flicker */}
+        <BadgeUser userStatus={userStatus || "FREE"} isLoading={isLoadingUser} />
         <ThemeToggleButton />
-        {/* Anda mungkin ingin menambahkan dropdown User di sini nanti */}
       </div>
     </header>
   );
