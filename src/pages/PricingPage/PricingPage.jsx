@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from "react";
-import { AnimatePresence } from "framer-motion";
+import {motion, AnimatePresence } from "framer-motion";
 import { FiCheck, FiArrowRight, FiZap, FiStar, FiShield, FiCpu } from "react-icons/fi";
 import { FaSpinner } from "react-icons/fa"; // [BARU] Import Spinner
 import { useNavigate } from "react-router-dom";
