@@ -236,6 +236,34 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
     }
   };
 
+  const handleViewDocument = async () => {
+    const toastId = toast.loading("Mempersiapkan dokumen...");
+    try {
+      // Fetch signed URL untuk dokumen aktif
+      const fileUrl = await documentService.getDocumentFileUrl(initialDocument.id, { purpose: "view" });
+      toast.dismiss(toastId);
+      // Kirim URL yang sudah valid ke parent component
+      onViewRequest && onViewRequest(fileUrl);
+    } catch (e) {
+      toast.error("Gagal membuka dokumen. Pastikan dokumen valid dan akses terpenuhi.", { id: toastId });
+      console.error("❌ [DocumentManagement] Error viewing document:", e);
+    }
+  };
+
+  const handleViewVersion = async (versionId) => {
+    const toastId = toast.loading("Mempersiapkan versi dokumen...");
+    try {
+      // Fetch signed URL untuk versi spesifik
+      const fileUrl = await documentService.getDocumentVersionFileUrl(initialDocument.id, versionId, { purpose: "view" });
+      toast.dismiss(toastId);
+      // Kirim URL yang sudah valid ke parent component
+      onViewRequest && onViewRequest(fileUrl);
+    } catch (e) {
+      toast.error("Gagal membuka versi dokumen. Silakan coba lagi.", { id: toastId });
+      console.error("❌ [DocumentManagement] Error viewing version:", e);
+    }
+  };
+
   const getVersionStatus = (version) => {
     if (version.signedFileHash) return { label: "FINAL (SIGNED)", color: "text-green-600 bg-green-50 border-green-200" };
     if (initialDocument?.currentVersionId === version.id) return { label: "AKTIF", color: "text-blue-600 bg-blue-50 border-blue-200" };
@@ -430,7 +458,7 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
                       <FaDownload /> Download PDF
                     </button>
                     <button
-                      onClick={() => onViewRequest && onViewRequest(null)}
+                      onClick={handleViewDocument}
                       className="p-3 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center gap-2 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                     >
                       <FaEye /> Lihat Dokumen
@@ -521,11 +549,7 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
                             </div>
 
                             <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                              <button
-                                onClick={() => onViewRequest && onViewRequest(version.url)}
-                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                                title="Lihat Versi Ini"
-                              >
+                              <button onClick={() => handleViewVersion(version.id)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Lihat Versi Ini">
                                 <FaEye />
                               </button>
 

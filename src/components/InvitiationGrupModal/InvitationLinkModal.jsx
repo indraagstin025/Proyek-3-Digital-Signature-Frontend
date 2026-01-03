@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import toast from 'react-hot-toast';
-import { HiOutlineClipboardCopy } from 'react-icons/hi';
-import { FaWhatsapp, FaTelegram } from 'react-icons/fa'; // (Anda perlu: npm install react-icons)
+import React, { useState } from "react";
+import { createPortal } from "react-dom";
+import toast from "react-hot-toast";
+import { HiOutlineClipboardCopy } from "react-icons/hi";
+import { FaWhatsapp, FaTelegram } from "react-icons/fa"; // (Anda perlu: npm install react-icons)
 
 export const InvitationLinkModal = ({ isOpen, onClose, link }) => {
   const [copySuccess, setCopySuccess] = useState(false);
@@ -17,30 +18,20 @@ export const InvitationLinkModal = ({ isOpen, onClose, link }) => {
 
   // Teks untuk dibagikan
   const shareText = `Anda telah diundang untuk bergabung dengan grup saya. Klik link ini: ${link}`;
-  
+
   // Encode untuk URL
   const encodedShareText = encodeURIComponent(shareText);
 
-  return (
+  const modalContent = (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg w-full max-w-md border border-slate-200 dark:border-slate-700">
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg w-full max-w-md border border-slate-200 dark:border-slate-700 animate-fadeIn">
         <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Link Undangan Dibuat!</h3>
-        <p className="text-sm text-slate-600 dark:text-gray-400 mb-4">
-          Bagikan link ini kepada siapa saja yang ingin Anda undang ke grup. Link ini akan kedaluwarsa dalam 7 hari.
-        </p>
-        
+        <p className="text-sm text-slate-600 dark:text-gray-400 mb-4">Bagikan link ini kepada siapa saja yang ingin Anda undang ke grup. Link ini akan kedaluwarsa dalam 7 hari.</p>
+
         {/* Input Link (Read-only) */}
         <div className="flex items-center mb-4">
-          <input
-            type="text"
-            value={link}
-            readOnly
-            className="flex-1 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-gray-700 rounded-l-lg py-2 px-3 text-slate-900 dark:text-white focus:outline-none"
-          />
-          <button
-            onClick={handleCopy}
-            className="bg-blue-600 text-white px-4 py-2 rounded-r-lg hover:bg-blue-700 transition-colors"
-          >
+          <input type="text" value={link} readOnly className="flex-1 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-gray-700 rounded-l-lg py-2 px-3 text-slate-900 dark:text-white focus:outline-none" />
+          <button onClick={handleCopy} className="bg-blue-600 text-white px-4 py-2 rounded-r-lg hover:bg-blue-700 transition-colors">
             <HiOutlineClipboardCopy className="w-5 h-5" />
           </button>
         </div>
@@ -66,13 +57,12 @@ export const InvitationLinkModal = ({ isOpen, onClose, link }) => {
           </a>
         </div>
 
-        <button
-          onClick={onClose}
-          className="mt-6 w-full bg-slate-200 dark:bg-gray-700 text-slate-800 dark:text-white font-semibold py-2 px-4 rounded-lg hover:bg-slate-300 dark:hover:bg-gray-600 transition-colors"
-        >
+        <button onClick={onClose} className="mt-6 w-full bg-slate-200 dark:bg-gray-700 text-slate-800 dark:text-white font-semibold py-2 px-4 rounded-lg hover:bg-slate-300 dark:hover:bg-gray-600 transition-colors">
           Tutup
         </button>
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };

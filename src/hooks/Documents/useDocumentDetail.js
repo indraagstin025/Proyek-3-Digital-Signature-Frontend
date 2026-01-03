@@ -25,13 +25,15 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
   const [documentTitle, setDocumentTitle] = useState("Memuat...");
   const [documentVersionId, setDocumentVersionId] = useState(null);
   const [documentData, setDocumentData] = useState(null);
-  const [pdfFile, setPdfFile] = useState(null);
+  const [pdfFile, setPdfFile] = useState(null); // Blob URL
   const [isGroupDoc, setIsGroupDoc] = useState(false);
   const [canSign, setCanSign] = useState(false);
   const [isSignedSuccess, setIsSignedSuccess] = useState(false);
+  
+  // Loading States
   const [isLoadingDoc, setIsLoadingDoc] = useState(true);
-  const [isLoadingPdf, setIsLoadingPdf] = useState(false);
-
+  
+  // Ref untuk caching versi agar tidak download ulang PDF saat refreshKey berubah
   const loadedVersionRef = useRef(null);
 
   // 2. CEK USER SESSION
@@ -52,44 +54,65 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
     }
   }, [currentUser, navigate]);
 
-  // 3. FETCH DATA & LOGIC STATUS
+  // 3. FETCH DATA (METADATA + PDF)
   useEffect(() => {
     const controller = new AbortController();
     let isMounted = true;
     let objectUrl = null;
 
-    const fetchDocumentAndPdf = async () => {
+    const fetchDocumentData = async () => {
       if (!documentId || !currentUser?.id) return;
 
       try {
+        // [OPTIMASI 1] Silent Loading
+        // Hanya tampilkan spinner loading layar penuh saat PERTAMA kali buka (refreshKey === 0).
+        // Saat save (refreshKey > 0), biarkan user tetap melihat dokumen (background update).
         if (refreshKey === 0) setIsLoadingDoc(true);
 
-        const [doc, tempSignedUrl] = await Promise.all([
-          documentService.getDocumentById(documentId, { signal: controller.signal }),
-          documentService.getDocumentFileUrl(documentId).catch((e) => null),
-        ]);
-
+        // 1. Fetch Metadata Dokumen (Selalu ambil yang terbaru)
+        const doc = await documentService.getDocumentById(documentId, { signal: controller.signal });
+        
         if (!doc || !doc.currentVersion?.id) throw new Error("Dokumen tidak ditemukan.");
 
         if (isMounted) {
           setDocumentTitle(doc.title);
           setDocumentData(doc);
           setDocumentVersionId(doc.currentVersion.id);
-
-          if (loadedVersionRef.current !== doc.currentVersion.id && tempSignedUrl) {
-            loadedVersionRef.current = { versionId: doc.currentVersion.id, fetching: true };
-          }
         }
 
-        // --- STATUS LOGIC (FIX TYPE MISMATCH DISINI) ---
+        // [OPTIMASI 2] Cerdas Fetch PDF
+        // Cek apakah kita SUDAH punya PDF dengan versi yang sama?
+        // Jika loadedVersionRef.current SAMA dengan doc.currentVersion.id, DAN pdfFile sudah ada,
+        // MAKA JANGAN DOWNLOAD ULANG.
+        const shouldFetchPdf = !loadedVersionRef.current || loadedVersionRef.current !== doc.currentVersion.id || !pdfFile;
+
+        if (shouldFetchPdf) {
+            console.log("📥 [useDocumentDetail] Mengunduh File PDF Baru...");
+            try {
+                const tempSignedUrl = await documentService.getDocumentFileUrl(documentId);
+                const response = await fetch(tempSignedUrl, { signal: controller.signal });
+                if (!response.ok) throw new Error("Gagal mengunduh PDF.");
+                
+                const blob = await response.blob();
+                if (isMounted) {
+                    objectUrl = URL.createObjectURL(blob);
+                    setPdfFile(objectUrl);
+                    // Update Cache Ref
+                    loadedVersionRef.current = doc.currentVersion.id;
+                }
+            } catch (pdfError) {
+                if (pdfError.name !== "AbortError") console.error("PDF fetch error:", pdfError);
+            }
+        } else {
+            console.log("♻️ [useDocumentDetail] PDF Versi sama. Menggunakan cache Blob (Mencegah Refresh).");
+        }
+
+        // --- STATUS LOGIC (Tetap jalankan ini agar tombol berubah status) ---
         const isCompleted = doc.status === "completed" || doc.status === "archived";
         let userHasSigned = false;
 
         if (doc.groupId) {
           setIsGroupDoc(true);
-          
-          // [PERBAIKAN PENTING] Pakai String() untuk membandingkan ID
-          // Ini mengatasi masalah jika DB mengembalikan Int tapi User ID adalah String (UUID)
           const myRequest = (doc.signerRequests || []).find((s) => String(s.userId) === String(currentUser.id));
 
           if (myRequest) {
@@ -100,7 +123,7 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
               if (myRequest.status === "SIGNED") userHasSigned = true;
 
               if (myRequest.status === "SIGNED" && !isCompleted && refreshKey === 0) {
-                toast.success("Tanda tangan tersimpan. Menunggu pihak lain.", { id: "grp-signed" });
+                toast.success("Tanda tangan tersimpan.", { id: "grp-signed" });
               }
             }
           } else {
@@ -121,37 +144,26 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
           }
         }
 
-        // FETCH PDF
-        if (tempSignedUrl && isMounted) {
-          try {
-            const response = await fetch(tempSignedUrl, { signal: controller.signal });
-            if (!response.ok) throw new Error("Gagal mengunduh PDF.");
-            const blob = await response.blob();
-            if (!isMounted) return;
-            objectUrl = URL.createObjectURL(blob);
-            setPdfFile(objectUrl);
-          } catch (pdfError) {
-            if (pdfError.name !== "AbortError") console.error("PDF fetch error:", pdfError);
-          }
-        }
       } catch (error) {
         if (error.name !== "CanceledError") {
           console.error("Error fetching doc:", error);
           if (isMounted) toast.error("Gagal memuat dokumen.");
         }
       } finally {
+        // Matikan loading hanya jika ini load awal
         if (isMounted && refreshKey === 0) setIsLoadingDoc(false);
       }
     };
 
-    fetchDocumentAndPdf();
+    fetchDocumentData();
 
     return () => {
       controller.abort();
       isMounted = false;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      // Jangan revoke objectUrl di sini jika kita ingin mempertahankan PDF saat refreshKey berubah
+      // Revoke dilakukan otomatis oleh browser saat page unmount total
     };
-  }, [documentId, currentUser?.id, refreshKey, navigate]);
+  }, [documentId, currentUser?.id, refreshKey, navigate]); // pdfFile dikeluarkan dari dep array agar tidak loop
 
   return {
     currentUser,
@@ -164,6 +176,5 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
     isSignedSuccess,
     setIsSignedSuccess,
     isLoadingDoc,
-    isLoadingPdf,
   };
 };

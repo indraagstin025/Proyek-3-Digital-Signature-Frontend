@@ -149,8 +149,8 @@ const DashboardPage = ({ theme, toggleTheme }) => {
         />
 
         {/* MAIN CONTENT */}
-        <main className="flex-1 pt-20 h-full overflow-hidden flex flex-col relative">
-          <div className="w-full h-full relative">
+        <main className="flex-1 pt-20 h-full overflow-hidden flex flex-col relative no-scrollbar">
+          <div className="w-full h-full relative no-scrollbar">
             {userError ? (
               <div className="p-8 text-red-500 text-center font-medium bg-red-50 rounded-lg m-4">{userError}</div>
             ) : (
