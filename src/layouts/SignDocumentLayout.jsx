@@ -1,5 +1,4 @@
 /* eslint-disable no-unused-vars */
-// file: src/layouts/SignDocumentLayout.jsx
 import React from "react";
 import { FaSpinner } from "react-icons/fa";
 import { Toaster } from "react-hot-toast";
@@ -66,6 +65,10 @@ const SignDocumentLayout = ({
 
   const sidebarOpen = isLandscape ? true : isSidebarOpen;
 
+  // [PERBAIKAN] Hitung apakah ada tanda tangan milik user di canvas (yang belum di-lock)
+  // Di Personal Sign, tanda tangan baru memiliki isLocked: false
+  const hasPlacedSignature = signatures.some((s) => !s.isLocked);
+
   return (
     <div className="absolute inset-0 bg-slate-200 dark:bg-slate-900 overflow-hidden">
       <Toaster position="top-center" containerStyle={{ zIndex: 9999 }} />
@@ -110,6 +113,10 @@ const SignDocumentLayout = ({
             isLoading={isAnalyzing || isSaving}
             includeQrCode={includeQrCode}
             setIncludeQrCode={setIncludeQrCode}
+            
+            // [PERBAIKAN] Kirim prop ini agar tombol menyala
+            hasPlacedSignature={hasPlacedSignature} 
+            
             isOpen={sidebarOpen}
             onClose={() => setIsSidebarOpen(false)}
             isSignedSuccess={isSignedSuccess}
@@ -130,7 +137,8 @@ const SignDocumentLayout = ({
       <MobileFloatingActions 
         canSign={canSign}
         isSignedSuccess={isSignedSuccess}
-        hasMySignatures={signatures.some((s) => !s.isLocked)}
+        // [PERBAIKAN] Gunakan variabel yang sudah dihitung agar konsisten
+        hasMySignatures={hasPlacedSignature}
         isSaving={isSaving}
         onSave={onCommitSave}
         onToggleSidebar={() => setIsSidebarOpen(true)}
@@ -145,7 +153,6 @@ const SignDocumentLayout = ({
       {/* Signature Modal */}
       {isSignatureModalOpen && (
         <SignatureModal onSave={onSaveFromModal} onClose={() => setIsSignatureModalOpen(false)} />
-        
       )}
 
       <ProcessingModal isOpen={isSaving} />

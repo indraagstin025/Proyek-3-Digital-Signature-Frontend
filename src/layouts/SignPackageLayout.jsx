@@ -59,6 +59,10 @@ const SignPackageLayout = ({
 
   const sidebarOpen = isLandscape ? true : isSidebarOpen;
 
+  // [PERBAIKAN] Hitung apakah ada tanda tangan di halaman saat ini
+  // Untuk paket, kita cukup cek apakah array tidak kosong
+  const hasPlacedSignature = currentSignatures && currentSignatures.length > 0;
+
   if (isLoading && !currentPdfBlobUrl) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">
@@ -155,11 +159,18 @@ const SignPackageLayout = ({
         <SignatureSidebar
           savedSignatureUrl={savedSignatureUrl}
           onOpenSignatureModal={() => setIsSignatureModalOpen(true)}
+          
+          // Tombol ini akan menjadi "Next Document" atau "Save All"
           onSave={handleNextOrSubmit}
+          
           onAutoTag={handleAutoTag}
           isLoading={isSubmitting}
           includeQrCode={includeQrCode}
           setIncludeQrCode={setIncludeQrCode}
+          
+          // [PERBAIKAN] Kirim prop ini!
+          hasPlacedSignature={hasPlacedSignature}
+          
           isOpen={sidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
           onAnalyze={handleAnalyzeCurrentDocument}
@@ -175,7 +186,8 @@ const SignPackageLayout = ({
           <FaRobot size={14} />
         </button>
 
-        {currentSignatures.length > 0 && (
+        {/* Logic Mobile sudah benar menggunakan currentSignatures.length */}
+        {hasPlacedSignature && (
           <button
             onClick={handleNextOrSubmit}
             disabled={isSubmitting}

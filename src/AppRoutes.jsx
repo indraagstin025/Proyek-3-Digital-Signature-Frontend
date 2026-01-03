@@ -8,6 +8,7 @@ import ProtectedRoute from "./components/ProtectedRoute/ProtectedRoute.jsx";
 
 // Pages - Public
 import HomePage from "./pages/HomePage/HomePage.jsx";
+import DemoSignPage from "./pages/HomePage/DemoSignPage.jsx";
 import LoginPage from "./pages/LoginPage/LoginPage.jsx";
 import RegisterPage from "./pages/RegisterPage/RegisterPage.jsx";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage/ForgotPasswordPage.jsx";
@@ -86,7 +87,8 @@ const AppRoutes = ({ theme, toggleTheme, onSessionExpired, routeKey }) => {
           KELOMPOK 2: STANDALONE PAGES
          ================================================================= */}
       <Route path="/verify/:signatureId" element={<VerificationPage />} />
-      
+      <Route path="/demo" element={<DemoSignPage theme={theme} toggleTheme={toggleTheme} />} />
+
       <Route path="/documents/:documentId/sign" element={<SignDocumentPage theme={theme} toggleTheme={toggleTheme} onSessionExpired={onSessionExpired} />} />
       <Route path="/documents/:documentId/view" element={<ViewDocumentPage theme={theme} toggleTheme={toggleTheme} />} />
       <Route path="/documents/:documentId/group-sign" element={<SignGroupPage theme={theme} toggleTheme={toggleTheme} />} />
@@ -95,12 +97,11 @@ const AppRoutes = ({ theme, toggleTheme, onSessionExpired, routeKey }) => {
           KELOMPOK 3: PROTECTED ROUTES
          ================================================================= */}
       <Route element={<ProtectedRoute />}>
-        
         {/* ✅ Route Pricing (Menggunakan Layout Khusus) */}
         <Route path="/pricing" element={<PricingLayout theme={theme} toggleTheme={toggleTheme} />} />
 
         <Route path="/packages/sign/:packageId" element={<SignPackagePage theme={theme} toggleTheme={toggleTheme} onSessionExpired={onSessionExpired} />} />
-        
+
         {/* Dashboard Layout (Sidebar) */}
         <Route path="/dashboard" element={<DashboardPage theme={theme} toggleTheme={toggleTheme} onSessionExpired={onSessionExpired} />}>
           <Route index element={<DashboardOverview theme={theme} />} />

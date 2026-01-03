@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 
 // --- Polyfills untuk Browser Lama ---
-if (typeof Promise.withResolvers === 'undefined') {
+if (typeof Promise.withResolvers === "undefined") {
   Promise.withResolvers = function () {
     let resolve, reject;
     const promise = new Promise((res, rej) => {
@@ -12,7 +12,7 @@ if (typeof Promise.withResolvers === 'undefined') {
   };
 }
 
-if (typeof URL.parse === 'undefined') {
+if (typeof URL.parse === "undefined") {
   URL.parse = function (url, base) {
     try {
       return new URL(url, base);
@@ -27,8 +27,8 @@ import "./index.css";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { BrowserRouter as Router, useLocation, useNavigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
-import { ImSpinner9, ImWarning } from "react-icons/im"; 
-import { MdWifiOff, MdRefresh } from "react-icons/md"; 
+import { ImSpinner9, ImWarning } from "react-icons/im";
+import { MdWifiOff, MdRefresh } from "react-icons/md";
 import authService from "./services/authService.js";
 import { socketService } from "./services/socketService.js";
 import { pdfjs } from "react-pdf";
@@ -56,7 +56,7 @@ const AppWrapper = () => {
   // State Loading & Network
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [initError, setInitError] = useState(null); 
+  const [initError, setInitError] = useState(null);
 
   // 1. Event Listener Session Expired
   useEffect(() => {
@@ -77,7 +77,7 @@ const AppWrapper = () => {
   // 3. LOGIKA UTAMA: Smart Session Check
   const initSession = useCallback(async () => {
     setIsCheckingSession(true);
-    setInitError(null); 
+    setInitError(null);
 
     const currentPath = window.location.pathname;
     const isRefresh = sessionStorage.getItem("app_loaded");
@@ -85,27 +85,31 @@ const AppWrapper = () => {
     const shouldShowSplash = !isRefresh && isRoot;
     const delayDuration = shouldShowSplash ? 2000 : 0;
 
+    // Jika di halaman publik (/, /login, /register), jangan cek session
+    const publicOnlyPaths = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/join", "/verify-email"];
+    const isPublicPage = publicOnlyPaths.includes(currentPath);
+
+    if (isPublicPage && isRefresh) {
+      // Jika sudah pernah load sebelumnya dan user masuk kembali ke halaman publik, jangan cek session
+      setIsCheckingSession(false);
+      return;
+    }
+
     const minLoadingTime = new Promise((resolve) => setTimeout(resolve, delayDuration));
     const sessionCheckPromise = authService.getMe();
-    
+
     // Timeout 10 Detik
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("TIMEOUT")), 10000)
-    );
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), 10000));
 
     try {
-      await Promise.all([
-        Promise.race([sessionCheckPromise, timeoutPromise]),
-        minLoadingTime,
-      ]);
+      await Promise.all([Promise.race([sessionCheckPromise, timeoutPromise]), minLoadingTime]);
 
       // Jika sukses login & akses halaman publik, redirect ke dashboard
-      const publicPaths = ["/login", "/register", "/"];
-      if (publicPaths.includes(currentPath)) {
+      const redirectPaths = ["/login", "/register", "/"];
+      if (redirectPaths.includes(currentPath)) {
         navigate("/dashboard", { replace: true });
       }
-      setIsCheckingSession(false); 
-
+      setIsCheckingSession(false);
     } catch (error) {
       console.warn("Session Init Error:", error.message || error);
 
@@ -115,11 +119,15 @@ const AppWrapper = () => {
 
       if (shouldShowSplash) await minLoadingTime;
 
-      if (isUnauthorized) {
+      // Jika 401 di halaman publik, itu adalah normal (user belum login)
+      if (isUnauthorized && isPublicPage) {
+        setIsCheckingSession(false);
+      } else if (isUnauthorized) {
+        // 401 di halaman protected, baru trigger session expired
         setIsCheckingSession(false);
       } else if (isTimeout || isNetworkError) {
         setInitError("Gagal terhubung ke server. Periksa koneksi internet Anda.");
-        setIsCheckingSession(false); 
+        setIsCheckingSession(false);
       } else {
         setIsCheckingSession(false);
       }
@@ -128,7 +136,9 @@ const AppWrapper = () => {
     }
   }, [navigate]);
 
-  useEffect(() => { initSession(); }, []);
+  useEffect(() => {
+    initSession();
+  }, []);
 
   // Auto Retry on Online
   useEffect(() => {
@@ -163,23 +173,37 @@ const AppWrapper = () => {
   }, [isCheckingSession, initError, isOnline]);
 
   // Helpers
-  const handleAcceptCookie = () => { localStorage.setItem("cookie_consent", "true"); setShowBanner(false); };
-  const handleDeclineCookie = () => { localStorage.setItem("cookie_consent", "false"); setShowBanner(false); };
-  const handleRedirectToLogin = () => { setSessionModalOpen(false); setRouteKey((p) => p + 1); navigate("/login", { replace: true }); };
-  
+  const handleAcceptCookie = () => {
+    localStorage.setItem("cookie_consent", "true");
+    setShowBanner(false);
+  };
+  const handleDeclineCookie = () => {
+    localStorage.setItem("cookie_consent", "false");
+    setShowBanner(false);
+  };
+  const handleRedirectToLogin = () => {
+    setSessionModalOpen(false);
+    setRouteKey((p) => p + 1);
+    navigate("/login", { replace: true });
+  };
+
   useEffect(() => {
     const root = document.documentElement;
-    if (theme === "dark") root.classList.add("dark"); else root.classList.remove("dark");
+    if (theme === "dark") root.classList.add("dark");
+    else root.classList.remove("dark");
     localStorage.setItem("theme", theme);
   }, [theme]);
-  
+
   const toggleTheme = () => setTheme((p) => (p === "light" ? "dark" : "light"));
-  
-  const toastOptions = useMemo(() => ({
-    style: { background: theme === "dark" ? "#1e293b" : "#fff", color: theme === "dark" ? "#fff" : "#333" },
-    success: { iconTheme: { primary: "#10B981", secondary: "white" } },
-    error: { iconTheme: { primary: "#EF4444", secondary: "white" } },
-  }), [theme]);
+
+  const toastOptions = useMemo(
+    () => ({
+      style: { background: theme === "dark" ? "#1e293b" : "#fff", color: theme === "dark" ? "#fff" : "#333" },
+      success: { iconTheme: { primary: "#10B981", secondary: "white" } },
+      error: { iconTheme: { primary: "#EF4444", secondary: "white" } },
+    }),
+    [theme]
+  );
 
   // 5. RENDER LOADING
   if (isCheckingSession) {
@@ -204,15 +228,12 @@ const AppWrapper = () => {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 p-4">
         <div className="text-center max-w-md">
-            <ImWarning className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold mb-2">Kendala Koneksi</h2>
-            <p className="text-slate-500 dark:text-slate-400 mb-6">{initError}</p>
-            <button 
-                onClick={initSession}
-                className="flex items-center justify-center gap-2 mx-auto px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all active:scale-95"
-            >
-                <MdRefresh className="text-xl" /> Coba Lagi
-            </button>
+          <ImWarning className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold mb-2">Kendala Koneksi</h2>
+          <p className="text-slate-500 dark:text-slate-400 mb-6">{initError}</p>
+          <button onClick={initSession} className="flex items-center justify-center gap-2 mx-auto px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all active:scale-95">
+            <MdRefresh className="text-xl" /> Coba Lagi
+          </button>
         </div>
       </div>
     );
@@ -224,28 +245,29 @@ const AppWrapper = () => {
       <Toaster position="top-center" reverseOrder={false} toastOptions={toastOptions} containerStyle={{ zIndex: 99999 }} />
 
       {/* Panggil AppRoutes di sini */}
-      <AppRoutes 
-        theme={theme} 
-        toggleTheme={toggleTheme} 
-        onSessionExpired={() => setSessionModalOpen(true)} 
-        routeKey={routeKey}
+      <AppRoutes theme={theme} toggleTheme={toggleTheme} onSessionExpired={() => setSessionModalOpen(true)} routeKey={routeKey} />
+
+      <ConfirmationModal
+        isOpen={isSessionModalOpen}
+        onClose={() => setSessionModalOpen(false)}
+        onConfirm={handleRedirectToLogin}
+        title="Sesi Berakhir"
+        message="Sesi Anda telah berakhir. Silakan login kembali untuk melanjutkan."
+        confirmText="Login"
+        cancelText=""
+        confirmButtonColor="bg-blue-600 hover:bg-blue-700"
       />
 
-      <ConfirmationModal 
-        isOpen={isSessionModalOpen} 
-        onClose={() => setSessionModalOpen(false)} 
-        onConfirm={handleRedirectToLogin} 
-        title="Sesi Berakhir" 
-        message="Sesi Anda telah berakhir. Silakan login kembali untuk melanjutkan." 
-        confirmText="Login" 
-        cancelText="" 
-        confirmButtonColor="bg-blue-600 hover:bg-blue-700" 
-      />
-      
       {showBanner && <CookieBanner onAccept={handleAcceptCookie} onDecline={handleDeclineCookie} />}
     </div>
   );
 };
 
-function App() { return <Router><AppWrapper /></Router>; }
+function App() {
+  return (
+    <Router>
+      <AppWrapper />
+    </Router>
+  );
+}
 export default App;

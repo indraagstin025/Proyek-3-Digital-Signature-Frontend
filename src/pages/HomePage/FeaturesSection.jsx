@@ -1,12 +1,14 @@
 import React, { useEffect } from 'react';
-// Kita buat card langsung di sini agar style-nya lebih fleksibel dan terjamin bagus
-import { FaShieldAlt, FaQrcode, FaUsers, FaCogs } from 'react-icons/fa';
+// Import icons
+import { FaShieldAlt, FaQrcode, FaUsers, FaLaptopCode } from 'react-icons/fa';
 
+// 🔥 UPDATE: Konten Features disesuaikan
 const features = [
   {
     icon: <FaShieldAlt />,
-    title: "Keamanan Berlapis",
-    description: "Enkripsi end-to-end (E2EE) dan audit trail memastikan setiap dokumen aman dari manipulasi pihak tidak bertanggung jawab.",
+    title: "Privasi Terjamin",
+    // Update deskripsi agar relevan dengan client-side demo
+    description: "Dokumen Anda diproses langsung di browser (Client-Side) untuk mode demo, atau dengan enkripsi E2EE pada mode akun penuh.",
     delay: 0,
   },
   {
@@ -22,9 +24,9 @@ const features = [
     delay: 200,
   },
   {
-    icon: <FaCogs />,
-    title: "Integrasi API",
-    description: "Hubungkan WeSign dengan sistem ERP atau aplikasi internal Anda melalui API modern kami untuk otomatisasi penuh.",
+    icon: <FaLaptopCode />, // Ganti icon Cogs jadi LaptopCode (opsional)
+    title: "Teknologi Modern",
+    description: "Dibangun dengan React & PDF-Lib untuk performa cepat tanpa loading berlebih, mendukung tanda tangan di Desktop & Mobile.",
     delay: 300,
   },
 ];

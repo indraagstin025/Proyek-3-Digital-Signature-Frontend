@@ -1,38 +1,25 @@
 import React from "react";
 import { Link } from "react-router-dom";
 
+// Pastikan path image ini sesuai dengan struktur folder Anda
 import logoLight from "../../assets/images/WeSignLightMode.png";
 import logoDark from "../../assets/images/WeSignDarkMode.png";
 
 const HeroSection = () => {
   const HeroLogo = ({ className }) => (
     <div className={`relative animate-float ${className}`}>
-      <img
-        src={logoLight}
-        alt="Logo WeSign Light"
-        className="w-[280px] sm:w-[360px] md:w-[480px] h-auto drop-shadow-2xl block dark:hidden transform transition-transform duration-300"
-      />
-      <img
-        src={logoDark}
-        alt="Logo WeSign Dark"
-        className="w-[280px] sm:w-[360px] md:w-[480px] h-auto drop-shadow-2xl hidden dark:block transform transition-transform duration-300"
-      />
+      <img src={logoLight} alt="Logo WeSign Light" className="w-[280px] sm:w-[360px] md:w-[480px] h-auto drop-shadow-2xl block dark:hidden transform transition-transform duration-300" />
+      <img src={logoDark} alt="Logo WeSign Dark" className="w-[280px] sm:w-[360px] md:w-[480px] h-auto drop-shadow-2xl hidden dark:block transform transition-transform duration-300" />
     </div>
   );
 
   return (
     <section
       id="home"
-      className="relative min-h-screen flex justify-center overflow-hidden 
+      className="relative h-screen flex justify-center
                  bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 
                  dark:from-slate-900 dark:via-slate-800 dark:to-slate-900
-                 
-                 /* --- BAGIAN YANG DIUBAH --- */
-                 /* Mobile: items-start (rata atas) | Desktop: items-center (rata tengah) */
                  items-start md:items-center 
-                 
-                 /* Mobile: pt-15 (Jarak atas dikurangi drastis agar konten naik) */
-                 /* Desktop: pt-0 (Kembali ke tengah) */
                  pt-24 md:pt-0 pb-12"
     >
       {/* Aurora / Glow Effect */}
@@ -42,31 +29,21 @@ const HeroSection = () => {
       </div>
 
       <div className="relative z-10 w-full max-w-7xl mx-auto px-6 lg:px-12 flex flex-col md:flex-row items-center gap-8 md:gap-16">
-        
         {/* === KOLOM 1: Teks & Logo Mobile === */}
         <div className="w-full md:w-1/2 text-center md:text-left space-y-6">
-          
-          {/* Judul */}
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-tight text-slate-900 dark:text-white">
-            Tandatangani Dokumen dengan{" "}
-            <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              WeSign
-            </span>
+            Tandatangani Dokumen dengan <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">WeSign</span>
           </h1>
 
-          {/* LOGO MOBILE (Di antara Judul & Teks) */}
           <div className="flex justify-center md:hidden my-6">
             <HeroLogo />
           </div>
 
-          {/* Deskripsi */}
-          <p className="text-lg sm:text-xl text-slate-600 dark:text-slate-300 max-w-xl mx-auto md:mx-0">
-            Buat tanda tangan digital yang aman, cepat, dan dapat diverifikasi
-            kapan saja.
-          </p>
+          <p className="text-lg sm:text-xl text-slate-600 dark:text-slate-300 max-w-xl mx-auto md:mx-0">Buat tanda tangan digital yang aman, cepat, dan dapat diverifikasi kapan saja. Coba fitur gratis kami tanpa perlu mendaftar.</p>
 
-          {/* Tombol */}
+          {/* --- BAGIAN TOMBOL --- */}
           <div className="flex flex-col sm:flex-row justify-center md:justify-start items-center gap-4 pt-2">
+            {/* Tombol Login (Tetap) */}
             <Link
               to="/login"
               className="w-full sm:w-auto px-8 py-3.5 text-lg font-semibold rounded-full text-white 
@@ -78,21 +55,25 @@ const HeroSection = () => {
               Mulai Sekarang
             </Link>
 
-            <a
-              href="#features"
+            {/* 🔥 UPDATE: Tombol Demo (Baru) 🔥 */}
+            <Link
+              to="/demo"
               className="w-full sm:w-auto px-8 py-3.5 text-lg font-semibold rounded-full
-               bg-gradient-to-r from-slate-200 to-slate-300 text-slate-800
-               dark:from-slate-700 dark:to-slate-800 dark:text-slate-200
-               border border-transparent shadow-md hover:shadow-lg
+               bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200
+               border-2 border-slate-200 dark:border-slate-700 
+               hover:border-blue-500 dark:hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400
+               shadow-md hover:shadow-lg
                transform hover:-translate-y-1 hover:scale-105
-               transition-all duration-300 text-center"
+               transition-all duration-300 text-center flex items-center justify-center gap-2 group"
             >
-              Lihat Fitur
-            </a>
+              <span>Coba Demo</span>
+              {/* Badge Kecil */}
+              <span className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider group-hover:bg-green-200 transition-colors">Tanpa Login</span>
+            </Link>
           </div>
         </div>
 
-        {/* === KOLOM 2: Logo Desktop (Hidden di Mobile) === */}
+        {/* === KOLOM 2: Logo Desktop === */}
         <div className="w-full md:w-1/2 hidden md:flex justify-center items-center">
           <HeroLogo />
         </div>

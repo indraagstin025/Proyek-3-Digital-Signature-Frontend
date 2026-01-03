@@ -77,7 +77,12 @@ apiClient.interceptors.response.use(
         // Jangan retry jika sudah pernah retry (hindari infinite loop)
         if (config._retry) {
           console.warn("🔒 Retry sudah dilakukan, tetap 401. Triggering logout...");
-          window.dispatchEvent(new CustomEvent("sessionExpired"));
+          // Hanya trigger logout jika bukan halaman publik
+          const currentPath = window.location.pathname;
+          const publicPages = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/join", "/verify-email"];
+          if (!publicPages.includes(currentPath)) {
+            window.dispatchEvent(new CustomEvent("sessionExpired"));
+          }
           return Promise.reject(error);
         }
 
@@ -87,7 +92,12 @@ apiClient.interceptors.response.use(
         // Jika SESSION_EXPIRED dengan refresh token gagal, logout langsung
         if (errorCode === "SESSION_EXPIRED") {
           console.warn("🔒 Session expired (refresh gagal). Triggering logout...");
-          window.dispatchEvent(new CustomEvent("sessionExpired"));
+          // Hanya trigger logout jika bukan halaman publik
+          const currentPath = window.location.pathname;
+          const publicPages = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/join", "/verify-email"];
+          if (!publicPages.includes(currentPath)) {
+            window.dispatchEvent(new CustomEvent("sessionExpired"));
+          }
           return Promise.reject(error);
         }
 
@@ -128,10 +138,14 @@ apiClient.interceptors.response.use(
           // Gagal juga, notify subscribers
           onRefreshComplete(false);
 
-          // Jika masih 401 setelah retry, trigger logout
+          // Jika masih 401 setelah retry, trigger logout (hanya untuk non-public pages)
           if (retryError.response?.status === 401) {
             console.warn("🔒 Retry tetap gagal 401. Triggering logout...");
-            window.dispatchEvent(new CustomEvent("sessionExpired"));
+            const currentPath = window.location.pathname;
+            const publicPages = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/join", "/verify-email"];
+            if (!publicPages.includes(currentPath)) {
+              window.dispatchEvent(new CustomEvent("sessionExpired"));
+            }
           }
           return Promise.reject(retryError);
         } finally {
