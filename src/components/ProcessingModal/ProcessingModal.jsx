@@ -1,68 +1,58 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { FaSpinner, FaCheckCircle, FaLock, FaPenNib, FaCloudUploadAlt } from "react-icons/fa";
+import { FaFilePdf } from "react-icons/fa";
 
-const steps = [
-  // ✅ DURASI DIUBAH MENJADI 5-6 DETIK
-  // Total estimasi waktu jika berjalan penuh: ~22 Detik
-  { message: "Mempersiapkan dokumen PDF...", icon: <FaSpinner className="animate-spin" />, duration: 5000 },
-  { message: "Menanamkan tanda tangan visual...", icon: <FaPenNib className="animate-bounce" />, duration: 6000 },
-  { message: "Enkripsi sertifikat digital (P12)...", icon: <FaLock className="animate-pulse" />, duration: 6000 },
-  { message: "Finalisasi & Upload ke Cloud...", icon: <FaCloudUploadAlt className="animate-bounce" />, duration: 5000 },
+const messages = [
+  "Mempersiapkan dokumen...",
+  "Menanamkan tanda tangan...",
+  "Mengenkripsi data...",
+  "Finalisasi dokumen...",
 ];
 
 const ProcessingModal = ({ isOpen }) => {
-  const [currentStep, setCurrentStep] = useState(0);
+  const [msgIndex, setMsgIndex] = useState(0);
 
   useEffect(() => {
     if (!isOpen) {
-      const timer = setTimeout(() => setCurrentStep(0), 500);
-      return () => clearTimeout(timer);
+      setMsgIndex(0);
+      return;
     }
 
-    let timeout;
-    if (currentStep < steps.length - 1) {
-      timeout = setTimeout(() => {
-        setCurrentStep((prev) => prev + 1);
-      }, steps[currentStep].duration);
-    }
+    // Ganti pesan setiap 1.5 detik agar user merasa ada progres
+    const interval = setInterval(() => {
+      setMsgIndex((prev) => (prev + 1) % messages.length);
+    }, 1500);
 
-    return () => clearTimeout(timeout);
-  }, [isOpen, currentStep]);
+    return () => clearInterval(interval);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-white/30 dark:bg-black/20 backdrop-blur-md transition-opacity duration-700 animate-fadeIn">
-      {/* Container Transparan */}
-      <div className="relative bg-transparent p-10 max-w-sm w-full mx-4 text-center overflow-visible">
-        {/* Glow Background */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-blue-500/20 rounded-full blur-3xl -z-10"></div>
-
-        {/* CINCIN BERPUTAR (Sangat Lambat & Elegan) */}
-        <div className="relative mx-auto mb-8 w-32 h-32 flex items-center justify-center">
-          {/* Cincin Luar: 12 Detik per putaran */}
-          <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-600 border-r-indigo-600 dark:border-t-blue-400 dark:border-r-purple-400 animate-[spin_12s_linear_infinite]" />
-
-          {/* Cincin Dalam: 10 Detik per putaran (reverse) */}
-          <div className="absolute inset-4 rounded-full border-4 border-transparent border-b-blue-400 border-l-indigo-400 dark:border-b-blue-300 dark:border-l-purple-300 animate-[spin_10s_linear_infinite_reverse]" />
-
-          {/* Icon Tengah */}
-          <div className="relative z-10 text-5xl text-blue-700 dark:text-white drop-shadow-lg transition-all duration-700 transform scale-110">{steps[currentStep].icon}</div>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-50 dark:bg-slate-900 transition-opacity duration-300">
+      <div className="max-w-md w-full text-center p-6">
+        
+        {/* Animasi Ikon PDF (Pulse & Spin Ring) */}
+        <div className="relative w-24 h-24 mx-auto mb-8">
+          {/* Lingkaran Luar Statis */}
+          <div className="absolute inset-0 border-4 border-blue-100 dark:border-blue-900/30 rounded-full"></div>
+          
+          {/* Lingkaran Loading Berputar */}
+          <div className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+          
+          {/* Ikon PDF Berdenyut di Tengah */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <FaFilePdf className="text-blue-600 text-3xl animate-pulse" />
+          </div>
         </div>
 
         {/* Teks Status */}
-        <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-3 tracking-wide drop-shadow-sm transition-all duration-500">Memproses...</h3>
-
-        <p className="text-slate-600 dark:text-blue-100 text-sm font-semibold min-h-[24px] transition-all duration-700 ease-in-out">{steps[currentStep].message}</p>
-
-        {/* Progress Bar (Animasi bar juga diperlambat agar smooth) */}
-        <div className="mt-8 w-full bg-slate-200 dark:bg-white/10 rounded-full h-1.5 overflow-hidden">
-          <div
-            className="bg-gradient-to-r from-blue-500 to-indigo-600 dark:from-blue-400 dark:to-purple-400 h-1.5 rounded-full transition-all duration-[3000ms] ease-linear shadow-lg"
-            style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
-          ></div>
-        </div>
+        <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2 transition-all duration-300">
+          {messages[msgIndex]}
+        </h3>
+        <p className="text-slate-500 dark:text-slate-400 text-sm">
+          Mohon jangan tutup halaman ini...
+        </p>
       </div>
     </div>,
     document.body

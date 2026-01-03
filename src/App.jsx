@@ -38,6 +38,7 @@ import SplashScreen from "./components/SplashScreen/SplashScreen.jsx";
 import ConfirmationModal from "./components/ConfirmationModal/ConfirmationModal.jsx";
 import CookieBanner from "./components/BannerCookie/BannerCookie.jsx";
 
+
 // Import Router Baru
 import AppRoutes from "./AppRoutes.jsx";
 

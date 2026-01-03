@@ -1,4 +1,5 @@
-import React from "react";
+/* eslint-disable no-unused-vars */
+import React, { useState, useEffect } from "react";
 import { FaSpinner } from "react-icons/fa";
 import { Toaster } from "react-hot-toast";
 import SigningHeader from "../components/SigningHeader/SigningHeader";
@@ -6,8 +7,10 @@ import SignatureSidebar from "../components/SignatureSidebar/SignatureSidebar";
 import SignatureModal from "../components/SignatureModal/SignatureModal";
 import AiAnalysisModal from "../components/AiAnalysisModal/AiAnalysisModal";
 import MobileFloatingActions from "../components/Signature/MobileFloatingActions";
-import ProcessingModal from "../components/ProcessingModal/ProcessingModal";
 import PDFViewerGroup from "../components/PDFViewer/PDFViewerGroup";
+
+// Import Modal Baru Khusus Grup
+import ProcessingGroupModal from "../components/ProcessingModal/ProcessingGroupModal";
 
 const SignDocumentLayoutGroup = ({
   currentUser,
@@ -17,7 +20,7 @@ const SignDocumentLayoutGroup = ({
   signatures,
   savedSignatureUrl,
   isLoadingDoc,
-  isSaving,
+  isSaving,     // Ini TRUE saat drag-drop MAUPUN saat final save
   isAnalyzing,
   canSign,
   isSignedSuccess,
@@ -38,11 +41,28 @@ const SignDocumentLayoutGroup = ({
   onUpdateSignature,
   onDeleteSignature,
   onSaveFromModal,
-  onCommitSave,
+  onCommitSave, // Ini fungsi final save dari hook
   handleAutoTag,
   handleAnalyzeDocument,
-  handleNavigateToView,
+  handleNavigateToView
 }) => {
+
+  // [TRICK] State lokal untuk membedakan "Save Otomatis" vs "Save Manual (Tombol)"
+  const [isManualSave, setIsManualSave] = useState(false);
+
+  // Reset state manual saat proses saving selesai
+  useEffect(() => {
+    if (!isSaving) {
+      setIsManualSave(false);
+    }
+  }, [isSaving]);
+
+  // Wrapper function untuk tombol Simpan
+  const handleFinalSaveClick = async () => {
+    setIsManualSave(true); // Tandai ini sebagai save manual
+    await onCommitSave();
+  };
+
   if ((isLoadingDoc && !pdfFile) || !currentUser) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">
@@ -53,9 +73,6 @@ const SignDocumentLayoutGroup = ({
   }
 
   const sidebarOpen = isLandscape ? true : isSidebarOpen;
-
-  // [PENTING] Cek apakah ada signature yang TIDAK terkunci (milik user ini)
-  // Logic di hook sudah menjamin 'isLocked' false jika userId match (String vs String)
   const hasMySignatures = signatures.some((s) => !s.isLocked);
 
   return (
@@ -86,13 +103,15 @@ const SignDocumentLayoutGroup = ({
           <SignatureSidebar
             savedSignatureUrl={savedSignatureUrl}
             onOpenSignatureModal={() => setIsSignatureModalOpen(true)}
-            onSave={onCommitSave}
+            
+            // [UPDATE] Gunakan Wrapper function di sini
+            onSave={handleFinalSaveClick}
+            
             onAutoTag={handleAutoTag}
             onAnalyze={handleAnalyzeDocument}
             isLoading={isAnalyzing || isSaving}
             includeQrCode={includeQrCode}
             setIncludeQrCode={setIncludeQrCode}
-            // [PASS LOGIC INI]
             hasPlacedSignature={hasMySignatures}
             isOpen={sidebarOpen}
             onClose={() => setIsSidebarOpen(false)}
@@ -104,19 +123,26 @@ const SignDocumentLayoutGroup = ({
         <AiAnalysisModal isOpen={isAiModalOpen} onClose={() => setIsAiModalOpen(false)} data={aiData} isLoading={isAnalyzing} />
       </div>
 
-      <MobileFloatingActions
+      <MobileFloatingActions 
         canSign={canSign}
         isSignedSuccess={isSignedSuccess}
         hasMySignatures={hasMySignatures}
         isSaving={isSaving}
-        onSave={onCommitSave}
+        // [UPDATE] Gunakan Wrapper function di sini juga
+        onSave={handleFinalSaveClick}
         onToggleSidebar={() => setIsSidebarOpen(true)}
         onOpenModal={() => setIsSignatureModalOpen(true)}
       />
 
-      {isSidebarOpen && !isLandscape && canSign && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/40 z-30 md:hidden"></div>}
+      {isSidebarOpen && !isLandscape && canSign && (
+        <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/40 z-30 md:hidden"></div>
+      )}
       {isSignatureModalOpen && <SignatureModal onSave={onSaveFromModal} onClose={() => setIsSignatureModalOpen(false)} />}
-      <ProcessingModal isOpen={isSaving} />
+      
+      {/* [LOGIKA MODAL] 
+          Hanya muncul jika SEDANG SAVING (dari hook) DAN DIPICU SECARA MANUAL (tombol)
+      */}
+      <ProcessingGroupModal isOpen={isSaving && isManualSave} />
     </div>
   );
 };

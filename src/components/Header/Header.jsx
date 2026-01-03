@@ -26,12 +26,12 @@ const Header = ({ theme, toggleTheme }) => {
                  ring-1 ring-white/40 dark:ring-black/40"
     >
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center py-4">
-        {/* Logo diganti dengan gambar */}
+        {/* LOGO */}
         <Link to="/" className="flex items-center">
-          <img src={nameLogo} alt="Logo DigiSign" className="h-10 w-auto dark:invert" />
+          <img src={nameLogo} alt="Logo WeSign" className="h-10 w-auto dark:invert" />
         </Link>
 
-        {/* Menu Desktop */}
+        {/* DESKTOP MENU */}
         <div className="hidden md:flex items-center space-x-8">
           <a href="/#features" className="font-medium text-slate-700 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white transition-colors">
             Fitur
@@ -39,18 +39,32 @@ const Header = ({ theme, toggleTheme }) => {
           <a href="/#how-it-works" className="font-medium text-slate-700 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white transition-colors">
             Proses
           </a>
-          <a href="/#testimonials" className="font-medium text-slate-700 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white transition-colors">
-            Testimoni
+          <a href="/#impact" className="font-medium text-slate-700 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white transition-colors">
+            Dampak
           </a>
 
           {/* Separator */}
           <div className="h-6 w-px bg-slate-300/50 dark:bg-slate-700/50"></div>
 
-          {/* Tombol Tema */}
+          {/* Action Buttons */}
           <ThemeToggleButton />
+          
+          <Link 
+            to="/demo" 
+            className="font-medium text-slate-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+          >
+            Demo
+          </Link>
+
+          <Link 
+            to="/login" 
+            className="px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-full shadow-lg transition-all transform hover:-translate-y-0.5"
+          >
+            Masuk
+          </Link>
         </div>
 
-        {/* Menu Mobile */}
+        {/* MOBILE MENU BUTTON */}
         <div className="md:hidden flex items-center space-x-4">
           <ThemeToggleButton />
           <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-slate-800 dark:text-white">
@@ -61,7 +75,7 @@ const Header = ({ theme, toggleTheme }) => {
         </div>
       </nav>
 
-      {/* Mobile Menu */}
+      {/* MOBILE MENU DROPDOWN */}
       <div
         id="mobile-menu"
         className={`md:hidden ${isMenuOpen ? "block" : "hidden"} 
@@ -76,9 +90,19 @@ const Header = ({ theme, toggleTheme }) => {
           <a href="/#how-it-works" onClick={() => setIsMenuOpen(false)} className="w-full text-center font-medium text-slate-700 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white transition-colors py-2 rounded-lg">
             Proses
           </a>
-          <a href="/#testimonials" onClick={() => setIsMenuOpen(false)} className="w-full text-center font-medium text-slate-700 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white transition-colors py-2 rounded-lg">
-            Testimoni
+          <a href="/#impact" onClick={() => setIsMenuOpen(false)} className="w-full text-center font-medium text-slate-700 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white transition-colors py-2 rounded-lg">
+            Dampak
           </a>
+          
+          <hr className="w-full border-slate-300/50 dark:border-slate-700/50 my-2" />
+
+          <Link to="/demo" onClick={() => setIsMenuOpen(false)} className="w-full text-center font-medium text-slate-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors py-2 rounded-lg">
+            Coba Demo
+          </Link>
+          
+          <Link to="/login" onClick={() => setIsMenuOpen(false)} className="w-full text-center font-bold text-white bg-blue-600 hover:bg-blue-700 py-2 rounded-lg shadow-md transition-colors mt-2">
+            Masuk Akun
+          </Link>
         </div>
       </div>
     </header>

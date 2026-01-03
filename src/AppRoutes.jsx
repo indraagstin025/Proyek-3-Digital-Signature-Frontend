@@ -5,6 +5,7 @@ import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 import Header from "./components/Header/Header.jsx";
 import MainLayout from "./components/MainLayout/MainLayout.jsx";
 import ProtectedRoute from "./components/ProtectedRoute/ProtectedRoute.jsx";
+import PrivacyPolicyPage from "./components/BannerCookie/PrivacyPolicyPage.jsx";
 
 // Pages - Public
 import HomePage from "./pages/HomePage/HomePage.jsx";
@@ -75,6 +76,7 @@ const AppRoutes = ({ theme, toggleTheme, onSessionExpired, routeKey }) => {
          ================================================================= */}
       <Route element={<PublicLayout theme={theme} toggleTheme={toggleTheme} />}>
         <Route path="/" element={<HomePage />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
         <Route path="/login" element={<LoginPage key={routeKey} />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
