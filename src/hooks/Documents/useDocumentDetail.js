@@ -81,13 +81,15 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
           }
         }
 
-        // --- FIX LOGIC STATUS (GROUP VS PERSONAL) ---
+        // --- STATUS LOGIC (FIX TYPE MISMATCH DISINI) ---
         const isCompleted = doc.status === "completed" || doc.status === "archived";
         let userHasSigned = false;
 
         if (doc.groupId) {
           setIsGroupDoc(true);
-          // [PERBAIKAN] Gunakan String() untuk membandingkan ID agar aman dari tipe data (Int/UUID)
+          
+          // [PERBAIKAN PENTING] Pakai String() untuk membandingkan ID
+          // Ini mengatasi masalah jika DB mengembalikan Int tapi User ID adalah String (UUID)
           const myRequest = (doc.signerRequests || []).find((s) => String(s.userId) === String(currentUser.id));
 
           if (myRequest) {
@@ -102,7 +104,6 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
               }
             }
           } else {
-            // User tidak terdaftar sebagai signer di dokumen ini
             if (isMounted) setCanSign(false);
           }
         } else {
