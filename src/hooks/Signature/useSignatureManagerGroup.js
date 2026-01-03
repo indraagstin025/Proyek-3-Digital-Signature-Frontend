@@ -28,15 +28,13 @@ export const useSignatureManagerGroup = ({ documentId, documentVersionId, curren
   const isSocketInitialized = useRef(null);
   const userIdRef = useRef(currentUser?.id);
 
-  // Ref untuk melacak draft aktif (untuk cleanup darurat)
+  // Ref untuk melacak draft aktif
   const myDraftIdRef = useRef(null);
 
-  // Update ref saat prop berubah
   useEffect(() => {
     onRefreshRequestRef.current = onRefreshRequest;
   }, [onRefreshRequest]);
 
-  // Sync myDraftIdRef
   useEffect(() => {
     if (!currentUser) return;
     const myDraft = signatures.find((s) => String(s.userId) === String(currentUser.id) && s.status === "draft");
@@ -48,9 +46,8 @@ export const useSignatureManagerGroup = ({ documentId, documentVersionId, curren
     const verifySession = async () => {
       if (currentUser && documentId) {
         try {
-          console.log("🔍 [Hook] Verifikasi Sesi User...");
+          // Hanya cek ringan untuk memastikan token valid
           await userService.getMyProfile();
-          console.log("✅ [Hook] Sesi Valid.");
           setIsAuthVerified(true);
         } catch (error) {
           console.error("❌ [Hook] Sesi Group invalid:", error);
@@ -63,7 +60,7 @@ export const useSignatureManagerGroup = ({ documentId, documentVersionId, curren
     verifySession();
   }, [currentUser, documentId]);
 
-  // --- 2. LOAD INITIAL DATA & AUTO-CLEANUP STALE DRAFTS ---
+  // --- 2. LOAD INITIAL DATA ---
   useEffect(() => {
     const loadInitialSignatures = async () => {
       if (!documentId || !currentUser) return;
@@ -78,8 +75,9 @@ export const useSignatureManagerGroup = ({ documentId, documentVersionId, curren
 
         let sourceSignatures = [...(doc.currentVersion.signaturesGroup || []), ...(doc.currentVersion.signaturesPersonal || [])];
 
-        // ✅ Signature DRAFT harus PERSIST meski user refresh
-        // Tidak ada auto-cleanup - user draft signatures tetap ada sampai di-finalize atau di-delete manual
+        // [PERBAIKAN] Sortir berdasarkan created_at descending (terbaru diatas)
+        // Ini mencegah pengambilan draft "hantu" (draft lama yang tidak sengaja tersisa)
+        sourceSignatures.sort((a, b) => new Date(b.createdAt || b.updatedAt) - new Date(a.createdAt || a.updatedAt));
 
         // Normalisasi Data
         const dbSignatures = sourceSignatures.map((sig) => ({
@@ -87,21 +85,20 @@ export const useSignatureManagerGroup = ({ documentId, documentVersionId, curren
           userId: String(sig.userId || sig.signerId || sig.signer?.id),
           signerName: sig.signer?.name || "User Lain",
           signatureImageUrl: sig.signatureImageUrl,
-          pageNumber: sig.pageNumber,
-          positionX: parseFloat(sig.positionX),
-          positionY: parseFloat(sig.positionY),
-          width: parseFloat(sig.width),
-          height: parseFloat(sig.height),
+          pageNumber: parseInt(sig.pageNumber || 1),
+          positionX: parseFloat(sig.positionX || 0),
+          positionY: parseFloat(sig.positionY || 0),
+          width: parseFloat(sig.width || 100),
+          height: parseFloat(sig.height || 50),
           status: sig.status || "final",
-          // ✅ PENTING: Draft milik user sendiri TIDAK di-lock (bisa di-edit)
-          // Draft milik user lain di-lock (read-only)
+          createdAt: sig.createdAt, // Bawa field ini untuk debug
           isLocked: String(sig.userId) !== String(currentUser.id) || sig.status === "final",
         }));
 
         setSignatures((prev) => {
           const map = new Map();
 
-          // 1. Data Final
+          // 1. Data Final (Prioritas Utama)
           dbSignatures
             .filter((s) => s.status === "final")
             .forEach((sig) => {
@@ -110,37 +107,36 @@ export const useSignatureManagerGroup = ({ documentId, documentVersionId, curren
               }
             });
 
-          // 2. Data Draft (All users - termasuk milik sendiri, karena tidak ada auto-cleanup)
-          // Draft tetap ada sampai user finalize atau delete manual
+          // 2. Data Draft (Ambil draft TERBARU untuk setiap user)
           dbSignatures
             .filter((s) => s.status === "draft")
             .forEach((sig) => {
               if (deletedSignaturesRef.current.has(sig.id)) return;
+              
+              // Karena sudah disort descending, yang pertama masuk map adalah yang terbaru
               if (!map.has(sig.userId)) {
                 map.set(sig.userId, sig);
               }
             });
 
-          // 3. Local State (Merge dengan DB data, prioritas ke local state jika ada perbedaan)
+          // 3. Local State (Merge dengan DB data)
           prev.forEach((local) => {
             if (deletedSignaturesRef.current.has(local.id)) return;
-            if (!map.has(local.userId)) {
-              // Local belum ada di map, tambahkan
-              map.set(local.userId, { ...local, status: "draft" });
-            } else {
-              // Local sudah ada di map (dari DB)
-              if (String(local.userId) === String(currentUser.id)) {
-                // ✅ Untuk draft milik sendiri, merge dengan PRIORITAS ke local state
-                // (local state punya data lebih lengkap setelah user drag/edit)
+            
+            // Logika merge: Jika di local ada draft user sendiri, pertahankan posisi local
+            // karena user mungkin baru saja geser-geser sebelum refresh selesai/API update
+            if (String(local.userId) === String(currentUser.id)) {
                 const dbItem = map.get(local.userId);
+                // Jika di DB ada, merge. Jika tidak, pakai local (kasus belum tersimpan)
                 map.set(local.userId, {
-                  ...dbItem, // Base dari DB
-                  ...local, // Override dengan local (position, image, dll)
-                  isLocked: false, // Pastikan tidak di-lock (draft sendiri harus editable)
-                  status: "draft", // Pastikan tetap draft
+                    ...(dbItem || {}),
+                    ...local,
+                    isLocked: false,
+                    status: "draft"
                 });
-              }
-              // Untuk signature user lain, gunakan DB data saja (tidak perlu merge)
+            } else if (!map.has(local.userId)) {
+                // User lain yang ada di socket tapi belum masuk DB fetch
+                map.set(local.userId, { ...local, status: "draft" });
             }
           });
 
@@ -154,7 +150,7 @@ export const useSignatureManagerGroup = ({ documentId, documentVersionId, curren
     loadInitialSignatures();
   }, [documentId, currentUser, refreshKey]);
 
-  // --- 3. SOCKET LOGIC ---
+  // --- 3. SOCKET LOGIC (Sama seperti sebelumnya) ---
   useEffect(() => {
     userIdRef.current = currentUser?.id;
   }, [currentUser]);
@@ -162,77 +158,49 @@ export const useSignatureManagerGroup = ({ documentId, documentVersionId, curren
   useEffect(() => {
     if (!documentId || !isAuthVerified) return;
 
-    if (isSocketInitialized.current === documentId) {
-      return;
-    }
+    if (isSocketInitialized.current === documentId) return;
 
-    console.log("🚀 [Hook] Menginisialisasi Socket Service (HANYA SEKALI)...");
+    console.log("🚀 [Hook] Menginisialisasi Socket Service...");
     isSocketInitialized.current = documentId;
-
     const socket = socketService.connect();
 
     const handleConnect = () => {
-      console.log("♻️ [Hook] Socket Connected/Reconnected, Joining Room:", documentId);
       socketService.joinRoom(documentId);
     };
 
-    if (socket.connected) {
-      handleConnect();
-    }
+    if (socket.connected) handleConnect();
     socketService.on("connect", handleConnect);
-
-    // --- EVENT HANDLERS ---
 
     const handleAddLive = (newSig) => {
       const incomingUserId = String(newSig.userId || newSig.signerId || "");
       const myCurrentId = String(userIdRef.current || "");
-
       if (incomingUserId === myCurrentId) return;
 
-      console.log("📥 [Socket] Terima Signature Baru dari Teman:", newSig);
-
-      // ✅ FIX: Gunakan setTimeout untuk memisahkan dari render cycle
-      // Ini menghindari warning "Cannot update while rendering"
       setTimeout(() => {
         setSignatures((prev) => {
           const exists = prev.find((s) => s.id === newSig.id);
           if (exists) return prev;
-
           const hasFinal = prev.some((s) => String(s.userId) === incomingUserId && s.status === "final");
           if (hasFinal) return prev;
-
           if (deletedSignaturesRef.current.has(newSig.id)) return prev;
 
+          // Hapus draft lama user tersebut jika ada (visual cleanup)
           const cleanPrev = prev.filter((s) => String(s.userId) !== incomingUserId);
-
           return [...cleanPrev, { ...newSig, status: "draft", isLocked: true }];
         });
-
-        // ✅ Toast di luar setSignatures untuk menghindari render conflict
-        toast(`${newSig.signerName || "User lain"} sedang menandatangani...`, {
-          icon: "✏️",
-          id: "sig-toast",
-        });
+        toast(`${newSig.signerName || "User lain"} sedang menandatangani...`, { icon: "✏️", id: "sig-toast" });
       }, 0);
     };
 
     const handleRemoveLive = (signatureId) => {
-      console.log(`🗑️ [Socket] User lain menghapus signature ID: ${signatureId}`);
-      // ✅ FIX: Gunakan setTimeout untuk memisahkan dari render cycle
-      setTimeout(() => {
-        setSignatures((prev) => prev.filter((s) => s.id !== signatureId));
-      }, 0);
+      setTimeout(() => setSignatures((prev) => prev.filter((s) => s.id !== signatureId)), 0);
     };
 
     const handlePositionUpdate = (data) => {
-      // ✅ FIX: Gunakan setTimeout untuk memisahkan dari render cycle
-      setTimeout(() => {
-        setSignatures((prev) => prev.map((s) => (s.id === data.signatureId ? { ...s, ...data } : s)));
-      }, 0);
+      setTimeout(() => setSignatures((prev) => prev.map((s) => (s.id === data.signatureId ? { ...s, ...data } : s))), 0);
     };
 
     const handleRefetch = () => {
-      console.log("🔄 [Socket] Server meminta Refetch Data");
       if (onRefreshRequestRef.current) onRefreshRequestRef.current();
     };
 
@@ -242,23 +210,11 @@ export const useSignatureManagerGroup = ({ documentId, documentVersionId, curren
     socketService.onRefetchData(handleRefetch);
 
     return () => {
-      console.log("🛑 [Hook] Cleanup Socket Listeners (Unmount)");
-
-      // ✅ TIDAK AUTO-DELETE DRAFT saat unmount/refresh
-      // Alasan: React tidak bisa membedakan refresh vs close tab
-      // Keduanya trigger unmount, jadi kita biarkan draft persist di DB
-      // Draft akan dihapus hanya ketika:
-      // 1. User explicit click "Delete" button
-      // 2. User finalize signature (convert to final)
-      // 3. Server-side cleanup (jika perlu, via cron job)
-
-      // Cleanup socket listeners saja
       socketService.off("connect", handleConnect);
       socketService.off("update_signature_position", handlePositionUpdate);
       socketService.off("add_signature_live", handleAddLive);
       socketService.off("remove_signature_live", handleRemoveLive);
       socketService.off("refetch_data", handleRefetch);
-
       socketService.leaveRoom(documentId);
       isSocketInitialized.current = null;
     };
@@ -270,26 +226,25 @@ export const useSignatureManagerGroup = ({ documentId, documentVersionId, curren
     setSignatures((prev) => prev.map((sig) => (sig.id === updatedSignature.id ? updatedSignature : sig)));
 
     if (pendingCreationIds.current.has(updatedSignature.id)) {
-      console.log(`⏳ [QUEUE] Update posisi ditahan ID ${updatedSignature.id}.`);
       pendingUpdates.current.set(updatedSignature.id, updatedSignature);
       return;
     }
 
     groupSignatureService
       .updateDraftPosition(updatedSignature.id, {
-        positionX: updatedSignature.positionX,
-        positionY: updatedSignature.positionY,
-        width: updatedSignature.width,
-        height: updatedSignature.height,
-        pageNumber: updatedSignature.pageNumber,
+        positionX: parseFloat(updatedSignature.positionX),
+        positionY: parseFloat(updatedSignature.positionY),
+        width: parseFloat(updatedSignature.width),
+        height: parseFloat(updatedSignature.height),
+        pageNumber: parseInt(updatedSignature.pageNumber),
       })
-      .catch(() => {});
+      .catch((e) => console.error("Update pos failed silent:", e));
   }, []);
 
   const handleAddSignature = useCallback(
     async (signatureData, savedSignatureUrl, includeQrCode) => {
       setIsSaving(true);
-      const fixedId = generateUUID();
+      const fixedId = generateUUID(); // ID Sementara Client-Side
 
       pendingCreationIds.current.add(fixedId);
 
@@ -307,17 +262,17 @@ export const useSignatureManagerGroup = ({ documentId, documentVersionId, curren
       };
 
       setSignatures((prev) => [...prev, newSignature]);
-
-      console.log(`✨ [Socket] Emit Add Signature ke Room: ${documentId}`);
       socketService.emitAddSignature(documentId, { ...newSignature, isLocked: true });
 
       try {
-        console.log(`💾 [API] Saving Draft ${fixedId}...`);
+        // Simpan ke DB. Backend mungkin akan generate ID baru atau pakai fixedId.
+        // Jika backend generate ID baru, data di DB akan beda ID dengan state local saat ini.
+        // Tapi setelah refresh, ID akan sinkron dengan DB.
         await groupSignatureService.saveDraft(documentId, newSignature);
-        console.log(`✅ [API] Draft ${fixedId} Saved.`);
-
+        
         pendingCreationIds.current.delete(fixedId);
 
+        // Jika ada pergerakan saat sedang saving awal
         if (pendingUpdates.current.has(fixedId)) {
           const latestData = pendingUpdates.current.get(fixedId);
           handleUpdateSignature(latestData);
@@ -326,10 +281,8 @@ export const useSignatureManagerGroup = ({ documentId, documentVersionId, curren
       } catch (error) {
         console.error("Save Draft Failed:", error);
         toast.error("Gagal menyimpan draft.");
-
         setSignatures((prev) => prev.filter((s) => s.id !== fixedId));
         socketService.emitRemoveSignature(documentId, fixedId);
-
         pendingCreationIds.current.delete(fixedId);
         pendingUpdates.current.delete(fixedId);
       } finally {
@@ -343,50 +296,50 @@ export const useSignatureManagerGroup = ({ documentId, documentVersionId, curren
     async (signatureId) => {
       console.log(`❌ [DELETE] Menghapus ID: ${signatureId}`);
       deletedSignaturesRef.current.add(signatureId);
-
       setSignatures((prev) => prev.filter((sig) => sig.id !== signatureId));
       socketService.emitRemoveSignature(documentId, signatureId);
-
       try {
         await groupSignatureService.deleteDraft(signatureId);
-      } catch (e) {
-        console.error("Gagal delete di server", e);
-      }
+      } catch (e) { console.error("Gagal delete di server", e); }
     },
     [documentId]
   );
 
   const handleFinalSave = useCallback(
     async (includeQrCode) => {
+      // Cari draft milik user saat ini
       const myDraft = signatures.find((sig) => String(sig.userId) === String(currentUser.id));
 
       if (!myDraft) throw new Error("Tanda tangan Anda belum ditempatkan.");
 
-      // ✅ Validasi signature image harus ada (user harus sudah drag/place)
       if (!myDraft.signatureImageUrl) {
-        throw new Error("Harap tempatkan tanda tangan Anda pada dokumen terlebih dahulu.");
+        throw new Error("Gambar tanda tangan hilang. Harap hapus dan tempatkan ulang.");
       }
 
       setIsSaving(true);
+      console.log("💾 [FINAL SAVE] Memulai proses finalisasi...", myDraft);
 
       try {
         const payload = {
-          id: myDraft.id,
+          id: myDraft.id, // ID ini harus match dengan yang ada di DB
           signatureImageUrl: myDraft.signatureImageUrl,
-          positionX: myDraft.positionX,
-          positionY: myDraft.positionY,
-          pageNumber: myDraft.pageNumber,
-          width: myDraft.width,
-          height: myDraft.height,
+          positionX: parseFloat(myDraft.positionX), // Pastikan float
+          positionY: parseFloat(myDraft.positionY),
+          pageNumber: parseInt(myDraft.pageNumber),
+          width: parseFloat(myDraft.width),
+          height: parseFloat(myDraft.height),
           method: "canvas",
         };
 
+        console.log("📤 Payload dikirim ke API:", payload);
+
         await groupSignatureService.signDocument(documentId, payload);
 
+        console.log("✅ Finalisasi Berhasil");
         socketService.notifyDataChanged(documentId);
-
         setSignatures((prev) => prev.filter((s) => s.id !== myDraft.id));
       } catch (error) {
+        console.error("❌ [FINAL SAVE ERROR]:", error.response?.data || error.message);
         throw error;
       } finally {
         setIsSaving(false);
