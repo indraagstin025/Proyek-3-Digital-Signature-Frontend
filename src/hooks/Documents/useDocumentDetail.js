@@ -10,10 +10,7 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
 
   // 1. STATE INITIALIZATION
   const [currentUser, setCurrentUser] = useState(() => {
-    // Prioritas 1: Context
     if (contextData?.user) return contextData.user;
-
-    // Prioritas 2: LocalStorage
     try {
       const stored = localStorage.getItem("authUser");
       if (!stored) return null;
@@ -25,27 +22,19 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
     }
   });
 
-  // Metadata State
   const [documentTitle, setDocumentTitle] = useState("Memuat...");
   const [documentVersionId, setDocumentVersionId] = useState(null);
-  const [documentData, setDocumentData] = useState(null); // ✅ Store full doc object
-
-  // PDF Blob State
+  const [documentData, setDocumentData] = useState(null);
   const [pdfFile, setPdfFile] = useState(null);
-
-  // Status Logic State
   const [isGroupDoc, setIsGroupDoc] = useState(false);
   const [canSign, setCanSign] = useState(false);
   const [isSignedSuccess, setIsSignedSuccess] = useState(false);
-
-  // Loading States
   const [isLoadingDoc, setIsLoadingDoc] = useState(true);
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
 
-  // Ref untuk caching versi agar tidak download ulang saat refreshKey berubah
   const loadedVersionRef = useRef(null);
 
-  // 2. CEK USER SESSION (Jika null)
+  // 2. CEK USER SESSION
   useEffect(() => {
     if (!currentUser) {
       const fetchUser = async () => {
@@ -63,9 +52,7 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
     }
   }, [currentUser, navigate]);
 
-  // ============================================================
-  // 3. EFFECT A: FETCH METADATA & STATUS + PDF IN PARALLEL
-  // ============================================================
+  // 3. FETCH DATA & LOGIC STATUS
   useEffect(() => {
     const controller = new AbortController();
     let isMounted = true;
@@ -75,38 +62,33 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
       if (!documentId || !currentUser?.id) return;
 
       try {
-        // Hanya set loading jika ini load pertama kali (bukan refresh save ttd)
         if (refreshKey === 0) setIsLoadingDoc(true);
 
-        // ✅ OPTIMASI: Fetch metadata dan PDF URL secara PARALEL
         const [doc, tempSignedUrl] = await Promise.all([
           documentService.getDocumentById(documentId, { signal: controller.signal }),
-          documentService.getDocumentFileUrl(documentId).catch((e) => {
-            console.warn("PDF URL fetch failed:", e);
-            return null;
-          }),
+          documentService.getDocumentFileUrl(documentId).catch((e) => null),
         ]);
 
-        if (!doc || !doc.currentVersion?.id) throw new Error("Dokumen tidak ditemukan/rusak.");
+        if (!doc || !doc.currentVersion?.id) throw new Error("Dokumen tidak ditemukan.");
 
         if (isMounted) {
           setDocumentTitle(doc.title);
-          setDocumentData(doc); // ✅ Store full doc untuk useSignatureManager
+          setDocumentData(doc);
           setDocumentVersionId(doc.currentVersion.id);
 
-          // ✅ Cache banding untuk PDF (track full doc object)
           if (loadedVersionRef.current !== doc.currentVersion.id && tempSignedUrl) {
             loadedVersionRef.current = { versionId: doc.currentVersion.id, fetching: true };
           }
         }
 
-        // --- LOGIKA PENENTUAN STATUS (GROUP VS PERSONAL) ---
+        // --- FIX LOGIC STATUS (GROUP VS PERSONAL) ---
         const isCompleted = doc.status === "completed" || doc.status === "archived";
         let userHasSigned = false;
 
         if (doc.groupId) {
           setIsGroupDoc(true);
-          const myRequest = (doc.signerRequests || []).find((s) => s.userId === currentUser.id);
+          // [PERBAIKAN] Gunakan String() untuk membandingkan ID agar aman dari tipe data (Int/UUID)
+          const myRequest = (doc.signerRequests || []).find((s) => String(s.userId) === String(currentUser.id));
 
           if (myRequest) {
             if (myRequest.status === "PENDING") {
@@ -116,10 +98,11 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
               if (myRequest.status === "SIGNED") userHasSigned = true;
 
               if (myRequest.status === "SIGNED" && !isCompleted && refreshKey === 0) {
-                toast.success("Tanda tangan Anda tersimpan. Menunggu pihak lain.", { id: "grp-signed" });
+                toast.success("Tanda tangan tersimpan. Menunggu pihak lain.", { id: "grp-signed" });
               }
             }
           } else {
+            // User tidak terdaftar sebagai signer di dokumen ini
             if (isMounted) setCanSign(false);
           }
         } else {
@@ -137,40 +120,26 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
           }
         }
 
-        // ✅ FETCH PDF BLOB PARALEL (Jangan tunggu metadata selesai)
+        // FETCH PDF
         if (tempSignedUrl && isMounted) {
           try {
             const response = await fetch(tempSignedUrl, { signal: controller.signal });
-            if (!response.ok) throw new Error("Gagal mengunduh file PDF.");
-
+            if (!response.ok) throw new Error("Gagal mengunduh PDF.");
             const blob = await response.blob();
             if (!isMounted) return;
-
             objectUrl = URL.createObjectURL(blob);
             setPdfFile(objectUrl);
           } catch (pdfError) {
-            // ✅ Cek semua kemungkinan abort/cancel error
-            const isAborted = pdfError.name === "AbortError" || pdfError.message?.includes("aborted") || pdfError.message?.includes("canceled") || controller.signal.aborted;
-
-            if (isAborted) {
-              // Ini normal saat komponen unmount, tidak perlu log error
-              return;
-            }
-
-            console.error("PDF fetch error:", pdfError);
-            if (isMounted) {
-              toast.error("Gagal memuat file PDF.");
-            }
+            if (pdfError.name !== "AbortError") console.error("PDF fetch error:", pdfError);
           }
         }
       } catch (error) {
-        if (error.name === "CanceledError" || error.message === "canceled") return;
-        console.error("Error fetching document:", error);
-        if (isMounted) toast.error("Gagal memuat detail dokumen.");
-      } finally {
-        if (isMounted && refreshKey === 0) {
-          setIsLoadingDoc(false);
+        if (error.name !== "CanceledError") {
+          console.error("Error fetching doc:", error);
+          if (isMounted) toast.error("Gagal memuat dokumen.");
         }
+      } finally {
+        if (isMounted && refreshKey === 0) setIsLoadingDoc(false);
       }
     };
 
@@ -179,23 +148,21 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
     return () => {
       controller.abort();
       isMounted = false;
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [documentId, currentUser?.id, refreshKey, navigate]);
 
   return {
     currentUser,
     documentTitle,
-    documentData, // ✅ Buat untuk useSignatureManager
-    pdfFile, // Blob URL yang stabil
+    documentData,
+    pdfFile,
     documentVersionId,
     isGroupDoc,
     canSign,
     isSignedSuccess,
     setIsSignedSuccess,
-    isLoadingDoc, // Loading Metadata
-    isLoadingPdf, // Loading File PDF (opsional untuk UI)
+    isLoadingDoc,
+    isLoadingPdf,
   };
 };

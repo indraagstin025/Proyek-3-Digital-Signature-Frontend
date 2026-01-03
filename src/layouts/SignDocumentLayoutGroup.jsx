@@ -52,7 +52,8 @@ const SignDocumentLayoutGroup = ({
   onCommitSave,
   handleAutoTag,
   handleAnalyzeDocument,
-  handleNavigateToView
+  handleNavigateToView, 
+  // ❌ hasMySignatures dihapus dari sini agar tidak bentrok dengan const di bawah
 }) => {
 
   // 1. Loading State Screen
@@ -67,6 +68,10 @@ const SignDocumentLayoutGroup = ({
 
   // Logic Sidebar Open (Landscape otomatis open)
   const sidebarOpen = isLandscape ? true : isSidebarOpen;
+
+  // ✅ CALCULATE hasMySignatures DI SINI
+  // Mengecek apakah ada signature yang TIDAK terkunci (artinya punya user ini)
+  const hasMySignatures = signatures.some((s) => !s.isLocked);
 
   return (
     <div className="absolute inset-0 bg-slate-200 dark:bg-slate-900 overflow-hidden">
@@ -121,6 +126,10 @@ const SignDocumentLayoutGroup = ({
             isLoading={isAnalyzing || isSaving}
             includeQrCode={includeQrCode}
             setIncludeQrCode={setIncludeQrCode}
+            
+            // ✅ Pass logic ini ke Sidebar agar tombol save menyala
+            hasPlacedSignature={hasMySignatures}
+            
             isOpen={sidebarOpen}
             onClose={() => setIsSidebarOpen(false)}
             isSignedSuccess={isSignedSuccess}
@@ -142,7 +151,7 @@ const SignDocumentLayoutGroup = ({
       <MobileFloatingActions 
         canSign={canSign}
         isSignedSuccess={isSignedSuccess}
-        hasMySignatures={signatures.some((s) => !s.isLocked)}
+        hasMySignatures={hasMySignatures} // Gunakan const yang sudah dihitung
         isSaving={isSaving}
         onSave={onCommitSave}
         onToggleSidebar={() => setIsSidebarOpen(true)}
