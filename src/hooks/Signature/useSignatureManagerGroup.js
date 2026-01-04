@@ -7,9 +7,9 @@ import { groupSignatureService } from "../../services/groupSignatureService";
 import { documentService } from "../../services/documentService";
 import { socketService } from "../../services/socketService";
 import { userService } from "../../services/userService";
-import { signatureService } from "../../services/signatureService"; 
+import { signatureService } from "../../services/signatureService";
 
-// Utility: Generate ID Sementara
+// --- UTILITY ---
 const generateUUID = () => {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -19,20 +19,28 @@ const generateUUID = () => {
   );
 };
 
-// Utility: Generate Warna Acak untuk Avatar
 const getRandomColor = (name = "User") => {
-    const colors = [
-        "bg-red-500", "bg-orange-500", "bg-amber-500", 
-        "bg-green-500", "bg-emerald-500", "bg-teal-500", 
-        "bg-cyan-500", "bg-blue-500", "bg-indigo-500", 
-        "bg-violet-500", "bg-purple-500", "bg-fuchsia-500", 
-        "bg-pink-500", "bg-rose-500"
-    ];
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-        hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return colors[Math.abs(hash) % colors.length];
+  const colors = [
+    "bg-red-500", "bg-orange-500", "bg-amber-500", "bg-green-500", 
+    "bg-emerald-500", "bg-teal-500", "bg-cyan-500", "bg-blue-500", 
+    "bg-indigo-500", "bg-violet-500", "bg-fuchsia-500", "bg-pink-500", "bg-rose-500"
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
+
+// Helper Debounce (Untuk mengatasi stuck saat drag)
+const debounce = (func, delay) => {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      func(...args);
+    }, delay);
+  };
 };
 
 export const useSignatureManagerGroup = ({
@@ -42,37 +50,35 @@ export const useSignatureManagerGroup = ({
   refreshKey,
   onRefreshRequest,
 }) => {
-  // State Utama
+  // --- STATE ---
   const [signatures, setSignatures] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isAuthVerified, setIsAuthVerified] = useState(false);
-
+  
   // State AI
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiData, setAiData] = useState(null);
 
-  // State Real-time Users (Avatar Group)
+  // State Avatar Group
   const [activeUsers, setActiveUsers] = useState([]);
 
-  // Refs
+  // --- REFS ---
   const onRefreshRequestRef = useRef(onRefreshRequest);
   const deletedSignaturesRef = useRef(new Set());
   const pendingCreationIds = useRef(new Set());
   const pendingUpdates = useRef(new Map());
-  const isSocketInitialized = useRef(null); 
+  const isSocketInitialized = useRef(null);
   const userIdRef = useRef(currentUser?.id);
   const myDraftIdRef = useRef(null);
 
-  // --- DEBUG LOGGER: Monitor activeUsers State ---
+  // Ref Buffer untuk Debounce Update Posisi
+  const incomingUpdatesRef = useRef(new Map());
+
+  // --- DEBUG ACTIVE USERS ---
   useEffect(() => {
     if (activeUsers.length > 0) {
-        console.group("📸 [DEBUG FOTO] State activeUsers Updated");
-        console.log("Total User Online:", activeUsers.length);
-        activeUsers.forEach((u, idx) => {
-            console.log(`   User #${idx + 1}: ${u.userName}`);
-            console.log(`   -> URL Foto:`, u.profilePictureUrl ? u.profilePictureUrl : "(KOSONG/UNDEFINED)");
-        });
-        console.groupEnd();
+        // Optional: Uncomment for debug
+        // console.log("Total User Online:", activeUsers.length);
     }
   }, [activeUsers]);
 
@@ -89,17 +95,15 @@ export const useSignatureManagerGroup = ({
     myDraftIdRef.current = myDraft ? myDraft.id : null;
   }, [signatures, currentUser]);
 
-  // --- 1. VERIFIKASI SESI USER ---
+  // --- 1. VERIFIKASI SESI ---
   useEffect(() => {
     const verifySession = async () => {
       if (currentUser && documentId) {
         try {
-          await userService.getMyProfile(); 
+          await userService.getMyProfile();
           setIsAuthVerified(true);
         } catch (error) {
-          if (error.response?.status === 401) {
-            setIsAuthVerified(false);
-          }
+          if (error.response?.status === 401) setIsAuthVerified(false);
         }
       }
     };
@@ -124,16 +128,10 @@ export const useSignatureManagerGroup = ({
           ...(doc.currentVersion.signaturesPersonal || []),
         ];
 
-        const myStaleDraft = sourceSignatures.find(
-            (s) => String(s.userId || s.signerId) === String(currentUser.id) && s.status === "draft"
-        );
-
-        if (myStaleDraft) {
-            try {
-                await groupSignatureService.deleteDraft(myStaleDraft.id);
-            } catch (err) { /* ignore */ }
-            sourceSignatures = sourceSignatures.filter(s => s.id !== myStaleDraft.id);
-        }
+        // ❌ BAGIAN INI SAYA HAPUS AGAR DRAFT TIDAK HILANG SAAT REFRESH
+        /* const myStaleDraft = ...
+        if (myStaleDraft) { await deleteDraft(...) } 
+        */
 
         const dbSignatures = sourceSignatures.map((sig) => ({
           id: sig.id,
@@ -146,29 +144,37 @@ export const useSignatureManagerGroup = ({
           width: parseFloat(sig.width),
           height: parseFloat(sig.height),
           status: sig.status || "final",
+          // Unlock jika milik user sendiri
           isLocked: String(sig.userId) !== String(currentUser.id),
         }));
 
         setSignatures((prev) => {
           const map = new Map();
-          dbSignatures.filter((s) => s.status === "final").forEach((sig) => {
-              if (!deletedSignaturesRef.current.has(sig.id)) map.set(sig.userId, sig);
+          
+          // 1. Prioritaskan Data DB
+          dbSignatures.forEach((sig) => {
+              if (!deletedSignaturesRef.current.has(sig.id)) {
+                  // Jika ID sama, data DB menimpa map
+                  map.set(sig.userId, sig); 
+              }
           });
-          dbSignatures.filter((s) => s.status === "draft").forEach((sig) => {
-              if (deletedSignaturesRef.current.has(sig.id)) return;
-              if (!map.has(sig.userId)) map.set(sig.userId, sig);
-          });
+
+          // 2. Gabungkan dengan State Lokal (jika ada update yg belum tersimpan)
           prev.forEach((local) => {
             if (deletedSignaturesRef.current.has(local.id)) return;
+            
             if (!map.has(local.userId)) {
-              map.set(local.userId, { ...local, status: "draft" });
+               // Jika di DB tidak ada, tapi di lokal ada (baru dibuat), masukkan
+               map.set(local.userId, { ...local, status: "draft" });
             } else {
-              if (String(local.userId) === String(currentUser.id)) {
-                const dbItem = map.get(local.userId);
-                map.set(local.userId, { ...dbItem, ...local });
-              }
+               // Jika ada di keduanya, ambil yang lokal jika itu milik kita (sedang diedit)
+               if (String(local.userId) === String(currentUser.id)) {
+                 const dbItem = map.get(local.userId);
+                 map.set(local.userId, { ...dbItem, ...local });
+               }
             }
           });
+
           return Array.from(map.values());
         });
       } catch (e) {
@@ -179,7 +185,32 @@ export const useSignatureManagerGroup = ({
     loadInitialSignatures();
   }, [documentId, currentUser, refreshKey]);
 
-  // --- 3. SOCKET CONNECTION & EVENT HANDLERS ---
+  // --- 3. SOCKET & DEBOUNCE LOGIC ---
+
+  // 🔥 Fungsi Update State Tertunda (Debounce) untuk mengatasi STUCK
+  const flushUpdatesToState = useCallback(
+    debounce(() => {
+      if (incomingUpdatesRef.current.size === 0) return;
+      
+      setSignatures((prev) => {
+        const newSignatures = [...prev];
+        let hasChanges = false;
+
+        incomingUpdatesRef.current.forEach((data, id) => {
+          const index = newSignatures.findIndex((s) => s.id === id);
+          if (index !== -1) {
+            newSignatures[index] = { ...newSignatures[index], ...data };
+            hasChanges = true;
+          }
+        });
+
+        incomingUpdatesRef.current.clear();
+        return hasChanges ? newSignatures : prev;
+      });
+    }, 500), // Delay 500ms
+    []
+  );
+
   useEffect(() => {
     if (!documentId || !isAuthVerified) return;
     if (isSocketInitialized.current === documentId) return;
@@ -191,66 +222,38 @@ export const useSignatureManagerGroup = ({
     if (socket.connected) handleConnect();
     socketService.on("connect", handleConnect);
 
-    // ✅ HANDLER: USER JOINED (Orang lain masuk)
+    // -- Handler User Avatar --
     const handleUserJoined = (data) => {
-        console.log("📸 [DEBUG FOTO] Event 'user_joined' diterima:", data);
-        console.log("   -> URL dari Server:", data.profilePictureUrl);
-
         const incomingUserId = String(data.userId || "");
         if (incomingUserId === String(userIdRef.current)) return;
 
-        const userName = data.userName || "Seseorang";
-
         setActiveUsers((prev) => {
             if (prev.find(u => String(u.userId) === incomingUserId)) return prev;
-            return [
-                ...prev, 
-                { 
-                    userId: incomingUserId, 
-                    userName: userName, 
-                    profilePictureUrl: data.profilePictureUrl, // 🔥 Check ini
-                    color: getRandomColor(userName) 
-                }
-            ];
+            return [...prev, { 
+                userId: incomingUserId, 
+                userName: data.userName, 
+                profilePictureUrl: data.profilePictureUrl, 
+                color: getRandomColor(data.userName) 
+            }];
         });
-
-        toast.success(`${userName} bergabung!`, {
-            icon: "👋",
-            position: "top-center",
-            style: {
-                borderRadius: '10px',
-                background: '#1f2937', 
-                color: '#fff',
-                fontWeight: 'bold',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
-            },
-        });
+        toast.success(`${data.userName || "Seseorang"} bergabung!`, { icon: "👋" });
     };
 
-    // ✅ HANDLER: CURRENT ROOM USERS (Data teman yang sudah ada saat kita masuk)
     const handleCurrentRoomUsers = (users) => {
-        console.log("📸 [DEBUG FOTO] Event 'current_room_users' diterima. Raw Data:", users);
-        
-        users.forEach((u, i) => {
-             console.log(`   User [${i}] ${u.userName} -> URL:`, u.profilePictureUrl);
-        });
-
         const formattedUsers = users.map(u => ({
             userId: String(u.userId),
             userName: u.userName,
-            profilePictureUrl: u.profilePictureUrl, // 🔥 Check ini
+            profilePictureUrl: u.profilePictureUrl,
             color: getRandomColor(u.userName)
         }));
-
         setActiveUsers(formattedUsers);
     };
 
-    // --- HANDLER: USER LEFT ---
     const handleUserLeft = (data) => {
         setActiveUsers((prev) => prev.filter(u => String(u.userId) !== String(data.userId)));
     };
 
-    // --- SIGNATURE HANDLERS ---
+    // -- Handler Signature --
     const handleAddLive = (newSig) => {
       const incomingUserId = String(newSig.userId || newSig.signerId || "");
       if (incomingUserId === String(userIdRef.current)) return;
@@ -263,11 +266,7 @@ export const useSignatureManagerGroup = ({
         if (deletedSignaturesRef.current.has(newSig.id)) return prev;
 
         const cleanPrev = prev.filter((s) => String(s.userId) !== incomingUserId);
-        
-        toast(`${newSig.signerName || "User lain"} sedang menandatangani...`, { 
-            icon: "✏️", 
-            id: `sig-toast-${incomingUserId}`
-        });
+        toast(`${newSig.signerName || "User lain"} sedang menandatangani...`, { icon: "✏️", id: `sig-toast-${incomingUserId}` });
         
         return [...cleanPrev, { ...newSig, status: "draft", isLocked: true }];
       });
@@ -277,15 +276,19 @@ export const useSignatureManagerGroup = ({
       setSignatures((prev) => prev.filter((s) => s.id !== signatureId));
     };
 
+    // 🔥 [PERBAIKAN STUCK] Jangan update state langsung!
     const handlePositionUpdate = (data) => {
-      setSignatures((prev) => prev.map((s) => (s.id === data.signatureId ? { ...s, ...data } : s)));
+       // 1. Simpan ke Ref (Buffer)
+       incomingUpdatesRef.current.set(data.signatureId, data);
+       // 2. Trigger debounce update
+       flushUpdatesToState();
     };
 
     const handleRefetch = () => {
       if (onRefreshRequestRef.current) onRefreshRequestRef.current();
     };
 
-    // --- REGISTER LISTENERS ---
+    // -- Register Listeners --
     socketService.onPositionUpdate(handlePositionUpdate);
     socketService.onAddSignatureLive(handleAddLive);
     socketService.onRemoveSignatureLive(handleRemoveLive);
@@ -297,7 +300,7 @@ export const useSignatureManagerGroup = ({
         socket.on("current_room_users", handleCurrentRoomUsers);
     }
 
-    // --- CLEANUP ---
+    // -- Cleanup --
     return () => {
       socketService.off("connect", handleConnect);
       socketService.off("update_signature_position", handlePositionUpdate);
@@ -313,20 +316,20 @@ export const useSignatureManagerGroup = ({
 
       socketService.leaveRoom(documentId);
       isSocketInitialized.current = null;
-
-      if (myDraftIdRef.current) {
-        groupSignatureService.deleteDraft(myDraftIdRef.current).catch(() => {}); 
-      }
     };
-  }, [documentId, isAuthVerified]);
+  }, [documentId, isAuthVerified, flushUpdatesToState]);
 
   // --- 4. ACTION HANDLERS ---
   const handleUpdateSignature = useCallback((updatedSignature) => {
+    // Optimistic Update Lokal
     setSignatures((prev) => prev.map((sig) => (sig.id === updatedSignature.id ? updatedSignature : sig)));
+    
+    // Cegah tabrakan dengan queue create
     if (pendingCreationIds.current.has(updatedSignature.id)) {
       pendingUpdates.current.set(updatedSignature.id, updatedSignature);
       return;
     }
+    
     groupSignatureService.updateDraftPosition(updatedSignature.id, updatedSignature).catch(() => {});
   }, []);
 
@@ -354,6 +357,8 @@ export const useSignatureManagerGroup = ({
       try {
         await groupSignatureService.saveDraft(documentId, newSignature);
         pendingCreationIds.current.delete(fixedId);
+        
+        // Cek apakah ada update posisi yg tertunda selama proses save
         if (pendingUpdates.current.has(fixedId)) {
           const latestData = pendingUpdates.current.get(fixedId);
           handleUpdateSignature(latestData);
@@ -380,6 +385,7 @@ export const useSignatureManagerGroup = ({
   const handleFinalSave = useCallback(async (includeQrCode) => {
       const myDraft = signatures.find((sig) => String(sig.userId) === String(currentUser.id));
       if (!myDraft) throw new Error("Tanda tangan Anda belum ditempatkan.");
+      
       setIsSaving(true);
       try {
         const payload = {
@@ -407,7 +413,6 @@ export const useSignatureManagerGroup = ({
       setAiData(result);
       toast.success("Analisis AI selesai!", { icon: "🤖" });
     } catch (error) {
-      console.error("AI Analysis Failed:", error);
       let msg = error.response?.data?.message || "Gagal melakukan analisis.";
       toast.error(msg);
     } finally {

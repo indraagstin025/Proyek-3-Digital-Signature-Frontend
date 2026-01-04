@@ -1,9 +1,6 @@
-// file: src/pages/SignGroupPage.jsx
-
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useOutletContext } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { FaRobot } from "react-icons/fa"; 
 
 import SignDocumentLayoutGroup from "../../layouts/SignDocumentLayoutGroup";
 import { useDocumentDetail } from "../../hooks/Documents/useDocumentDetail";
@@ -39,7 +36,7 @@ const SignGroupPage = ({ theme, toggleTheme }) => {
     setRefreshKey((prev) => prev + 1);
   }, []);
 
-  // 1. Hook Document Detail (Metadata Dokumen)
+  // 1. Hook Document Detail
   const {
     currentUser,
     documentTitle,
@@ -50,10 +47,8 @@ const SignGroupPage = ({ theme, toggleTheme }) => {
     setIsSignedSuccess,
     isLoadingDoc,
     isGroupDoc
-    // activeUsers TIDAK ADA DI SINI
   } = useDocumentDetail(documentId, contextData, refreshKey);
 
-  // 1.1 Redirect jika bukan dokumen grup
   useEffect(() => {
     if (!isLoadingDoc && isGroupDoc === false) {
        toast("Halaman ini khusus Grup. Mengalihkan ke Penandatanganan Personal...", { icon: "👤" });
@@ -61,9 +56,10 @@ const SignGroupPage = ({ theme, toggleTheme }) => {
     }
   }, [isLoadingDoc, isGroupDoc, navigate, documentId]);
 
-  // 2. Hook Signature Manager GROUP (Socket Realtime & Logic)
+  // 2. Hook Signature Manager GROUP 
+  // ⚠️ WAJIB DIPANGGIL DULUAN SEBELUM VARIABEL 'signatures' DIPAKAI
   const {
-    signatures,
+    signatures, // <--- Ini didefinisikan di sini
     isSaving,
     isAnalyzing,
     aiData,
@@ -73,8 +69,6 @@ const SignGroupPage = ({ theme, toggleTheme }) => {
     handleFinalSave,
     handleAutoTag,       
     handleAnalyzeDocument,
-    
-    // ✅ AMBIL activeUsers DARI SINI (Karena dikelola oleh Socket di hook ini)
     activeUsers
   } = useSignatureManagerGroup({
     documentId,
@@ -83,6 +77,11 @@ const SignGroupPage = ({ theme, toggleTheme }) => {
     refreshKey,
     onRefreshRequest: handleRefreshRequest
   });
+
+  // 🔥 [PERBAIKAN] Pindahkan logika ini ke SINI (Setelah signatures didefinisikan)
+  const hasPlacedSignature = signatures?.some(
+    (s) => String(s.userId) === String(currentUser?.id) && s.status === "draft"
+  );
 
   const handleAnalyzeClick = useCallback(() => {
     setIsAiModalOpen(true); 
@@ -160,8 +159,10 @@ const SignGroupPage = ({ theme, toggleTheme }) => {
         onCommitSave={onCommitSave}
         handleNavigateToView={handleNavigateToView}
         
-        // ✅ PROPS DIOPER DENGAN BENAR
         activeUsers={activeUsers}
+        
+        // ✅ Kirim prop ke layout
+        hasPlacedSignature={hasPlacedSignature}
       />
     </>
   );

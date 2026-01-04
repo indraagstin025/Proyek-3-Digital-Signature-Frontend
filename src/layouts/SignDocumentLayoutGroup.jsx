@@ -55,6 +55,7 @@ const SignDocumentLayoutGroup = ({
   handleAutoTag,        // ✅ [AI] Handler Auto Tag
   handleAnalyzeDocument,// ✅ [AI] Handler Analisis
   handleNavigateToView,
+  hasPlacedSignature,
   activeUsers,
 }) => {
 
@@ -135,6 +136,7 @@ const SignDocumentLayoutGroup = ({
             isSignedSuccess={isSignedSuccess}
             onViewResult={handleNavigateToView}
             readOnly={!canSign || isSignedSuccess}
+            hasPlacedSignature={hasPlacedSignature}
           />
         )}
 
