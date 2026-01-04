@@ -93,14 +93,6 @@ const SignDocumentLayout = ({
 
           <div className="space-y-3">
             <button 
-                onClick={handleDownload}
-                className="w-full py-4 px-6 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 flex items-center justify-center gap-3"
-            >
-              <FaDownload className="animate-bounce" />
-              <span>Unduh Dokumen Sekarang</span>
-            </button>
-
-            <button 
                 onClick={handleNavigateToView}
                 className="w-full py-3 px-6 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-semibold hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors flex items-center justify-center gap-2"
             >
