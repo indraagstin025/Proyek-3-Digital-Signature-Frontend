@@ -1,6 +1,9 @@
+// file: src/pages/SignGroupPage.jsx
+
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useOutletContext } from "react-router-dom";
 import { toast } from "react-hot-toast";
+import { FaRobot } from "react-icons/fa"; 
 
 import SignDocumentLayoutGroup from "../../layouts/SignDocumentLayoutGroup";
 import { useDocumentDetail } from "../../hooks/Documents/useDocumentDetail";
@@ -15,7 +18,7 @@ const SignGroupPage = ({ theme, toggleTheme }) => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
-  // [REMOVED] AI Modal State
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [savedSignatureUrl, setSavedSignatureUrl] = useState(null);
   const [includeQrCode, setIncludeQrCode] = useState(true);
 
@@ -36,7 +39,7 @@ const SignGroupPage = ({ theme, toggleTheme }) => {
     setRefreshKey((prev) => prev + 1);
   }, []);
 
-  // 1. Hook Document Detail
+  // 1. Hook Document Detail (Metadata Dokumen)
   const {
     currentUser,
     documentTitle,
@@ -46,32 +49,33 @@ const SignGroupPage = ({ theme, toggleTheme }) => {
     isSignedSuccess,
     setIsSignedSuccess,
     isLoadingDoc,
-    isGroupDoc 
+    isGroupDoc
+    // activeUsers TIDAK ADA DI SINI
   } = useDocumentDetail(documentId, contextData, refreshKey);
 
-  // 1.1 LOGIKA REDIRECT AUTOMATIS:
-  // Jika akses via URL group-sign tapi ternyata dokumen personal, pindahkan ke sign page biasa.
+  // 1.1 Redirect jika bukan dokumen grup
   useEffect(() => {
     if (!isLoadingDoc && isGroupDoc === false) {
-       // KODE LAMA (Nonaktif):
-       // toast("Ini dokumen personal.", { icon: "👤" });
-       // navigate(`/documents/${documentId}/sign`);
-
-       // KODE BARU: Dengan pesan yang lebih jelas
        toast("Halaman ini khusus Grup. Mengalihkan ke Penandatanganan Personal...", { icon: "👤" });
        navigate(`/documents/${documentId}/sign`);
     }
   }, [isLoadingDoc, isGroupDoc, navigate, documentId]);
 
-  // 2. Hook Signature Manager GROUP (NO AI)
+  // 2. Hook Signature Manager GROUP (Socket Realtime & Logic)
   const {
     signatures,
     isSaving,
-    // [REMOVED] isAnalyzing, aiData
+    isAnalyzing,
+    aiData,
     handleAddSignature,
     handleUpdateSignature,
     handleDeleteSignature,
     handleFinalSave,
+    handleAutoTag,       
+    handleAnalyzeDocument,
+    
+    // ✅ AMBIL activeUsers DARI SINI (Karena dikelola oleh Socket di hook ini)
+    activeUsers
   } = useSignatureManagerGroup({
     documentId,
     documentVersionId,
@@ -80,9 +84,21 @@ const SignGroupPage = ({ theme, toggleTheme }) => {
     onRefreshRequest: handleRefreshRequest
   });
 
+  const handleAnalyzeClick = useCallback(() => {
+    setIsAiModalOpen(true); 
+    handleAnalyzeDocument(); 
+  }, [handleAnalyzeDocument]);
+
+  useEffect(() => {
+    if (aiData) {
+      setIsAiModalOpen(true);
+    }
+  }, [aiData]);
+
   const onSaveFromModal = useCallback((dataUrl) => {
     setSavedSignatureUrl(dataUrl);
     setIsSignatureModalOpen(false);
+    setIsSidebarOpen(true); 
   }, []);
 
   const onAddDraft = useCallback((data) => {
@@ -104,47 +120,50 @@ const SignGroupPage = ({ theme, toggleTheme }) => {
   const handleNavigateToView = () => navigate(`/documents/${documentId}/view`);
 
   return (
-    <SignDocumentLayoutGroup
-      currentUser={currentUser}
-      isLoadingDoc={isLoadingDoc}
-      pdfFile={pdfFile}
-      documentTitle={`[GROUP] ${documentTitle}`}
-      documentId={documentId}
-      signatures={signatures}
-      savedSignatureUrl={savedSignatureUrl}
-      canSign={canSign}
-      isSignedSuccess={isSignedSuccess}
-      isSaving={isSaving}
-      
-      // [REMOVED] isAnalyzing
-      isAnalyzing={false} // Force false
-      
-      theme={theme}
-      toggleTheme={toggleTheme}
-      isSidebarOpen={isSidebarOpen}
-      setIsSidebarOpen={setIsSidebarOpen}
-      isSignatureModalOpen={isSignatureModalOpen}
-      setIsSignatureModalOpen={setIsSignatureModalOpen}
-      
-      // [REMOVED] AI Modal Props
-      isAiModalOpen={false}
-      setIsAiModalOpen={() => {}} 
-      aiData={null}
-      handleAutoTag={null}      // Disable AI
-      handleAnalyzeDocument={null} // Disable AI
+    <>
+      <SignDocumentLayoutGroup
+        currentUser={currentUser}
+        isLoadingDoc={isLoadingDoc}
+        pdfFile={pdfFile}
+        documentTitle={`[GROUP] ${documentTitle}`}
+        documentId={documentId}
+        signatures={signatures}
+        savedSignatureUrl={savedSignatureUrl}
+        canSign={canSign}
+        isSignedSuccess={isSignedSuccess}
+        isSaving={isSaving}
+        
+        isAnalyzing={isAnalyzing} 
+        
+        theme={theme}
+        toggleTheme={toggleTheme}
+        isSidebarOpen={isSidebarOpen}
+        setIsSidebarOpen={setIsSidebarOpen}
+        isSignatureModalOpen={isSignatureModalOpen}
+        setIsSignatureModalOpen={setIsSignatureModalOpen}
+        
+        isAiModalOpen={isAiModalOpen}
+        setIsAiModalOpen={setIsAiModalOpen} 
+        aiData={aiData}
+        handleAutoTag={handleAutoTag}      
+        handleAnalyzeDocument={handleAnalyzeClick} 
 
-      isLandscape={isLandscape}
-      isPortrait={isPortrait}
-      includeQrCode={includeQrCode}
-      setIncludeQrCode={setIncludeQrCode}
+        isLandscape={isLandscape}
+        isPortrait={isPortrait}
+        includeQrCode={includeQrCode}
+        setIncludeQrCode={setIncludeQrCode}
 
-      onAddDraft={onAddDraft}
-      onUpdateSignature={handleUpdateSignature}
-      onDeleteSignature={handleDeleteSignature}
-      onSaveFromModal={onSaveFromModal}
-      onCommitSave={onCommitSave}
-      handleNavigateToView={handleNavigateToView}
-    />
+        onAddDraft={onAddDraft}
+        onUpdateSignature={handleUpdateSignature}
+        onDeleteSignature={handleDeleteSignature}
+        onSaveFromModal={onSaveFromModal}
+        onCommitSave={onCommitSave}
+        handleNavigateToView={handleNavigateToView}
+        
+        // ✅ PROPS DIOPER DENGAN BENAR
+        activeUsers={activeUsers}
+      />
+    </>
   );
 };
 

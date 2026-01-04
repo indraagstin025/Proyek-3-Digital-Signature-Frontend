@@ -3,17 +3,25 @@ import apiClient from "./apiClient";
 const TAG = "[UserService]";
 
 /**
+ * 🟢 HELPER URL GAMBAR
+ * Karena Backend (Socket & Controller) sudah mengirimkan URL LENGKAP (Full URL),
+ * fungsi ini sekarang hanya bertugas mengembalikan nilai apa adanya (Pass-through).
+ * * Kita tetap pertahankan fungsi ini agar tidak perlu menghapus pemanggilannya 
+ * di komponen UI (SigningHeader, Sidebar, dll).
+ */
+const getProfilePictureUrl = (path) => {
+  return path; 
+};
+
+/**
  * Ambil Profile user yang sedang login.
- * * [DATA BARU OTOMATIS]:
- * Karena backend sudah diupdate, fungsi ini sekarang juga akan mengembalikan:
- * - user.userStatus ("FREE" | "PREMIUM")
- * - user.premiumUntil (Date String / null)
+ * Backend akan mengembalikan JSON dengan profilePictureUrl yang sudah lengkap.
  */
 const getMyProfile = async () => {
   console.log(`${TAG} 📡 Fetching user profile...`);
   try {
     const response = await apiClient.get("/users/me");
-    console.log(`${TAG} ✅ Profile loaded:`, response.data.data);
+    // console.log(`${TAG} ✅ Profile loaded:`, response.data.data);
     return response.data.data;
   } catch (error) {
     console.error(`${TAG} ❌ Failed to fetch profile:`, error);
@@ -27,7 +35,6 @@ const getMyProfile = async () => {
  */
 const updateMyProfile = async (updateData = {}, newProfilePicture = null, oldProfilePictureId = null) => {
   console.group(`${TAG} 🛠 Updating Profile`);
-  console.log("Input Params:", { updateData, newProfilePicture, oldProfilePictureId });
 
   let payload;
   let headers;
@@ -47,12 +54,6 @@ const updateMyProfile = async (updateData = {}, newProfilePicture = null, oldPro
     // Append File
     payload.append("profilePicture", newProfilePicture);
     headers = { "Content-Type": "multipart/form-data" };
-
-    // DEBUG: Intip isi FormData
-    console.log("📦 FormData Content:");
-    for (let pair of payload.entries()) {
-      console.log(`   - ${pair[0]}:`, pair[1]);
-    }
   }
   // SKENARIO 2: Update Teks / Foto Lama (JSON)
   else {
@@ -64,7 +65,6 @@ const updateMyProfile = async (updateData = {}, newProfilePicture = null, oldPro
       payload.profilePictureId = oldProfilePictureId;
     }
 
-    console.log("📦 JSON Payload:", payload);
     headers = { "Content-Type": "application/json" };
   }
 
@@ -86,12 +86,12 @@ const updateMyProfile = async (updateData = {}, newProfilePicture = null, oldPro
 
 /**
  * Ambil semua history foto profil.
+ * Data response dari backend sudah berisi URL lengkap untuk setiap item.
  */
 const getProfilePictures = async () => {
   console.log(`${TAG} 📡 Fetching profile pictures history...`);
   try {
     const response = await apiClient.get("/users/me/pictures");
-    console.log(`${TAG} ✅ Pictures loaded. Count:`, response.data.data.length);
     return response.data.data;
   } catch (error) {
     console.error(`${TAG} ❌ Failed to fetch pictures:`, error);
@@ -106,8 +106,6 @@ const deleteProfilePicture = async (pictureId) => {
   console.log(`${TAG} 🗑 Deleting picture ID: ${pictureId}...`);
   try {
     const response = await apiClient.delete(`/users/me/pictures/${pictureId}`);
-    console.log(`${TAG} ✅ Picture deleted successfully.`);
-
     return {
       message: response.data.message,
       data: response.data.data,
@@ -119,20 +117,12 @@ const deleteProfilePicture = async (pictureId) => {
 };
 
 /**
- * Ambil User Quota dan Limit Information.
- * Endpoint ini mengembalikan:
- * - userStatus ("FREE" | "PREMIUM")
- * - isPremiumActive (boolean)
- * - premiumUntil (Date string | null)
- * - limits (object dengan semua limit berdasarkan status)
- * - usage (object dengan usage saat ini)
- * - quotaPercentages (object dengan persentase penggunaan)
+ * Ambil User Quota.
  */
 const getQuota = async () => {
   console.log(`${TAG} 📡 Fetching user quota...`);
   try {
     const response = await apiClient.get("/users/me/quota");
-    console.log(`${TAG} ✅ Quota loaded:`, response.data.data);
     return response.data.data;
   } catch (error) {
     console.error(`${TAG} ❌ Failed to fetch quota:`, error);
@@ -146,7 +136,8 @@ export const userService = {
   getProfilePictures,
   deleteProfilePicture,
   getQuota,
+  getProfilePictureUrl, // ✅ Tetap diexport agar tidak error di komponen lain
 };
 
-// Export getQuota juga sebagai named export untuk kemudahan import
-export { getQuota };
+// Export getQuota & helper juga sebagai named export
+export { getQuota, getProfilePictureUrl };

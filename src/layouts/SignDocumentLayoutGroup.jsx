@@ -1,29 +1,37 @@
-/* eslint-disable no-unused-vars */
-import React, { useState, useEffect } from "react";
+// file: src/layouts/SignDocumentLayoutGroup.jsx
+
+import React from "react";
 import { FaSpinner } from "react-icons/fa";
 import { Toaster } from "react-hot-toast";
+
+// Components Standar (Reused)
 import SigningHeader from "../components/SigningHeader/SigningHeader";
 import SignatureSidebar from "../components/SignatureSidebar/SignatureSidebar";
 import SignatureModal from "../components/SignatureModal/SignatureModal";
 import AiAnalysisModal from "../components/AiAnalysisModal/AiAnalysisModal";
 import MobileFloatingActions from "../components/Signature/MobileFloatingActions";
+import ProcessingModal from "../components/ProcessingModal/ProcessingModal";
+
+// 櫨 IMPORT VIEWER KHUSUS GROUP
 import PDFViewerGroup from "../components/PDFViewer/PDFViewerGroup";
 
-// Import Modal Baru Khusus Grup
-import ProcessingGroupModal from "../components/ProcessingModal/ProcessingGroupModal";
-
 const SignDocumentLayoutGroup = ({
+  // Data Utama
   currentUser,
   documentTitle,
   pdfFile,
   documentId,
   signatures,
   savedSignatureUrl,
+  
+  // Status & State
   isLoadingDoc,
-  isSaving,     // Ini TRUE saat drag-drop MAUPUN saat final save
-  isAnalyzing,
+  isSaving,
+  isAnalyzing, // ✅ [AI] Diterima dari Parent
   canSign,
   isSignedSuccess,
+  
+  // UI Controls (Props dari Parent Page)
   theme,
   toggleTheme,
   isSidebarOpen,
@@ -34,35 +42,23 @@ const SignDocumentLayoutGroup = ({
   setIsAiModalOpen,
   includeQrCode,
   setIncludeQrCode,
-  aiData,
+  aiData, // ✅ [AI] Data hasil analisis
   isLandscape,
   isPortrait,
+
+  // Handlers (Fungsi dari Parent Page)
   onAddDraft,
   onUpdateSignature,
   onDeleteSignature,
   onSaveFromModal,
-  onCommitSave, // Ini fungsi final save dari hook
-  handleAutoTag,
-  handleAnalyzeDocument,
-  handleNavigateToView
+  onCommitSave,
+  handleAutoTag,        // ✅ [AI] Handler Auto Tag
+  handleAnalyzeDocument,// ✅ [AI] Handler Analisis
+  handleNavigateToView,
+  activeUsers,
 }) => {
 
-  // [TRICK] State lokal untuk membedakan "Save Otomatis" vs "Save Manual (Tombol)"
-  const [isManualSave, setIsManualSave] = useState(false);
-
-  // Reset state manual saat proses saving selesai
-  useEffect(() => {
-    if (!isSaving) {
-      setIsManualSave(false);
-    }
-  }, [isSaving]);
-
-  // Wrapper function untuk tombol Simpan
-  const handleFinalSaveClick = async () => {
-    setIsManualSave(true); // Tandai ini sebagai save manual
-    await onCommitSave();
-  };
-
+  // 1. Loading State Screen
   if ((isLoadingDoc && !pdfFile) || !currentUser) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">
@@ -72,47 +68,68 @@ const SignDocumentLayoutGroup = ({
     );
   }
 
+  // Logic Sidebar Open (Landscape otomatis open, atau berdasarkan state)
   const sidebarOpen = isLandscape ? true : isSidebarOpen;
-  const hasMySignatures = signatures.some((s) => !s.isLocked);
 
   return (
     <div className="absolute inset-0 bg-slate-200 dark:bg-slate-900 overflow-hidden">
+      {/* Toast Notification Container */}
       <Toaster position="top-center" containerStyle={{ zIndex: 9999 }} />
+
+      {/* HEADER */}
       <header className="fixed top-0 left-0 w-full h-16 z-50">
-        <SigningHeader theme={theme} toggleTheme={toggleTheme} onToggleSidebar={() => (canSign || isSignedSuccess) && setIsSidebarOpen(!isSidebarOpen)} />
+        <SigningHeader 
+          theme={theme} 
+          toggleTheme={toggleTheme} 
+          activeUsers={activeUsers} // ✅ Teruskan ke Header
+          currentUser={currentUser} //
+          onToggleSidebar={() => (canSign || isSignedSuccess) && setIsSidebarOpen(!isSidebarOpen)} 
+
+        />
       </header>
+
+      {/* MAIN CONTENT AREA */}
       <div className="absolute top-16 bottom-0 left-0 w-full flex overflow-hidden">
+        
+        {/* 櫨 PDF VIEWER KHUSUS GROUP 櫨 */}
         <main className="flex-1 overflow-hidden">
           {pdfFile && (
             <PDFViewerGroup
+              // Data Dokumen
               documentTitle={documentTitle}
               fileUrl={pdfFile}
               signatures={signatures}
               savedSignatureUrl={savedSignatureUrl}
+              
+              // Actions
               onAddSignature={onAddDraft}
               onUpdateSignature={onUpdateSignature}
               onDeleteSignature={onDeleteSignature}
+              
+              // Status
               readOnly={!canSign || isSignedSuccess}
+              
+              // 櫨 PROPS PENTING UNTUK SOCKET & PROTEKSI
               documentId={documentId}
               currentUser={currentUser}
             />
           )}
         </main>
 
+        {/* SIDEBAR (Tools & Save) */}
         {(canSign || isSignedSuccess) && (
           <SignatureSidebar
             savedSignatureUrl={savedSignatureUrl}
             onOpenSignatureModal={() => setIsSignatureModalOpen(true)}
+            onSave={onCommitSave}
             
-            // [UPDATE] Gunakan Wrapper function di sini
-            onSave={handleFinalSaveClick}
-            
+            // ✅ [AI] Mengaktifkan fitur AI di Sidebar
             onAutoTag={handleAutoTag}
             onAnalyze={handleAnalyzeDocument}
-            isLoading={isAnalyzing || isSaving}
+            isLoading={isAnalyzing || isSaving} // Loading gabungan
+            
             includeQrCode={includeQrCode}
             setIncludeQrCode={setIncludeQrCode}
-            hasPlacedSignature={hasMySignatures}
             isOpen={sidebarOpen}
             onClose={() => setIsSidebarOpen(false)}
             isSignedSuccess={isSignedSuccess}
@@ -120,29 +137,46 @@ const SignDocumentLayoutGroup = ({
             readOnly={!canSign || isSignedSuccess}
           />
         )}
-        <AiAnalysisModal isOpen={isAiModalOpen} onClose={() => setIsAiModalOpen(false)} data={aiData} isLoading={isAnalyzing} />
+
+        {/* AI ANALYSIS MODAL */}
+        <AiAnalysisModal 
+          isOpen={isAiModalOpen} 
+          onClose={() => setIsAiModalOpen(false)} 
+          data={aiData} 
+          isLoading={isAnalyzing} 
+        />
       </div>
 
+      {/* MOBILE FLOATING ACTIONS */}
       <MobileFloatingActions 
         canSign={canSign}
         isSignedSuccess={isSignedSuccess}
-        hasMySignatures={hasMySignatures}
+        hasMySignatures={signatures.some((s) => !s.isLocked)}
         isSaving={isSaving}
-        // [UPDATE] Gunakan Wrapper function di sini juga
-        onSave={handleFinalSaveClick}
+        onSave={onCommitSave}
         onToggleSidebar={() => setIsSidebarOpen(true)}
         onOpenModal={() => setIsSignatureModalOpen(true)}
+        onAnalyze={handleAnalyzeDocument} 
+        isAnalyzing={isAnalyzing}
       />
 
+      {/* MOBILE OVERLAY (Black background saat sidebar buka di HP) */}
       {isSidebarOpen && !isLandscape && canSign && (
-        <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/40 z-30 md:hidden"></div>
+        <div 
+          onClick={() => setIsSidebarOpen(false)} 
+          className="fixed inset-0 bg-black/40 z-30 md:hidden"
+        ></div>
       )}
-      {isSignatureModalOpen && <SignatureModal onSave={onSaveFromModal} onClose={() => setIsSignatureModalOpen(false)} />}
-      
-      {/* [LOGIKA MODAL] 
-          Hanya muncul jika SEDANG SAVING (dari hook) DAN DIPICU SECARA MANUAL (tombol)
-      */}
-      <ProcessingGroupModal isOpen={isSaving && isManualSave} />
+
+      {/* MODALS LAINNYA */}
+      {isSignatureModalOpen && (
+        <SignatureModal 
+          onSave={onSaveFromModal} 
+          onClose={() => setIsSignatureModalOpen(false)} 
+        />
+      )}
+
+      <ProcessingModal isOpen={isSaving} />
     </div>
   );
 };

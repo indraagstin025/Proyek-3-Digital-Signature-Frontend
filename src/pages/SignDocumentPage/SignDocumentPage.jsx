@@ -155,17 +155,6 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
         handleAnalyzeDocument={handleAnalyzeDocument}
         handleNavigateToView={handleNavigateToView}
       />
-
-      {/* FAB Mobile */}
-      <div className="fixed top-20 right-4 z-50 md:hidden flex flex-col items-end gap-3 pointer-events-none">
-        <button
-          onClick={handleAnalyzeDocument}
-          className="pointer-events-auto w-10 h-10 rounded-full bg-indigo-600 text-white shadow-lg flex items-center justify-center hover:bg-indigo-700 transition-all transform hover:scale-110 active:scale-90"
-          title="Analisis AI"
-        >
-          <FaRobot size={18} className={isAnalyzing ? "animate-bounce" : ""} />
-        </button>
-      </div>
     </>
   );
 };
