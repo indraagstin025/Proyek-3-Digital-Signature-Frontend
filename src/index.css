@@ -1,3 +1,5 @@
+/* file: src/index.css */
+
 /* 1. Impor Font dan Tailwind v4 */
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Caveat&family=Dancing+Script&family=Sacramento&display=swap");
@@ -7,6 +9,7 @@
 /* 2. Custom Variant */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* --- [PERBAIKAN UTAMA DI SINI] --- */
 html,
 body,
 #root {
@@ -14,10 +17,22 @@ body,
   padding: 0 !important;
   height: 100% !important;
   width: 100% !important;
-  overflow: hidden;
+
+  /* MENGAKTIFKAN SCROLL TAPI MENYEMBUNYIKAN BAR-NYA */
+  overflow-y: auto;          /* Wajib auto agar bisa scroll vertikal */
+  overflow-x: hidden;        /* Mencegah scroll horizontal yang tidak perlu */
+  
+  /* Menyembunyikan Scrollbar (Firefox) */
+  scrollbar-width: none;
+  
+  /* Menyembunyikan Scrollbar (IE/Edge) */
+  -ms-overflow-style: none;
+  
+  /* Smooth Scrolling Global */
+  scroll-behavior: smooth;
 }
 
-/* Hide scrollbar for html, body, #root */
+/* Menyembunyikan Scrollbar (Chrome, Safari, Opera) */
 html::-webkit-scrollbar,
 body::-webkit-scrollbar,
 #root::-webkit-scrollbar {
@@ -26,18 +41,11 @@ body::-webkit-scrollbar,
   display: none;
 }
 
-html,
-body,
-#root {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
 /* 3. Gaya Global */
 body {
   @apply font-sans bg-slate-50 text-slate-900;
   font-family: "Inter", sans-serif;
-  overflow: hidden;
+  /* Hapus overflow: hidden dari sini agar tidak konflik */
 }
 
 /* --- PERBAIKAN DARK MODE GLOBAL --- */
@@ -46,7 +54,7 @@ html.dark body {
   @apply bg-slate-950 text-slate-100;
 }
 
-/* --- SCROLLBAR UTILITIES --- */
+/* --- SCROLLBAR UTILITIES (Untuk elemen spesifik lain jika butuh) --- */
 .hide-scrollbar::-webkit-scrollbar {
   width: 0;
   height: 0;
@@ -70,25 +78,25 @@ html.dark body {
 }
 
 /* --- AURORA BACKGROUND (CSS VERSION) --- */
-/* Class ini berguna jika Anda tidak menggunakan Blob Tailwind di React */
 .aurora-bg {
   position: absolute;
   inset: 0;
   z-index: 0;
-  filter: blur(60px); /* Blur lebih tinggi */
+  filter: blur(60px); 
   background-image: radial-gradient(at 90% 10%, hsla(210, 90%, 70%, 0.35), transparent 60%), radial-gradient(at 10% 90%, hsla(150, 80%, 55%, 0.3), transparent 60%), radial-gradient(at 50% 50%, hsla(180, 80%, 65%, 0.2), transparent 60%);
   animation: aurora-flow 20s infinite alternate;
+  pointer-events: none; /* Penting agar tidak menghalangi klik */
 }
 
 /* --- PERBAIKAN DARK MODE AURORA --- */
 .dark .aurora-bg {
-  /* KUNCI: Blend Mode Screen membuat warna 'menyala' di atas gelap */
   mix-blend-mode: screen;
-  filter: blur(100px); /* Blur sangat halus */
+  filter: blur(100px); 
 
   background-image: 
-    /* Kanan Atas: Ungu/Biru Neon (Lebih Terang & Opacity Tinggi) */ radial-gradient(at 90% 10%, hsla(240, 90%, 65%, 0.4), transparent 70%),
-    /* Kiri Bawah: Emerald/Hijau Neon */ radial-gradient(at 10% 90%, hsla(150, 90%, 50%, 0.4), transparent 70%), /* Tengah: Cyan/Biru Muda */ radial-gradient(at 50% 50%, hsla(190, 90%, 60%, 0.3), transparent 70%);
+    /* Kanan Atas: Ungu/Biru Neon */ radial-gradient(at 90% 10%, hsla(240, 90%, 65%, 0.4), transparent 70%),
+    /* Kiri Bawah: Emerald/Hijau Neon */ radial-gradient(at 10% 90%, hsla(150, 90%, 50%, 0.4), transparent 70%), 
+    /* Tengah: Cyan/Biru Muda */ radial-gradient(at 50% 50%, hsla(190, 90%, 60%, 0.3), transparent 70%);
 }
 
 @keyframes aurora-flow {
@@ -167,6 +175,21 @@ html.dark body {
   }
 }
 
+.animate-fade-in-up {
+  animation: fadeInUp 0.8s ease-out forwards;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* --- PDF & DRAG DROP --- */
 .pdf-page-wrapper {
   position: relative;
@@ -182,7 +205,9 @@ html.dark body {
   width: 100%;
   height: 100%;
   z-index: 10;
-  pointer-events: none;
+  /* pointer-events: none; <-- HAPUS INI jika ingin overlay menangkap klik, 
+     tapi biasanya overlay PDF butuh pointer-events auto untuk drop.
+     InteractJS akan menangani event-nya. */
 }
 
 .dragging-clone {
@@ -204,7 +229,7 @@ body.dragging-active * {
   touch-action: none;
   position: absolute;
   z-index: 20;
-  margin: 0; /* Hapus margin agar posisi akurat */
+  margin: 0;
   border: 2px solid transparent;
   border-radius: 6px;
   transition: border-color 0.15s ease-in-out;
@@ -214,7 +239,7 @@ body.dragging-active * {
 .placed-field.active-field,
 .placed-field:hover {
   border-color: #3b82f6;
-  background-color: rgba(59, 130, 246, 0.05); /* Sedikit highlight biru saat hover */
+  background-color: rgba(59, 130, 246, 0.05);
 }
 
 .placed-field.is-dragging {
@@ -230,19 +255,18 @@ body.dragging-active * {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden; /* Pastikan gambar tidak keluar border */
+  overflow: hidden;
 }
 
 /* --- RESIZE HANDLES --- */
 .placed-field .handle-resize {
   position: absolute;
-  width: 12px; /* Ukuran handle lebih proporsional */
+  width: 12px;
   height: 12px;
   background: #3b82f6;
   border: 2px solid #ffffff;
   border-radius: 50%;
   z-index: 50;
-  /* Sembunyikan handle jika tidak aktif/hover untuk tampilan bersih */
   opacity: 0;
   transition: opacity 0.2s;
 }
@@ -252,31 +276,14 @@ body.dragging-active * {
   opacity: 1;
 }
 
-/* Posisi Handle: Tempel di garis border (-6px setengah dari width 12px) */
-.placed-field .handle-resize.top-left {
-  top: -6px;
-  left: -6px;
-  cursor: nwse-resize;
-}
-.placed-field .handle-resize.top-right {
-  top: -6px;
-  right: -6px;
-  cursor: nesw-resize;
-}
-.placed-field .handle-resize.bottom-left {
-  bottom: -6px;
-  left: -6px;
-  cursor: nesw-resize;
-}
-.placed-field .handle-resize.bottom-right {
-  bottom: -6px;
-  right: -6px;
-  cursor: nwse-resize;
-}
+.placed-field .handle-resize.top-left { top: -6px; left: -6px; cursor: nwse-resize; }
+.placed-field .handle-resize.top-right { top: -6px; right: -6px; cursor: nesw-resize; }
+.placed-field .handle-resize.bottom-left { bottom: -6px; left: -6px; cursor: nesw-resize; }
+.placed-field .handle-resize.bottom-right { bottom: -6px; right: -6px; cursor: nwse-resize; }
 
 .field-toolbar {
   position: absolute;
-  top: -35px; /* Sedikit lebih jauh ke atas */
+  top: -35px;
   right: 0;
   z-index: 60;
   background: white;
@@ -287,31 +294,15 @@ body.dragging-active * {
   gap: 4px;
 }
 
-/* Tambahkan di index.css Anda */
-.animate-fade-in-up {
-  animation: fadeInUp 0.8s ease-out forwards;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
+/* --- SCROLLBAR UTILS TAMBAHAN --- */
 .no-scrollbar {
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 .no-scrollbar::-webkit-scrollbar {
-  display: none; /* Chrome, Safari and Opera */
+  display: none;
 }
 
-/* --- CUSTOM SCROLLBAR (Hidden) --- */
 .custom-scrollbar::-webkit-scrollbar {
   width: 0;
   height: 0;

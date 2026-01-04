@@ -198,7 +198,7 @@ const SignDocumentLayout = ({
 
       {/* Mobile Overlay */}
       {isSidebarOpen && !isLandscape && canSign && (
-        <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/40 z-30 md:hidden"></div>
+        <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-transparent z-30 md:hidden"></div>
       )}
 
       {/* Signature Modal */}
