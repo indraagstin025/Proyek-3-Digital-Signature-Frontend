@@ -121,6 +121,7 @@ const Sidebar = ({ userName, userEmail, userAvatar, isOpen, activePage, onClose,
                 return (
                   <div key={link.id} className="space-y-1">
                     <button
+                      id={`sidebar-nav-${link.id}`}
                       onClick={() => setIsWorkspaceOpen(!isWorkspaceOpen)}
                       className={`w-full flex items-center justify-between py-2.5 px-4 rounded-lg font-semibold transition-colors ${
                         isActive
@@ -146,6 +147,7 @@ const Sidebar = ({ userName, userEmail, userAvatar, isOpen, activePage, onClose,
                            return (
                             <button
                               key={child.id}
+                              id={`sidebar-nav-${link.id}`}
                               onClick={() => handleLinkClick(child.path)}
                               className={`w-full flex items-center gap-3 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
                                 isChildActive
@@ -211,7 +213,7 @@ const Sidebar = ({ userName, userEmail, userAvatar, isOpen, activePage, onClose,
         </div>
 
         {/* === 3. BAGIAN PROFIL (STICKY/DIAM DI BAWAH) === */}
-        <div className="p-4 border-t border-slate-200/80 dark:border-white/10 shrink-0 z-20 bg-white dark:bg-slate-900">
+        <div  id="sidebar-profile-section" className= "p-4 border-t border-slate-200/80 dark:border-white/10 shrink-0 z-20 bg-white dark:bg-slate-900">
           <div className="flex items-center gap-3 mb-4">
             <img
               src={userAvatar || `https://i.pravatar.cc/40?u=${userEmail}`}

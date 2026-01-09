@@ -6,6 +6,7 @@ import Header from "./components/Header/Header.jsx";
 import MainLayout from "./components/MainLayout/MainLayout.jsx";
 import ProtectedRoute from "./components/ProtectedRoute/ProtectedRoute.jsx";
 import PrivacyPolicyPage from "./components/BannerCookie/PrivacyPolicyPage.jsx";
+import TermsPage from "./pages/TermsPage/TermsPage.jsx";
 
 // Pages - Public
 import HomePage from "./pages/HomePage/HomePage.jsx";
@@ -16,6 +17,7 @@ import ForgotPasswordPage from "./pages/ForgotPasswordPage/ForgotPasswordPage.js
 import ResetPasswordPage from "./pages/ResetPasswordPage/ResetPasswordPage.jsx";
 import VerifyEmailPage from "./pages/VerifyEmailPage/VerifyEmailPage.jsx";
 import AcceptInvitePage from "./pages/AcceptInvitePage/AcceptInvitePage.jsx";
+import TourPage from "./pages/TourPage/TourPage.jsx"; // ✅ Import sudah benar
 
 // Pages - Standalone (Tanpa Header/Footer)
 import SignDocumentPage from "./pages/SignDocumentPage/SignDocumentPage.jsx";
@@ -42,6 +44,7 @@ import AdminDashboardOverview from "./pages/AdminPage/AdminDashboardOverview.jsx
 import AdminManageUser from "./pages/AdminPage/AdminManageUser.jsx";
 import AdminManageDocuments from "./pages/AdminPage/AdminManageDocuments.jsx";
 import AdminAuditLogs from "./pages/AdminPage/AdminAuditLogs.jsx";
+import FeaturesPage from "./pages/FeaturesPage/FeaturesPage.jsx";
 
 /**
  * Layout Wrapper untuk Halaman Publik (Landing Page, Login, dll).
@@ -55,12 +58,11 @@ const PublicLayout = ({ theme, toggleTheme }) => {
   );
 };
 
-// ✅ [DITAMBAHKAN] Definisi Komponen PricingLayout
+// Definisi Komponen PricingLayout
 const PricingLayout = ({ theme, toggleTheme }) => {
   return (
     <>
       <Header theme={theme} toggleTheme={toggleTheme} />
-      {/* Container dengan padding agar konten tidak tertutup header fixed */}
       <div className="pt-20 min-h-screen bg-slate-50 dark:bg-slate-900">
         <PricingPage />
       </div>
@@ -76,6 +78,13 @@ const AppRoutes = ({ theme, toggleTheme, onSessionExpired, routeKey }) => {
          ================================================================= */}
       <Route element={<PublicLayout theme={theme} toggleTheme={toggleTheme} />}>
         <Route path="/" element={<HomePage />} />
+        
+        {/* ✅ PERUBAHAN DI SINI: TourPage dipindah ke Public */}
+        <Route path="/tour" element={<TourPage />} />
+        <Route path="/terms-and-conditions" element={<TermsPage />} />
+
+
+        <Route path="/features" element={<FeaturesPage />} />
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
         <Route path="/login" element={<LoginPage key={routeKey} />} />
         <Route path="/register" element={<RegisterPage />} />
@@ -99,9 +108,7 @@ const AppRoutes = ({ theme, toggleTheme, onSessionExpired, routeKey }) => {
           KELOMPOK 3: PROTECTED ROUTES
          ================================================================= */}
       <Route element={<ProtectedRoute />}>
-        {/* ✅ Route Pricing (Menggunakan Layout Khusus) */}
         <Route path="/pricing" element={<PricingLayout theme={theme} toggleTheme={toggleTheme} />} />
-
         <Route path="/packages/sign/:packageId" element={<SignPackagePage theme={theme} toggleTheme={toggleTheme} onSessionExpired={onSessionExpired} />} />
 
         {/* Dashboard Layout (Sidebar) */}
@@ -127,6 +134,7 @@ const AppRoutes = ({ theme, toggleTheme, onSessionExpired, routeKey }) => {
           <Route path="users" element={<AdminManageUser theme={theme} />} />
           <Route path="documents" element={<AdminManageDocuments theme={theme} />} />
           <Route path="audit-logs" element={<AdminAuditLogs />} />
+          {/* TourPage dihapus dari sini karena sudah ada di Public */}
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>

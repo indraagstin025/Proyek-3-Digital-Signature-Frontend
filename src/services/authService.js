@@ -80,13 +80,15 @@ const getMe = async () => {
     
     const user = response.data?.data;
     if (user) {
-      localStorage.setItem("authUser", JSON.stringify({ user })); 
+      // [FIXED] Simpan 'user' langsung, JANGAN dibungkus { user }
+      // Agar konsisten dengan fungsi login() dan cara baca di ShortcutsPage
+      localStorage.setItem("authUser", JSON.stringify(user)); 
     }
     return user;
   } catch (err) {
-    // Jika error 401 (Belum login), bersihkan localStorage agar bersih
+    // Jika error 401 (Belum login), bersihkan localStorage
     localStorage.removeItem("authUser");
-    throw err; // Lempar error agar ditangkap catch di App.js (tanpa memicu modal)
+    throw err; 
   }
 };
 

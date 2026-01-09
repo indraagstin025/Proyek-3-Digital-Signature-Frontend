@@ -32,6 +32,34 @@ body,
   scroll-behavior: smooth;
 }
 
+
+/* 🔥 [TAMBAHAN] VARIABEL WARNA JOYRIDE TOUR 🔥 */
+:root {
+  /* -- Light Mode Colors -- */
+  --tour-bg: #ffffff;
+  --tour-title: #0f172a;  /* Slate-900 */
+  --tour-text: #64748b;   /* Slate-500 */
+  --tour-border: rgba(0, 0, 0, 0.05);
+  --tour-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  
+  /* Tombol Skip & Back (Light) */
+  --tour-btn-text: #94a3b8; /* Slate-400 */
+  --tour-btn-hover: #cbd5e1;
+}
+
+/* Override saat class .dark aktif di <html> atau <body> */
+.dark {
+  /* -- Dark Mode Colors (Sesuai Slate-950/900 App Anda) -- */
+  --tour-bg: #1e293b;     /* Slate-800 (Kontras dengan bg Slate-950) */
+  --tour-title: #f8fafc;  /* Slate-50 */
+  --tour-text: #cbd5e1;   /* Slate-300 */
+  --tour-border: rgba(255, 255, 255, 0.1);
+  --tour-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6); /* Shadow lebih pekat */
+  
+  /* Tombol Skip & Back (Dark) */
+  --tour-btn-text: #94a3b8;
+  --tour-btn-hover: #e2e8f0;
+}
 /* Menyembunyikan Scrollbar (Chrome, Safari, Opera) */
 html::-webkit-scrollbar,
 body::-webkit-scrollbar,

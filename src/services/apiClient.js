@@ -79,7 +79,7 @@ apiClient.interceptors.response.use(
           console.warn("🔒 Retry sudah dilakukan, tetap 401. Triggering logout...");
           // Hanya trigger logout jika bukan halaman publik
           const currentPath = window.location.pathname;
-          const publicPages = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/join", "/verify-email"];
+          const publicPages = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/join", "/verify-email,", "/tour", "/demo", "/features", "/privacy-policy", "/terms-and-conditions" ];
           if (!publicPages.includes(currentPath)) {
             window.dispatchEvent(new CustomEvent("sessionExpired"));
           }
@@ -94,7 +94,7 @@ apiClient.interceptors.response.use(
           console.warn("🔒 Session expired (refresh gagal). Triggering logout...");
           // Hanya trigger logout jika bukan halaman publik
           const currentPath = window.location.pathname;
-          const publicPages = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/join", "/verify-email"];
+          const publicPages = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/join", "/verify-email", "/tour", "/demo", "/features", "/privacy-policy", "/terms-and-conditions" ];
           if (!publicPages.includes(currentPath)) {
             window.dispatchEvent(new CustomEvent("sessionExpired"));
           }
@@ -142,7 +142,7 @@ apiClient.interceptors.response.use(
           if (retryError.response?.status === 401) {
             console.warn("🔒 Retry tetap gagal 401. Triggering logout...");
             const currentPath = window.location.pathname;
-            const publicPages = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/join", "/verify-email"];
+            const publicPages = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/join", "/verify-email ", "/tour", "/demo", "/features", "/privacy-policy", "/terms-and-conditions" ];
             if (!publicPages.includes(currentPath)) {
               window.dispatchEvent(new CustomEvent("sessionExpired"));
             }

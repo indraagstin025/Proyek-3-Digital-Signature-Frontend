@@ -130,14 +130,33 @@ const getQuota = async () => {
   }
 };
 
+/**
+ * Update Status Tour Progress.
+ * Digunakan untuk menandai bahwa user sudah menyelesaikan panduan fitur tertentu.
+ * @param {string} tourKey - Key unik panduan (misal: "dashboard_welcome", "signature_intro")
+ */
+const updateTourProgress = async (tourKey) => {
+  console.log(`${TAG} 📡 Updating tour progress: ${tourKey}`);
+  try {
+    const response = await apiClient.patch("/users/me/tour-progress", { tourKey });
+    return response.data;
+  } catch (error) {
+    console.error(`${TAG} ❌ Failed to update tour progress:`, error);
+    // Kita tidak me-throw error di sini agar UX tidak terganggu 
+    // jika hanya gagal simpan status tour.
+    return null; 
+  }
+};
+
 export const userService = {
   getMyProfile,
   updateMyProfile,
   getProfilePictures,
   deleteProfilePicture,
   getQuota,
-  getProfilePictureUrl, // ✅ Tetap diexport agar tidak error di komponen lain
+  getProfilePictureUrl, 
+  updateTourProgress
 };
 
 // Export getQuota & helper juga sebagai named export
-export { getQuota, getProfilePictureUrl };
+export { getQuota, getProfilePictureUrl, updateTourProgress };

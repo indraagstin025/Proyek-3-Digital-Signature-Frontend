@@ -1,15 +1,13 @@
-/* eslint-disable no-empty */
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom"; // [1] Import useNavigate
+import { useNavigate } from "react-router-dom";
 import { documentService } from "../../services/documentService.js";
 import { useCanPerformAction } from "../../hooks/useCanPerformAction";
 import { SoftLockError } from "../ui/SoftLockError";
 import toast from "react-hot-toast";
 import { FaSpinner, FaFileAlt, FaDownload, FaTrash, FaEye, FaCheckCircle, FaUndo, FaTimes, FaCloudUploadAlt, FaHistory, FaInfoCircle, FaBolt, FaWhatsapp, FaFileSignature, FaStar } from "react-icons/fa";
 
-// Daftar pilihan tipe dokumen untuk Dropdown
 const DOCUMENT_TYPES = [
   "General",
   "Surat Pernyataan",
@@ -25,7 +23,6 @@ const DOCUMENT_TYPES = [
   "Lainnya",
 ];
 
-// --- 1. SUB-KOMPONEN: FEATURE INFO MODAL ---
 const FeatureModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
@@ -69,11 +66,9 @@ const FeatureModal = ({ isOpen, onClose }) => {
   );
 };
 
-// --- 2. KOMPONEN UTAMA ---
 const DocumentManagementModal = ({ mode = "view", initialDocument = null, currentUser, onClose, onSuccess, onViewRequest, initialTab = null }) => {
-  const navigate = useNavigate(); // [2] Init Navigate
+  const navigate = useNavigate();
 
-  // State - Gunakan initialTab jika ada, jika tidak fallback ke logic default
   const [activeTab, setActiveTab] = useState(() => {
     if (initialTab) return initialTab;
     return mode === "create" ? "upload" : "info";
@@ -82,50 +77,38 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
   const [selectedType, setSelectedType] = useState(initialDocument?.type || "General");
   const [file, setFile] = useState(null);
 
-  // State Loading & Data
   const [isUploading, setIsUploading] = useState(false);
   const [versions, setVersions] = useState([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
-  // State Modal Info
   const [showInfo, setShowInfo] = useState(false);
   const [softLockError, setSoftLockError] = useState(null);
 
-  // --- [LOGIC PREMIUM] ---
   const isPremium = currentUser?.userStatus === "PREMIUM";
   const MAX_VERSIONS = isPremium ? 20 : 5;
   const currentVersionCount = versions.length;
   const isLimitReached = currentVersionCount >= MAX_VERSIONS;
 
-  // --- [HAK AKSES ROLLBACK/DELETE VERSION] ---
-  // User bisa rollback/delete version HANYA jika:
-  // 1. Dokumen Personal: User adalah pemilik dokumen (userId === currentUser.id)
-  // 2. Dokumen Grup: User adalah admin_group ATAU pemilik dokumen (uploader)
   const canManageVersions = useMemo(() => {
     if (!initialDocument || !currentUser?.id) return false;
 
     const currentUserId = String(currentUser.id);
     const documentOwnerId = String(initialDocument.userId || "");
 
-    // Cek apakah dokumen personal atau grup
     if (initialDocument.groupId || initialDocument.group) {
-      // Dokumen Grup
       const isDocumentOwner = documentOwnerId === currentUserId;
 
-      // Cek apakah user adalah admin grup
       const groupMembers = initialDocument.group?.members || [];
       const isGroupAdmin = groupMembers.some((m) => String(m.userId) === currentUserId && m.role === "admin_group");
 
       return isDocumentOwner || isGroupAdmin;
     } else {
-      // Dokumen Personal - hanya pemilik yang bisa manage
       return documentOwnerId === currentUserId;
     }
   }, [initialDocument, currentUser]);
 
-  // --- [SOFT LOCK CHECK] ---
   const { canPerform: canCreateVersion, reason: createVersionReason } = useCanPerformAction("create_version", currentVersionCount);
-  // Fetch History saat tab "history" aktif
+
   useEffect(() => {
     if (activeTab === "history" && initialDocument?.id) {
       setIsLoadingHistory(true);
@@ -140,12 +123,9 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
     }
   }, [activeTab, initialDocument]);
 
-  // --- HANDLERS ---
-
-  // [3] Handler Navigasi ke Pricing
   const handleUpgradeClick = () => {
-    onClose(); // Tutup modal dulu
-    navigate("/dashboard/pricing"); // Pindah ke halaman pricing
+    onClose();
+    navigate("/dashboard/pricing");
   };
 
   const handleFileDrop = (e) => {
@@ -165,11 +145,16 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
     setIsUploading(true);
     try {
       await documentService.createDocument(file, selectedType);
+
       toast.success("Dokumen berhasil diunggah!");
       onSuccess();
       onClose();
     } catch (err) {
-      // Error handling service
+      console.error("Upload failed:", err);
+
+      const errorMessage = err.response?.data?.message || "Gagal mengunggah dokumen. Silakan coba lagi.";
+
+      toast.error(errorMessage);
     } finally {
       setIsUploading(false);
     }
@@ -183,13 +168,13 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
       await documentService.updateDocument(initialDocument.id, { title: documentTitle, type: selectedType });
       toast.success("Info dokumen diperbarui.", { id: toastId });
       onSuccess();
+      onClose();
     } catch (err) {
       toast.dismiss(toastId);
     }
   };
 
   const handleUseVersion = async (versionId) => {
-    // [SOFT LOCK CHECK]
     if (!canCreateVersion) {
       setSoftLockError({
         message: createVersionReason,
@@ -239,10 +224,9 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
   const handleViewDocument = async () => {
     const toastId = toast.loading("Mempersiapkan dokumen...");
     try {
-      // Fetch signed URL untuk dokumen aktif
       const fileUrl = await documentService.getDocumentFileUrl(initialDocument.id, { purpose: "view" });
       toast.dismiss(toastId);
-      // Kirim URL yang sudah valid ke parent component
+
       onViewRequest && onViewRequest(fileUrl);
     } catch (e) {
       toast.error("Gagal membuka dokumen. Pastikan dokumen valid dan akses terpenuhi.", { id: toastId });
@@ -253,10 +237,9 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
   const handleViewVersion = async (versionId) => {
     const toastId = toast.loading("Mempersiapkan versi dokumen...");
     try {
-      // Fetch signed URL untuk versi spesifik
       const fileUrl = await documentService.getDocumentVersionFileUrl(initialDocument.id, versionId, { purpose: "view" });
       toast.dismiss(toastId);
-      // Kirim URL yang sudah valid ke parent component
+
       onViewRequest && onViewRequest(fileUrl);
     } catch (e) {
       toast.error("Gagal membuka versi dokumen. Silakan coba lagi.", { id: toastId });
@@ -270,7 +253,6 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
     return { label: "ARSIP", color: "text-slate-500 bg-slate-50 border-slate-200" };
   };
 
-  // --- RENDER CONTENT ---
   const modalContent = (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 animate-fade-in">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
@@ -416,13 +398,16 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
           {/* --- MODE VIEW: INFO --- */}
           {activeTab === "info" && (
             <div className="space-y-6 animate-fade-in">
+              {/* Header Info (Tetap sama) */}
               <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-800 flex gap-4 items-start">
                 <div className="p-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
                   <FaFileAlt className="text-2xl text-blue-500" />
                 </div>
                 <div>
                   <h4 className="font-bold text-slate-800 dark:text-white text-lg">{initialDocument?.title}</h4>
-                  <p className="text-xs text-slate-500 mt-1">Dibuat pada: {new Date(initialDocument?.createdAt).toLocaleDateString("id-ID", { dateStyle: "full" })}</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Tipe: <span className="font-semibold">{selectedType}</span> • Dibuat: {new Date(initialDocument?.createdAt).toLocaleDateString("id-ID", { dateStyle: "full" })}
+                  </p>
 
                   <div className="flex gap-2 mt-3">
                     <button onClick={() => setShowInfo(true)} className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1">
@@ -433,21 +418,44 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
               </div>
 
               <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Ubah Judul</label>
-                  <div className="flex gap-2">
+                {/* 1. EDIT JUDUL & TIPE (DIGABUNGKAN AGAR RAPI) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Ubah Judul</label>
                     <input
                       type="text"
                       value={documentTitle}
                       onChange={(e) => setDocumentTitle(e.target.value)}
-                      className="flex-1 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                     />
-                    <button onClick={handleUpdateInfo} className="px-4 py-2 bg-slate-800 dark:bg-white text-white dark:text-slate-900 rounded-xl font-medium hover:bg-slate-700 dark:hover:bg-slate-200 transition-colors">
-                      Simpan
-                    </button>
+                  </div>
+
+                  {/* --- TAMBAHAN: DROPDOWN TIPE DOKUMEN --- */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Ubah Tipe</label>
+                    <select
+                      value={selectedType}
+                      onChange={(e) => setSelectedType(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    >
+                      {DOCUMENT_TYPES.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
+                {/* TOMBOL SIMPAN (Pindah ke bawah agar menyimpan Judul & Tipe sekaligus) */}
+                <button onClick={handleUpdateInfo} className="w-full py-2.5 bg-slate-800 dark:bg-white text-white dark:text-slate-900 rounded-xl font-medium hover:bg-slate-700 dark:hover:bg-slate-200 transition-colors shadow-sm">
+                  Simpan Perubahan
+                </button>
+
+                {/* GARIS PEMBATAS */}
+                <div className="border-t border-slate-100 dark:border-slate-700 my-2"></div>
+
+                {/* 2. AKSI CEPAT (Download & View) */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Aksi Cepat</label>
                   <div className="grid grid-cols-2 gap-3">

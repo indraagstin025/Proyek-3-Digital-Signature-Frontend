@@ -45,10 +45,14 @@ export const signatureService = {
    * [PUBLIC] Verifikasi file PDF manual (Upload).
    * Endpoint: POST /api/signatures/verify-file
    */
-  verifyUploadedFile: async (signatureId, file) => {
+  verifyUploadedFile: async (signatureId, file, accessCode = null) => {
     const formData = new FormData();
     formData.append("signatureId", signatureId);
     formData.append("file", file);
+
+    if (accessCode) {
+      formData.append("accessCode", accessCode)
+    }
 
     try {
       const response = await apiClient.post("signatures/verify-file", formData, {

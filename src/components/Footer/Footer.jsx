@@ -68,8 +68,8 @@ const Footer = () => {
           <div className="lg:col-span-2">
             <h3 className="font-bold text-slate-900 dark:text-white mb-6">Legal</h3>
             <ul className="space-y-4 text-sm text-slate-600 dark:text-slate-400">
-              <li><FooterLink href="/privacy">Kebijakan Privasi</FooterLink></li>
-              <li><FooterLink href="/terms">Syarat Ketentuan</FooterLink></li>
+              <li><FooterLink href="/privacy-policy">Kebijakan Privasi</FooterLink></li>
+              <li><FooterLink href="/terms-and-conditions" >Syarat Ketentuan</FooterLink></li>
               <li><FooterLink href="/security">Keamanan</FooterLink></li>
             </ul>
           </div>

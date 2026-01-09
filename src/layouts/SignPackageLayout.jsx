@@ -4,7 +4,7 @@ import { Toaster } from "react-hot-toast";
 import { FaSpinner, FaChevronRight, FaChevronLeft, FaPenNib, FaSave, FaTools, FaRobot } from "react-icons/fa";
 
 // Components
-import SigningHeader from "../components/SigningHeader/SigningHeader";
+import SignatureHeaderCommon from "../components/SigningHeader/SignatureHeaderCommon";
 import PDFViewer from "../components/PDFViewer/PDFViewer";
 import SignatureSidebar from "../components/SignatureSidebar/SignatureSidebar";
 import SignatureModal from "../components/SignatureModal/SignatureModal";
@@ -93,7 +93,7 @@ const SignPackageLayout = ({
 
       {/* --- HEADER --- */}
       <header className="fixed top-0 left-0 w-full h-16 z-50">
-        <SigningHeader theme={theme} toggleTheme={toggleTheme} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
+        <SignatureHeaderCommon theme={theme} toggleTheme={toggleTheme} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
       </header>
 
       {/* --- NAV BAR --- */}

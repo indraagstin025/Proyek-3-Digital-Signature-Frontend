@@ -4,7 +4,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { 
   FaCheckCircle, FaTimesCircle, FaSpinner, FaUpload, 
   FaFileContract, FaKey, FaDownload, 
-  FaLock, FaUsers, FaUserCheck, FaUnlock, FaHourglassHalf, FaShieldAlt 
+  FaLock, FaUsers, FaUserCheck, FaUnlock, FaHourglassHalf, FaShieldAlt,
+  FaInfoCircle // [BARU] Import icon info
 } from "react-icons/fa"; 
 import { toast, Toaster } from "react-hot-toast";
 import { signatureService } from "../../services/signatureService";
@@ -29,7 +30,11 @@ const VerificationPage = () => {
   const [lockoutUntil, setLockoutUntil] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
 
+  // [BARU] State untuk pesan feedback UX saat upload minta PIN
+  const [pinPromptMessage, setPinPromptMessage] = useState(null);
+
   // --- 1. LOAD DATA ---
+// --- 1. LOAD DATA ---
   useEffect(() => {
     if (!initialSignatureId) {
       setError("ID Tanda Tangan tidak ditemukan di URL.");
@@ -41,14 +46,27 @@ const VerificationPage = () => {
       try {
         setIsLoading(true);
         const response = await signatureService.getVerificationDetails(initialSignatureId);
-        setVerificationData(response.data);
+        const data = response.data; // Ambil data
         
-        // Toast Notification sesuai status
-        if (response.data.isLocked) {
-            // toast("Dokumen dilindungi PIN.", { icon: "🔒" }); // Optional, kadang mengganggu jika double
-        } else if(response.data.requireUpload) {
-            toast("Verifikasi fisik diperlukan.", { icon: "🛡️" });
+        setVerificationData(data);
+        
+        // [LOGIC BARU] Cek apakah Backend mengirim data lockout?
+        if (data.lockedUntil) {
+            const lockTime = new Date(data.lockedUntil).getTime();
+            // Jika waktu blokir masih di masa depan
+            if (lockTime > Date.now()) {
+                setLockoutUntil(lockTime); // <--- INI AKAN MEMICU TIMER OTOMATIS
+                toast.error("Akses Anda sedang dibekukan sementara.");
+            }
         }
+
+        // Toast Notification lainnya
+        if (data.isLocked && !data.lockedUntil) { 
+           // Normal locked message
+        } else if(data.requireUpload) {
+           toast("Verifikasi fisik diperlukan.", { icon: "🛡️" });
+        }
+
       } catch (err) {
         console.error("Fetch Error:", err);
         setError(err.message || "Gagal mengambil data verifikasi.");
@@ -99,19 +117,42 @@ const VerificationPage = () => {
 
     setIsUnlocking(true);
     try {
-      const response = await signatureService.unlockVerification(initialSignatureId, accessCode);
+      let response;
+
+      // [LOGIC] Cek: Apakah user punya file yang tertahan (pending upload)?
+      if (manualFile) {
+        console.log("🔓 Unlocking via Upload Flow...");
+        response = await signatureService.verifyUploadedFile(initialSignatureId, manualFile, accessCode);
+        
+        if (response.data.isLocked) {
+           throw new Error("Kode Akses Salah.");
+        }
+        
+        setManualVerificationResult(response.data);
+        setPinPromptMessage(null); // Clear prompt message jika sukses
+
+      } else {
+        console.log("🔓 Unlocking via Standard Flow...");
+        response = await signatureService.unlockVerification(initialSignatureId, accessCode);
+      }
+
+      // SUKSES
+      setVerificationData((prev) => ({
+        ...prev,
+        ...response.data, 
+        isLocked: false,  
+        requireUpload: false 
+      }));
       
-      // Sukses
-      setVerificationData(response.data); 
-      setAccessCode(""); 
-      setLockoutUntil(null); 
-      toast.success(response.message || "Akses Diberikan!");
-      
+      setAccessCode("");
+      setLockoutUntil(null);
+      toast.success("Akses Diberikan!");
+
     } catch (err) {
       const msg = err.response?.data?.message || err.message || "Kode Akses Salah.";
       toast.error(msg);
 
-      // Cek Trigger Lockout
+      // Logic Lockout
       const lowerMsg = msg.toLowerCase();
       if (lowerMsg.includes("menit") || lowerMsg.includes("terkunci") || lowerMsg.includes("locked")) {
           const match = lowerMsg.match(/(\d+)\s*menit/i);
@@ -136,22 +177,69 @@ const VerificationPage = () => {
 
     setIsVerifyingFile(true);
     setManualVerificationResult(null);
+    setPinPromptMessage(null); // Reset pesan awal
+
     try {
-        const response = await signatureService.verifyUploadedFile(initialSignatureId, manualFile);
-        setManualVerificationResult(response.data);
+      // 1. Panggil Backend (Tanpa PIN dulu)
+      const response = await signatureService.verifyUploadedFile(initialSignatureId, manualFile);
+      const data = response.data;
+
+      // 2. [LOGIC BARU] Cek apakah Backend membalas "Locked"?
+      if (data.isLocked) {
         
-        if (response.data.isValid || response.data.verificationStatus === "VALID") {
-            toast.success("Dokumen Valid!");
-            setVerificationData((prev) => ({
-                ...prev, ...response.data, isLocked: false, requireUpload: false 
-            }));
-        } else {
-            toast.error("INVALID! Hash tidak cocok.");
-        }
+        // [UX IMPROVEMENT] Custom Toast
+        toast.custom((t) => (
+            <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white dark:bg-gray-800 shadow-xl rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5 border-l-4 border-yellow-500`}>
+              <div className="flex-1 w-0 p-4">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0 pt-0.5">
+                     <FaLock className="h-10 w-10 text-yellow-500" />
+                  </div>
+                  <div className="ml-3 flex-1">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      Autentikasi Diperlukan
+                    </p>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-300">
+                      File diterima. Silakan masukkan PIN untuk memverifikasi isinya.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+        ), { duration: 5000 });
+        
+        // [UX IMPROVEMENT] Set Pesan di UI
+        setPinPromptMessage("Verifikasi file ini membutuhkan konfirmasi PIN.");
+
+        // Update state agar UI menampilkan Form PIN
+        setVerificationData((prev) => ({
+          ...prev,
+          isLocked: true,      
+          requireUpload: false 
+        }));
+        return; 
+      }
+
+      // 3. Jika Tidak Terkunci (Valid/Invalid biasa)
+      setManualVerificationResult(data);
+
+      if (data.isValid || data.verificationStatus === "VALID") {
+        toast.success("Dokumen Valid!");
+        setVerificationData((prev) => ({
+          ...prev,
+          ...data,
+          isLocked: false,
+          requireUpload: false
+        }));
+      } else {
+        toast.error("INVALID! Hash tidak cocok.");
+      }
+
     } catch (err) {
-        toast.error(err.message || "Verifikasi file gagal.");
+      console.error(err);
+      toast.error(err.response?.data?.message || "Verifikasi file gagal.");
     } finally {
-        setIsVerifyingFile(false);
+      setIsVerifyingFile(false);
     }
   }, [initialSignatureId, manualFile]);
 
@@ -201,7 +289,7 @@ const VerificationPage = () => {
       statusGradient = "from-slate-700 to-slate-900";
       statusIcon = FaLock;
       statusText = "DOKUMEN TERKUNCI";
-      statusSub = "Dokumen dilindungi oleh mekanisme keamanan ganda.";
+      statusSub = "Dokumen dilindungi.";
   } else if (isLockedByUpload) {
       statusGradient = "from-blue-600 to-indigo-700";
       statusIcon = FaShieldAlt;
@@ -247,6 +335,17 @@ const VerificationPage = () => {
           {/* ========================================= */}
           {isLockedByPin && (
             <div className="max-w-sm mx-auto">
+               
+               {/* [BARU] MESSAGE ALERT KHUSUS UPLOAD */}
+               {pinPromptMessage && (
+                 <div className="mb-6 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 p-4 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4">
+                    <FaInfoCircle className="text-yellow-600 dark:text-yellow-400 text-xl flex-shrink-0" />
+                    <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium leading-tight">
+                      {pinPromptMessage}
+                    </p>
+                 </div>
+               )}
+
                {lockoutUntil ? (
                  // --- LOCKOUT STATE ---
                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-6 rounded-2xl text-center animate-pulse">
@@ -260,9 +359,11 @@ const VerificationPage = () => {
                ) : (
                  // --- INPUT STATE ---
                  <div className="text-center">
-                    <div className="mb-6">
+                    <div className={pinPromptMessage ? "mb-4" : "mb-6"}>
                         <label className="block text-slate-500 dark:text-slate-400 text-sm font-medium mb-1 uppercase tracking-wider">Masukkan Kode Akses (PIN)</label>
-                        <p className="text-xs text-slate-400">Kode tercetak di bawah QR Code pada dokumen fisik.</p>
+                        {!pinPromptMessage && (
+                           <p className="text-xs text-slate-400">Kode tercetak di bawah QR Code pada dokumen fisik.</p>
+                        )}
                     </div>
                     
                     <form onSubmit={handleUnlockWithPin} className="relative">
@@ -331,14 +432,26 @@ const VerificationPage = () => {
                        <div>
                            <p className="text-sm text-slate-500 dark:text-slate-400">Waktu Penandatanganan</p>
                            <p className="font-medium text-slate-700 dark:text-slate-300">
-                               {verificationData.signedAt ? new Date(verificationData.signedAt).toLocaleString("id-ID", { dateStyle: 'full', timeStyle: 'medium' }) : "-"}
+                               {isLockedByUpload ? (
+                                   <span className="tracking-widest text-slate-400 select-none">••••/••/•• ••:••</span>
+                               ) : (
+                                   verificationData.signedAt 
+                                     ? new Date(verificationData.signedAt).toLocaleString("id-ID", { dateStyle: 'full', timeStyle: 'medium' }) 
+                                     : "-"
+                               )}
                            </p>
                        </div>
                        <div>
                            <p className="text-sm text-slate-500 dark:text-slate-400">IP Address</p>
-                           <span className="inline-block bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded text-xs font-mono text-slate-700 dark:text-slate-300">
-                               {verificationData.ipAddress || verificationData.signerIpAddress || "127.0.0.1"}
-                           </span>
+                           {isLockedByUpload ? (
+                               <span className="inline-block bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded text-xs font-mono text-slate-400 select-none">
+                                   •••.•••.•••.•••
+                               </span>
+                           ) : (
+                               <span className="inline-block bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded text-xs font-mono text-slate-700 dark:text-slate-300">
+                                   {verificationData.ipAddress || verificationData.signerIpAddress || "127.0.0.1"}
+                               </span>
+                           )}
                        </div>
                    </div>
                </div>

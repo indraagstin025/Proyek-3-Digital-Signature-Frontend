@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 // File: components/Group/GroupDocuments.jsx
 
 import React, { useState, useMemo } from "react";
@@ -43,6 +42,12 @@ export const GroupDocuments = ({ documents, groupId, groupData, members, current
   const isAdmin = useMemo(() => members.some((m) => m.userId === currentUserId && m.role === "admin_group"), [members, currentUserId]);
 
   // [PREMIUM LOGIC - Using QuotaContext + GroupData]
+  
+  // 1. Cek Status User yang sedang Login (Anda)
+  const currentUserStatus = quota?.userStatus || "FREE";
+  const isCurrentUserPremium = currentUserStatus === "PREMIUM" || currentUserStatus === "PREMIUM_YEARLY";
+
+  // 2. Cek Status Pemilik Grup (Admin)
   let groupOwnerStatus = "FREE";
   const isCurrentUserOwner = String(groupData?.admin?.id) === String(currentUserId);
 
@@ -56,7 +61,7 @@ export const GroupDocuments = ({ documents, groupId, groupData, members, current
 
   const isOwnerPremium = groupOwnerStatus === "PREMIUM" || groupOwnerStatus === "PREMIUM_YEARLY";
 
-  // Limit Backend: Free = 10, Premium = 100
+  // Limit Backend: Free = 10, Premium = 100 (Berdasarkan status Pemilik Grup)
   const MAX_DOCS = isOwnerPremium ? 100 : 10;
   const currentDocCount = documents.length;
   const isLimitReached = currentDocCount >= MAX_DOCS;
@@ -178,7 +183,7 @@ export const GroupDocuments = ({ documents, groupId, groupData, members, current
               <div className="flex items-center gap-3">
                 <h3 className="text-lg font-bold text-slate-800 dark:text-white">Daftar Dokumen</h3>
 
-                {/* --- PREMIUM / FREE BADGE --- */}
+                {/* --- PREMIUM / FREE BADGE (Milik Group Owner) --- */}
                 {isOwnerPremium ? (
                   <div className="relative group/badge cursor-default">
                     {/* Efek Glow di belakang */}
@@ -245,22 +250,40 @@ export const GroupDocuments = ({ documents, groupId, groupData, members, current
               </div>
             </div>
 
+            {/* LOGIKA PERBAIKAN DI SINI: Menyembunyikan tombol upgrade jika User SUDAH Premium */}
             {!isOwnerPremium && (
               <div className="text-xs text-right sm:max-w-[220px] bg-white dark:bg-slate-800 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
                 {isLimitReached ? (
                   <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
                     <HiLockClosed className="w-3.5 h-3.5" />
-                    <Link to="/pricing" className="font-bold hover:underline">
-                      Limit Penuh. Upgrade &rarr;
-                    </Link>
+                    {isCurrentUserPremium ? (
+                       // KASUS A: Grup Penuh, tapi User Premium -> Beri info saja, jangan suruh upgrade
+                       <span className="font-bold cursor-help" title="Penyimpanan grup ini dibatasi oleh paket Admin Grup">
+                         Limit Grup Penuh
+                       </span>
+                    ) : (
+                       // KASUS B: Grup Penuh, User Free -> Suruh upgrade (karena mungkin dia adminnya)
+                       <Link to="/pricing" className="font-bold hover:underline">
+                         Limit Penuh. Upgrade &rarr;
+                       </Link>
+                    )}
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-                    <span>Butuh lebih? </span>
-                    <Link to="/pricing" className="font-bold text-blue-600 dark:text-blue-400 hover:underline">
-                      Upgrade ke Pro
-                    </Link>
-                  </div>
+                  // Jika Limit Belum Penuh
+                  !isCurrentUserPremium ? (
+                     // User Free -> Tampilkan Upsell
+                    <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                      <span>Butuh lebih? </span>
+                      <Link to="/pricing" className="font-bold text-blue-600 dark:text-blue-400 hover:underline">
+                        Upgrade ke Pro
+                      </Link>
+                    </div>
+                  ) : (
+                     // User Premium -> Tampilkan Info Mode Basic (Optional)
+                     <div className="text-slate-400 italic text-[10px]">
+                        Mode Basic (Milik Admin)
+                     </div>
+                  )
                 )}
               </div>
             )}

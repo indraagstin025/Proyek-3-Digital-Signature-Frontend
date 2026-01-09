@@ -1,10 +1,7 @@
-// file: src/layouts/SignDocumentLayoutGroup.jsx
-
 import React from "react";
 import { FaSpinner } from "react-icons/fa";
 import { Toaster } from "react-hot-toast";
 
-// Components Standar (Reused)
 import SigningHeader from "../components/SigningHeader/SigningHeader";
 import SignatureSidebar from "../components/SignatureSidebar/SignatureSidebar";
 import SignatureModal from "../components/SignatureModal/SignatureModal";
@@ -12,26 +9,22 @@ import AiAnalysisModal from "../components/AiAnalysisModal/AiAnalysisModal";
 import MobileFloatingActions from "../components/Signature/MobileFloatingActions";
 import ProcessingModal from "../components/ProcessingModal/ProcessingModal";
 
-// 櫨 IMPORT VIEWER KHUSUS GROUP
 import PDFViewerGroup from "../components/PDFViewer/PDFViewerGroup";
 
 const SignDocumentLayoutGroup = ({
-  // Data Utama
   currentUser,
   documentTitle,
   pdfFile,
   documentId,
   signatures,
   savedSignatureUrl,
-  
-  // Status & State
+
   isLoadingDoc,
   isSaving,
-  isAnalyzing, // ✅ [AI] Diterima dari Parent
+  isAnalyzing,
   canSign,
   isSignedSuccess,
-  
-  // UI Controls (Props dari Parent Page)
+
   theme,
   toggleTheme,
   isSidebarOpen,
@@ -42,24 +35,21 @@ const SignDocumentLayoutGroup = ({
   setIsAiModalOpen,
   includeQrCode,
   setIncludeQrCode,
-  aiData, // ✅ [AI] Data hasil analisis
+  aiData,
   isLandscape,
   isPortrait,
 
-  // Handlers (Fungsi dari Parent Page)
   onAddDraft,
   onUpdateSignature,
   onDeleteSignature,
   onSaveFromModal,
   onCommitSave,
-  handleAutoTag,        // ✅ [AI] Handler Auto Tag
-  handleAnalyzeDocument,// ✅ [AI] Handler Analisis
+  handleAutoTag,
+  handleAnalyzeDocument,
   handleNavigateToView,
   hasPlacedSignature,
   activeUsers,
 }) => {
-
-  // 1. Loading State Screen
   if ((isLoadingDoc && !pdfFile) || !currentUser) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">
@@ -69,7 +59,6 @@ const SignDocumentLayoutGroup = ({
     );
   }
 
-  // Logic Sidebar Open (Landscape otomatis open, atau berdasarkan state)
   const sidebarOpen = isLandscape ? true : isSidebarOpen;
 
   return (
@@ -79,38 +68,23 @@ const SignDocumentLayoutGroup = ({
 
       {/* HEADER */}
       <header className="fixed top-0 left-0 w-full h-16 z-50">
-        <SigningHeader 
-          theme={theme} 
-          toggleTheme={toggleTheme} 
-          activeUsers={activeUsers} // ✅ Teruskan ke Header
-          currentUser={currentUser} //
-          onToggleSidebar={() => (canSign || isSignedSuccess) && setIsSidebarOpen(!isSidebarOpen)} 
-
-        />
+        <SigningHeader theme={theme} toggleTheme={toggleTheme} activeUsers={activeUsers} currentUser={currentUser} onToggleSidebar={() => (canSign || isSignedSuccess) && setIsSidebarOpen(!isSidebarOpen)} />
       </header>
 
       {/* MAIN CONTENT AREA */}
       <div className="absolute top-16 bottom-0 left-0 w-full flex overflow-hidden">
-        
         {/* 櫨 PDF VIEWER KHUSUS GROUP 櫨 */}
         <main className="flex-1 overflow-hidden">
           {pdfFile && (
             <PDFViewerGroup
-              // Data Dokumen
               documentTitle={documentTitle}
               fileUrl={pdfFile}
               signatures={signatures}
               savedSignatureUrl={savedSignatureUrl}
-              
-              // Actions
               onAddSignature={onAddDraft}
               onUpdateSignature={onUpdateSignature}
               onDeleteSignature={onDeleteSignature}
-              
-              // Status
               readOnly={!canSign || isSignedSuccess}
-              
-              // 櫨 PROPS PENTING UNTUK SOCKET & PROTEKSI
               documentId={documentId}
               currentUser={currentUser}
             />
@@ -123,12 +97,9 @@ const SignDocumentLayoutGroup = ({
             savedSignatureUrl={savedSignatureUrl}
             onOpenSignatureModal={() => setIsSignatureModalOpen(true)}
             onSave={onCommitSave}
-            
-            // ✅ [AI] Mengaktifkan fitur AI di Sidebar
             onAutoTag={handleAutoTag}
             onAnalyze={handleAnalyzeDocument}
-            isLoading={isAnalyzing || isSaving} // Loading gabungan
-            
+            isLoading={isAnalyzing || isSaving}
             includeQrCode={includeQrCode}
             setIncludeQrCode={setIncludeQrCode}
             isOpen={sidebarOpen}
@@ -141,16 +112,11 @@ const SignDocumentLayoutGroup = ({
         )}
 
         {/* AI ANALYSIS MODAL */}
-        <AiAnalysisModal 
-          isOpen={isAiModalOpen} 
-          onClose={() => setIsAiModalOpen(false)} 
-          data={aiData} 
-          isLoading={isAnalyzing} 
-        />
+        <AiAnalysisModal isOpen={isAiModalOpen} onClose={() => setIsAiModalOpen(false)} data={aiData} isLoading={isAnalyzing} />
       </div>
 
       {/* MOBILE FLOATING ACTIONS */}
-      <MobileFloatingActions 
+      <MobileFloatingActions
         canSign={canSign}
         isSignedSuccess={isSignedSuccess}
         hasMySignatures={signatures.some((s) => !s.isLocked)}
@@ -158,25 +124,15 @@ const SignDocumentLayoutGroup = ({
         onSave={onCommitSave}
         onToggleSidebar={() => setIsSidebarOpen(true)}
         onOpenModal={() => setIsSignatureModalOpen(true)}
-        onAnalyze={handleAnalyzeDocument} 
+        onAnalyze={handleAnalyzeDocument}
         isAnalyzing={isAnalyzing}
       />
 
       {/* MOBILE OVERLAY (Black background saat sidebar buka di HP) */}
-      {isSidebarOpen && !isLandscape && canSign && (
-        <div 
-          onClick={() => setIsSidebarOpen(false)} 
-          className="fixed inset-0 bg-black/40 z-30 md:hidden"
-        ></div>
-      )}
+      {isSidebarOpen && !isLandscape && canSign && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/40 z-30 md:hidden"></div>}
 
       {/* MODALS LAINNYA */}
-      {isSignatureModalOpen && (
-        <SignatureModal 
-          onSave={onSaveFromModal} 
-          onClose={() => setIsSignatureModalOpen(false)} 
-        />
-      )}
+      {isSignatureModalOpen && <SignatureModal onSave={onSaveFromModal} onClose={() => setIsSignatureModalOpen(false)} />}
 
       <ProcessingModal isOpen={isSaving} />
     </div>

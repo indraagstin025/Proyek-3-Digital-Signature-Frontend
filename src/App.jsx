@@ -87,7 +87,7 @@ const AppWrapper = () => {
     const delayDuration = shouldShowSplash ? 2000 : 0;
 
     // Jika di halaman publik (/, /login, /register), jangan cek session
-    const publicOnlyPaths = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/join", "/verify-email"];
+    const publicOnlyPaths = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/join", "/verify-email", "/tour", "/demo", "/features", "/privacy-policy", "/terms-and-conditions"  ];
     const isPublicPage = publicOnlyPaths.includes(currentPath);
 
     if (isPublicPage && isRefresh) {

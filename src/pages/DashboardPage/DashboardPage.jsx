@@ -158,6 +158,7 @@ const DashboardPage = ({ theme, toggleTheme }) => {
                 context={{
                   user: userData,
                   onProfileUpdate: handleProfileUpdate,
+                  setSidebarOpen: setIsSidebarOpen
                 }}
               />
             )}

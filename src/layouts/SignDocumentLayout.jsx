@@ -4,7 +4,7 @@ import { FaSpinner, FaCheckCircle, FaDownload, FaArrowRight, FaFilePdf } from "r
 import { Toaster } from "react-hot-toast";
 
 // Components
-import SigningHeader from "../components/SigningHeader/SigningHeader";
+import SignatureHeaderCommon from "../components/SigningHeader/SignatureHeaderCommon";
 import SignatureSidebar from "../components/SignatureSidebar/SignatureSidebar";
 import SignatureModal from "../components/SignatureModal/SignatureModal";
 import PDFViewer from "../components/PDFViewer/PDFViewer";
@@ -51,7 +51,10 @@ const SignDocumentLayout = ({
   onCommitSave,
   handleAutoTag,
   handleAnalyzeDocument,
-  handleNavigateToView
+  handleNavigateToView,
+
+  // 🔥 PROP BARU DITERIMA
+  showDragHint
 }) => {
 
   // --- 1. HANDLING LOADING AWAL ---
@@ -64,42 +67,20 @@ const SignDocumentLayout = ({
     );
   }
 
-  // --- 2. LAYAR SUKSES (iLovePDF Style) ---
+  // --- 2. LAYAR SUKSES ---
   if (isSignedSuccess) {
-    const handleDownload = () => {
-      if (!pdfFile) return;
-      const link = document.createElement("a");
-      link.href = pdfFile;
-      link.download = `SIGNED-${documentTitle || "document"}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    };
-
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center p-4 animate-fade-in-up">
         <div className="max-w-md w-full bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-8 text-center border border-slate-100 dark:border-slate-700 relative overflow-hidden">
-          {/* Hiasan Confetti CSS */}
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-green-400 via-blue-500 to-purple-600"></div>
-
           <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
             <FaCheckCircle size={40} />
           </div>
-          
           <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-2">Selesai!</h2>
           <p className="text-slate-500 dark:text-slate-400 mb-8 text-sm leading-relaxed">
             Dokumen <strong>{documentTitle}</strong> berhasil ditandatangani dan diamankan.
           </p>
-
           <div className="space-y-3">
-            <button 
-                onClick={handleDownload}
-                className="w-full py-4 px-6 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 flex items-center justify-center gap-3"
-            >
-              <FaDownload className="animate-bounce" />
-              <span>Unduh Dokumen Sekarang</span>
-            </button>
-
             <button 
                 onClick={handleNavigateToView}
                 className="w-full py-3 px-6 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-semibold hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors flex items-center justify-center gap-2"
@@ -108,7 +89,6 @@ const SignDocumentLayout = ({
               <FaArrowRight size={12} />
             </button>
           </div>
-          
           <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-700">
              <div className="flex items-center justify-center gap-2 text-slate-400 text-xs">
                 <FaFilePdf />
@@ -130,7 +110,7 @@ const SignDocumentLayout = ({
 
       {/* Header */}
       <header className="fixed top-0 left-0 w-full h-16 z-50">
-        <SigningHeader 
+        <SignatureHeaderCommon 
           theme={theme} 
           toggleTheme={toggleTheme} 
           onToggleSidebar={() => canSign && setIsSidebarOpen(!isSidebarOpen)} 
@@ -174,6 +154,8 @@ const SignDocumentLayout = ({
             isSignedSuccess={isSignedSuccess}
             onViewResult={handleNavigateToView}
             readOnly={!canSign}
+            // 🔥 OPER KE SIDEBAR UNTUK EFEK VISUAL
+            showDragHint={showDragHint}
           />
         )}
 
@@ -185,7 +167,7 @@ const SignDocumentLayout = ({
         />
       </div>
 
-      {/* Mobile Controls */}
+      {/* Mobile Controls & Overlay */}
       <MobileFloatingActions 
         canSign={canSign}
         isSignedSuccess={isSignedSuccess}
@@ -194,19 +176,18 @@ const SignDocumentLayout = ({
         onSave={onCommitSave}
         onToggleSidebar={() => setIsSidebarOpen(true)}
         onOpenModal={() => setIsSignatureModalOpen(true)}
+        onAnalyze={handleAnalyzeDocument} 
+        isAnalyzing={isAnalyzing}
       />
 
-      {/* Mobile Overlay */}
       {isSidebarOpen && !isLandscape && canSign && (
         <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-transparent z-30 md:hidden"></div>
       )}
 
-      {/* Signature Modal */}
       {isSignatureModalOpen && (
         <SignatureModal onSave={onSaveFromModal} onClose={() => setIsSignatureModalOpen(false)} />
       )}
 
-      {/* LOADING MODAL (Menggunakan style baru) */}
       <ProcessingModal isOpen={isSaving} />
     </div>
   );
