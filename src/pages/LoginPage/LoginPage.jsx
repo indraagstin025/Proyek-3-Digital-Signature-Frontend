@@ -14,10 +14,10 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isCardVisible, setIsCardVisible] = useState(false);
-  
+
   // State untuk Error Global (dari API) & Error Validasi (Form)
   const [apiError, setApiError] = useState(null);
-  const [validationErrors, setValidationErrors] = useState({}); 
+  const [validationErrors, setValidationErrors] = useState({});
 
   const [isRedirecting, setIsRedirecting] = useState(false);
   const navigate = useNavigate();
@@ -57,7 +57,7 @@ const LoginPage = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    
+
     // 1. Cek Validasi Form Dulu
     if (!validateForm()) {
       return; // Stop jika tidak valid
@@ -70,27 +70,38 @@ const LoginPage = () => {
       const { user } = await authService.login(email, password);
       setIsRedirecting(true);
 
-      
+
+      // --- [FIX BEGIN] ---
+      // Ambil profile lengkap (termasuk isSuperAdmin) sebelum redirect
+      // Ini penting karena response login mungkin tidak selengkap response /users/me
+      const fullUser = await authService.getMe();
+      // --- [FIX END] ---
+
       const redirectParam = searchParams.get("redirect");
 
       // 2. Ambil dari Location State (Biasanya dari ProtectedRoute) -> Prioritas Kedua
       const stateFrom = location.state?.from?.pathname;
 
       // 3. Default jika tidak ada keduanya -> Prioritas Terakhir
-      const defaultDestination = user?.isSuperAdmin ? "/admin/dashboard" : "/dashboard/shortcuts";
+      // Gunakan fullUser untuk pengecekan admin
+      const defaultDestination = fullUser?.isSuperAdmin ? "/admin/dashboard" : "/dashboard/shortcuts";
 
       // Gabungkan logika prioritas
-      const finalDestination = redirectParam || stateFrom || defaultDestination;
+      let finalDestination = redirectParam || stateFrom || defaultDestination;
+
+      // [HOTFIX] Jika Admin, prioritaskan Admin Dashboard kecuali redirectParam eksplisit
+      // Ini mencegah Admin "terjebak" di halaman user (misal karena stateFrom sisa logout)
+      if (fullUser?.isSuperAdmin && (!redirectParam && stateFrom?.startsWith('/dashboard'))) {
+        finalDestination = "/admin/dashboard";
+      }
       const welcomeMessage = `Login berhasil, selamat datang ${user.name}!`;
 
-      setTimeout(() => {
-        navigate(finalDestination, {
-          replace: true,
-          state: {
-            message: welcomeMessage,
-          },
-        });
-      }, 1500);
+      navigate(finalDestination, {
+        replace: true,
+        state: {
+          message: welcomeMessage,
+        },
+      });
     } catch (err) {
       let specificErrorMessage = "Terjadi kesalahan yang tidak terduga.";
 
@@ -128,7 +139,7 @@ const LoginPage = () => {
 
   return (
     <section className="relative w-full min-h-screen flex items-center justify-center px-4 py-12 overflow-hidden">
-      
+
       {isRedirecting && (
         <div className="absolute inset-0 bg-gray-900/80 backdrop-blur-sm flex flex-col items-center justify-center z-50 transition-opacity duration-300">
           <ImSpinner9 className="animate-spin h-10 w-10 text-white" />
@@ -159,7 +170,7 @@ const LoginPage = () => {
 
         {/* ✅ Tambahkan noValidate agar bubble browser tidak muncul */}
         <form onSubmit={handleLogin} className="space-y-5" noValidate>
-          
+
           {/* Global API Error */}
           {apiError && (
             <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg text-sm flex items-start gap-2 animate-pulse">
@@ -185,11 +196,10 @@ const LoginPage = () => {
                 className={`w-full bg-slate-100 border rounded-lg pl-10 pr-4 py-2.5 placeholder-slate-400 
                            transition-all dark:bg-white/5 dark:placeholder-gray-500
                            focus:outline-none focus:ring-2 
-                           ${
-                             validationErrors.email
-                               ? "border-red-500 text-red-900 focus:border-red-500 focus:ring-red-200 dark:text-red-300 dark:border-red-500/50"
-                               : "text-slate-900 border-slate-300 focus:border-blue-500 focus:ring-blue-500 dark:text-white dark:border-white/20"
-                           }`}
+                           ${validationErrors.email
+                    ? "border-red-500 text-red-900 focus:border-red-500 focus:ring-red-200 dark:text-red-300 dark:border-red-500/50"
+                    : "text-slate-900 border-slate-300 focus:border-blue-500 focus:ring-blue-500 dark:text-white dark:border-white/20"
+                  }`}
               />
             </div>
             {/* Pesan Error Email */}
@@ -222,18 +232,17 @@ const LoginPage = () => {
                 className={`w-full bg-slate-100 border rounded-lg pl-10 pr-10 py-2.5 placeholder-slate-400 
                            transition-all dark:bg-white/5 dark:placeholder-gray-500
                            focus:outline-none focus:ring-2 
-                           ${
-                             validationErrors.password
-                               ? "border-red-500 text-red-900 focus:border-red-500 focus:ring-red-200 dark:text-red-300 dark:border-red-500/50"
-                               : "text-slate-900 border-slate-300 focus:border-blue-500 focus:ring-blue-500 dark:text-white dark:border-white/20"
-                           }`}
+                           ${validationErrors.password
+                    ? "border-red-500 text-red-900 focus:border-red-500 focus:ring-red-200 dark:text-red-300 dark:border-red-500/50"
+                    : "text-slate-900 border-slate-300 focus:border-blue-500 focus:ring-blue-500 dark:text-white dark:border-white/20"
+                  }`}
               />
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer z-10">
                 {showPassword ? <AiOutlineEyeInvisible className="w-5 h-5 text-gray-400 hover:text-black dark:hover:text-white" /> : <AiOutlineEye className="w-5 h-5 text-gray-400 hover:text-black dark:hover:text-white" />}
               </button>
             </div>
-             {/* Pesan Error Password */}
-             {validationErrors.password && (
+            {/* Pesan Error Password */}
+            {validationErrors.password && (
               <p className="mt-1 text-xs text-red-500 font-medium flex items-center gap-1">
                 <HiExclamationCircle /> {validationErrors.password}
               </p>

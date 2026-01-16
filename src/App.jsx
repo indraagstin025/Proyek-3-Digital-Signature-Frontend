@@ -129,9 +129,12 @@ const AppWrapper = () => {
     try {
       await Promise.all([Promise.race([sessionCheckPromise, timeoutPromise]), minLoadingTime]);
 
+      // [FIX] Cek path TERBARU setelah await selesai (mencegah race condition jika user sudah navigasi)
+      const freshPath = window.location.pathname;
+
       // Jika sukses login & akses halaman publik, redirect ke dashboard
       const redirectPaths = ["/login", "/register", "/"];
-      if (redirectPaths.includes(currentPath)) {
+      if (redirectPaths.includes(freshPath)) {
         navigate("/dashboard", { replace: true });
       }
       setIsCheckingSession(false);

@@ -117,6 +117,22 @@ const updateTourProgress = async (tourKey) => {
   }
 };
 
+/**
+ * Membuat User Report (Feedback / Bug Report)
+ * Endpoint: POST /api/users/reports
+ */
+const createUserReport = async (title, description) => {
+  try {
+    const response = await apiClient.post('/users/reports', {
+      title,
+      description
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data?.message || "Gagal mengirim laporan.";
+  }
+};
+
 export const userService = {
   getMyProfile,
   updateMyProfile,
@@ -125,7 +141,8 @@ export const userService = {
   getQuota,
   getProfilePictureUrl,
   updateTourProgress,
+  createUserReport,
 };
 
 // Export getQuota & helper juga sebagai named export
-export { getQuota, getProfilePictureUrl, updateTourProgress };
+export { getQuota, getProfilePictureUrl, updateTourProgress, createUserReport };

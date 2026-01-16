@@ -9,33 +9,38 @@ import AdminDashboardHeader from "../../components/DashboardHeader/AdminDashboar
 const AdminDashboardPage = ({ theme, toggleTheme }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  
+
   const [userData, setUserData] = useState(() => JSON.parse(localStorage.getItem("authUser") || "null"));
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => window.innerWidth >= 1024);
 
-useEffect(() => {
-  const syncAdminData = async () => {
-    try {
-      const freshData = await userService.getMyProfile();
-      if (freshData?.isSuperAdmin) {
-        setUserData(freshData);
-        localStorage.setItem("authUser", JSON.stringify(freshData));
-      } else {
-        console.error("Akses Ditolak: Pengguna bukan admin.");
-        navigate("/login");
+  useEffect(() => {
+    console.log("AdminDashboardPage mounted. Checking access...");
+    const syncAdminData = async () => {
+      try {
+        const freshData = await userService.getMyProfile();
+        console.log("AdminDashboardPage fetched profile:", freshData);
+
+        if (freshData?.isSuperAdmin) {
+          console.log("Access Granted. Setting user data.");
+          setUserData(freshData);
+          localStorage.setItem("authUser", JSON.stringify(freshData));
+        } else {
+          console.error("Akses Ditolak: Pengguna bukan admin.");
+          navigate("/login");
+        }
+      } catch (error) {
+        console.error("AdminDashboardPage Sync Error:", error);
+        if (error.response?.status === 401) {
+          // JWT expired → langsung logout/tendang ke login tanpa toast error
+          navigate("/login");
+        } else {
+          console.error("Gagal sinkronisasi data admin:", error);
+          navigate("/login");
+        }
       }
-    } catch (error) {
-      if (error.response?.status === 401) {
-        // JWT expired → langsung logout/tendang ke login tanpa toast error
-        navigate("/login");
-      } else {
-        console.error("Gagal sinkronisasi data admin:", error);
-        navigate("/login");
-      }
-    }
-  };
-  syncAdminData();
-}, [navigate]);
+    };
+    syncAdminData();
+  }, [navigate]);
 
 
   const getActivePageFromPath = (pathname) => {
@@ -45,40 +50,40 @@ useEffect(() => {
     }
     return "dashboard";
   };
-  
+
   const activePage = getActivePageFromPath(location.pathname);
 
   // Struktur ini meniru DashboardPage Anda dengan tepat
   return (
     <div className={`flex min-h-screen ${theme === "dark" ? "bg-slate-900" : "bg-slate-50"}`}>
-      <AdminSidebar 
-        userName={userData?.name} 
-        userEmail={userData?.email} 
-        userAvatar={userData?.profilePictureUrl} 
-        isOpen={isSidebarOpen} 
-        activePage={activePage} 
-        onClose={() => setIsSidebarOpen(false)} 
-        theme={theme} 
+      <AdminSidebar
+        userName={userData?.name}
+        userEmail={userData?.email}
+        userAvatar={userData?.profilePictureUrl}
+        isOpen={isSidebarOpen}
+        activePage={activePage}
+        onClose={() => setIsSidebarOpen(false)}
+        theme={theme}
       />
 
       <div className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarOpen ? "lg:ml-64" : "ml-0"}`}>
-       <AdminDashboardHeader 
-  activePage={activePage} 
-  onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-  isSidebarOpen={isSidebarOpen}
-  userName={userData?.name}
-  userEmail={userData?.email}
-  userAvatar={userData?.profilePictureUrl}
-  theme={theme} 
-  toggleTheme={toggleTheme} 
-/>
+        <AdminDashboardHeader
+          activePage={activePage}
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          isSidebarOpen={isSidebarOpen}
+          userName={userData?.name}
+          userEmail={userData?.email}
+          userAvatar={userData?.profilePictureUrl}
+          theme={theme}
+          toggleTheme={toggleTheme}
+        />
 
-{/* Spacer untuk mendorong konten ke bawah sesuai tinggi header */}
-<div className="h-20 sm:h-20"></div>
+        {/* Spacer untuk mendorong konten ke bawah sesuai tinggi header */}
+        <div className="h-20 sm:h-20"></div>
 
-<main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-  <Outlet context={{ adminUser: userData }} />
-</main>
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+          <Outlet context={{ adminUser: userData }} />
+        </main>
 
       </div>
     </div>

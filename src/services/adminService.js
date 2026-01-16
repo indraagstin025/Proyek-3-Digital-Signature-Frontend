@@ -87,7 +87,7 @@ const getAllAuditLogs = async (page = 1, limit = 10) => {
         // Kirim query param page & limit
         const response = await apiClient.get(`/admin/audit-logs?page=${page}&limit=${limit}`);
         // Return full response (data + pagination meta)
-        return response.data; 
+        return response.data;
     } catch (error) {
         handleError(error, "Gagal mengambil audit logs.");
     }
@@ -123,6 +123,47 @@ const forceDeleteDocument = async (documentId, reason) => {
     }
 };
 
+/**
+ * [BARU] User Reports (Feedback/Bug)
+ * Endpoint: GET /api/admin/reports
+ */
+const getAllReports = async () => {
+    try {
+        const response = await apiClient.get('/admin/reports');
+        return response.data.data; // Array of reports
+    } catch (error) {
+        handleError(error, "Gagal mengambil daftar laporan.");
+    }
+};
+
+/**
+ * [BARU] Update Status Laporan
+ * Endpoint: PATCH /api/admin/reports/:reportId
+ */
+const updateReportStatus = async (reportId, status) => {
+    try {
+        const response = await apiClient.patch(`/admin/reports/${reportId}`, {
+            status // "PENDING", "IN_PROGRESS", "RESOLVED", "REJECTED"
+        });
+        return response.data.data;
+    } catch (error) {
+        handleError(error, "Gagal update status laporan.");
+    }
+};
+
+/**
+ * [BARU] Manual Cron Job Trigger
+ * Endpoint: POST /api/admin/cron/premium-expiry
+ */
+const triggerPremiumExpiryCheck = async () => {
+    try {
+        const response = await apiClient.post('/admin/cron/premium-expiry');
+        return response.data;
+    } catch (error) {
+        handleError(error, "Gagal memicu pengecekan premium expiry.");
+    }
+};
+
 // Export semua fungsi
 export const adminService = {
     getAllUsers,
@@ -132,5 +173,8 @@ export const adminService = {
     getDashboardSummary, // [FIX] Nama fungsi disesuaikan dengan panggilan di UI
     getAllDocuments,
     getAllAuditLogs,     // [FIX] Nama disesuaikan (sebelumnya getAuditLogs vs getAllAuditLogs)
-    forceDeleteDocument
+    forceDeleteDocument,
+    getAllReports,
+    updateReportStatus,
+    triggerPremiumExpiryCheck
 };

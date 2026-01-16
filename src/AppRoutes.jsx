@@ -52,6 +52,7 @@ import AdminDashboardOverview from "./pages/AdminPage/AdminDashboardOverview.jsx
 import AdminManageUser from "./pages/AdminPage/AdminManageUser.jsx";
 import AdminManageDocuments from "./pages/AdminPage/AdminManageDocuments.jsx";
 import AdminAuditLogs from "./pages/AdminPage/AdminAuditLogs.jsx";
+import AdminReports from "./pages/AdminPage/AdminReports.jsx"; // Import AdminReports
 import FeaturesPage from "./pages/FeaturesPage/FeaturesPage.jsx";
 
 /**
@@ -142,6 +143,7 @@ const AppRoutes = ({ theme, toggleTheme, onSessionExpired, routeKey }) => {
             <Route path="dashboard" element={<AdminDashboardOverview />} />
             <Route path="users" element={<AdminManageUser theme={theme} />} />
             <Route path="documents" element={<AdminManageDocuments theme={theme} />} />
+            <Route path="reports" element={<AdminReports />} /> {/* New Route */}
             <Route path="audit-logs" element={<AdminAuditLogs />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
