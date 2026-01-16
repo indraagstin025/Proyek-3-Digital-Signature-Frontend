@@ -20,14 +20,14 @@ const SignDocumentLayout = ({
   documentId,
   signatures,
   savedSignatureUrl,
-  
+
   // Status
   isLoadingDoc,
   isSaving,
   isAnalyzing,
   canSign,
   isSignedSuccess,
-  
+
   // UI Controls
   theme,
   toggleTheme,
@@ -81,19 +81,19 @@ const SignDocumentLayout = ({
             Dokumen <strong>{documentTitle}</strong> berhasil ditandatangani dan diamankan.
           </p>
           <div className="space-y-3">
-            <button 
-                onClick={handleNavigateToView}
-                className="w-full py-3 px-6 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-semibold hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors flex items-center justify-center gap-2"
+            <button
+              onClick={handleNavigateToView}
+              className="w-full py-3 px-6 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-semibold hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors flex items-center justify-center gap-2"
             >
               <span>Lihat Detail</span>
               <FaArrowRight size={12} />
             </button>
           </div>
           <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-700">
-             <div className="flex items-center justify-center gap-2 text-slate-400 text-xs">
-                <FaFilePdf />
-                <span>WeSign Secure Processing</span>
-             </div>
+            <div className="flex items-center justify-center gap-2 text-slate-400 text-xs">
+              <FaFilePdf />
+              <span>WeSign Secure Processing</span>
+            </div>
           </div>
         </div>
       </div>
@@ -110,16 +110,16 @@ const SignDocumentLayout = ({
 
       {/* Header */}
       <header className="fixed top-0 left-0 w-full h-16 z-50">
-        <SignatureHeaderCommon 
-          theme={theme} 
-          toggleTheme={toggleTheme} 
-          onToggleSidebar={() => canSign && setIsSidebarOpen(!isSidebarOpen)} 
+        <SignatureHeaderCommon
+          theme={theme}
+          toggleTheme={toggleTheme}
+          onToggleSidebar={() => canSign && setIsSidebarOpen(!isSidebarOpen)}
         />
       </header>
 
       {/* Main Content */}
       <div className="absolute top-16 bottom-0 left-0 w-full flex overflow-hidden">
-        
+
         {/* PDF Viewer */}
         <main className="flex-1 overflow-hidden">
           {pdfFile && (
@@ -159,16 +159,16 @@ const SignDocumentLayout = ({
           />
         )}
 
-        <AiAnalysisModal 
-          isOpen={isAiModalOpen} 
-          onClose={() => setIsAiModalOpen(false)} 
-          data={aiData} 
-          isLoading={isAnalyzing} 
+        <AiAnalysisModal
+          isOpen={isAiModalOpen}
+          onClose={() => setIsAiModalOpen(false)}
+          data={aiData}
+          isLoading={isAnalyzing}
         />
       </div>
 
       {/* Mobile Controls & Overlay */}
-      <MobileFloatingActions 
+      <MobileFloatingActions
         canSign={canSign}
         isSignedSuccess={isSignedSuccess}
         hasMySignatures={hasPlacedSignature}
@@ -176,7 +176,7 @@ const SignDocumentLayout = ({
         onSave={onCommitSave}
         onToggleSidebar={() => setIsSidebarOpen(true)}
         onOpenModal={() => setIsSignatureModalOpen(true)}
-        onAnalyze={handleAnalyzeDocument} 
+        onAnalyze={handleAnalyzeDocument}
         isAnalyzing={isAnalyzing}
       />
 

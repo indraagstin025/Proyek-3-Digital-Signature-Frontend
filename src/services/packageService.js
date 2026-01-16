@@ -25,6 +25,31 @@ export const packageService = {
   },
 
   /**
+   * [BARU] Mengambil daftar semua paket (Riwayat).
+   * Digunakan oleh halaman DashboardPackages.
+   */
+  getAllPackages: async () => {
+    try {
+      // Memanggil endpoint GET /api/packages yang baru dibuat di backend
+      const response = await apiClient.get("/packages");
+      
+      // Mengembalikan array data paket
+      return response.data.data;
+    } catch (error) {
+      // Defensive programming: 
+      // Jika backend merespon 404 (data kosong) atau error lain,
+      // kita return array kosong [] agar frontend tidak crash saat melakukan .map()
+      if (error.response && error.response.status === 404) {
+        return [];
+      }
+      
+      // Opsional: Anda bisa mute error ini jika tidak ingin toast muncul saat load awal
+      handleError(error, "Gagal mengambil riwayat paket.");
+      return [];
+    }
+  },
+
+  /**
    * REVISI: Fungsi ini dibuat lebih robust.
    * Kita tidak lagi memaksa cek /health sebelum POST, 
    * karena jika /health timeout tapi /sign lancar, user tetap dianggap offline.

@@ -4,21 +4,15 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_A
 
 const SOCKET_URL = API_BASE_URL.replace(/\/api\/?$/, "");
 
-console.log(`[Socket Service] Base URL derived from API: ${SOCKET_URL}`);
-
 let socket;
 
-// Map untuk menyimpan wrapper functions agar bisa di-cleanup dengan benar
 const groupListeners = new Map();
 
 export const socketService = {
   connect: () => {
     if (socket && socket.connected) {
-      // console.log("⚡ [Socket] Sudah terhubung.");
       return socket;
     }
-
-    console.log("🔌 [Socket] Mencoba connect ke:", SOCKET_URL);
 
     socket = io(SOCKET_URL, {
       withCredentials: true,
@@ -29,18 +23,16 @@ export const socketService = {
     });
 
     socket.on("connect", () => {
-      console.log("✅ [Socket] Connected! Socket ID:", socket.id);
     });
 
     socket.on("connect_error", (err) => {
-      console.error("❌ [Socket] Connection Error:", err.message);
       if (err.message.includes("Authentication error")) {
-        // Handle auth error if needed
+    
       }
     });
 
     socket.on("disconnect", (reason) => {
-      console.warn(`⚠️ [Socket] Disconnected. Reason: ${reason}`);
+      console.warn(`${reason}`);
     });
 
     return socket;
@@ -48,18 +40,13 @@ export const socketService = {
 
   disconnect: () => {
     if (socket) {
-      console.log("🛑 [Socket] Disconnect manual.");
       socket.disconnect();
       socket = null;
     }
   },
 
-  // =========================================
-  // 1. DOCUMENT ROOM (SIGNING & EDITING)
-  // =========================================
   joinRoom: (documentId) => {
     if (socket && socket.connected) {
-      console.log(`🚪 [Socket] Joining Doc Room: ${documentId}`);
       socket.emit("join_room", documentId);
     }
   },
@@ -74,7 +61,6 @@ export const socketService = {
     if (socket && socket.connected) socket.emit("trigger_reload", documentId);
   },
 
-  // Emit Actions
   emitDrag: (data) => {
     if (socket && socket.connected) socket.emit("drag_signature", data);
   },
@@ -88,7 +74,6 @@ export const socketService = {
     if (socket && socket.connected) socket.emit("cursor_move", data);
   },
 
-  // Listeners Document
   onPositionUpdate: (callback) => {
     if (socket) socket.on("update_signature_position", callback);
   },
@@ -105,11 +90,19 @@ export const socketService = {
     if (socket) socket.on("cursor_move", callback);
   },
 
-  // Listeners Document Status (Finalized)
+  // ✅ [BARU] Emit event saat user menyimpan tanda tangan
+  emitSignatureSaved: (documentId) => {
+    if (socket && socket.connected) socket.emit("signature_saved", { documentId });
+  },
+
+  // ✅ [BARU] Listener untuk notifikasi saat user lain menyimpan tanda tangan
+  onSignatureSaved: (callback) => {
+    if (socket) socket.on("signature_saved", callback);
+  },
+
   onDocumentStatusUpdate: (callback) => {
     if (socket)
       socket.on("document_status_update", (data) => {
-        console.log("🔔 [Socket] Doc Status Update:", data);
         callback(data);
       });
   },
@@ -117,45 +110,29 @@ export const socketService = {
     if (socket) socket.off("document_status_update", callback);
   },
 
-  // =========================================
-  // 2. GROUP ROOM (DASHBOARD REALTIME)
-  // =========================================
-
   /**
    * Bergabung ke Room Grup untuk menerima update Member & Dokumen.
    */
   joinGroupRoom: (groupId) => {
     if (socket && socket.connected) {
-      // Kita kirim ID mentah, biar Backend yang format jadi "group_ID"
-      // ATAU kita format di sini.
-      // Sesuai kode backend Anda sebelumnya (socketHandler.js), dia melakukan:
-      // socket.join(`group_${groupId}`);
-
-      // Jadi kita kirim ID saja sudah benar.
-      console.log(`🔄 [Socket] Request Join Room untuk Group ID: ${groupId}`);
       socket.emit("join_group_room", groupId);
-    } else {
-      console.warn("⚠️ [Socket] Gagal join, socket belum connect.");
     }
   },
 
   leaveGroupRoom: (groupId) => {
     if (socket) {
-      console.log(`👋 [Socket] Leaving Group Room: ${groupId}`);
       socket.emit("leave_group_room", groupId);
     }
   },
 
   onGroupMemberUpdate: (callback) => {
     if (socket) {
-      // Hapus listener lama jika ada
       const existingWrapper = groupListeners.get(`member_${callback}`);
       if (existingWrapper) {
         socket.off("group_member_update", existingWrapper);
       }
 
       const wrapper = (data) => {
-        console.log("👥 [Socket RECV] Member Update:", JSON.stringify(data, null, 2));
         callback(data);
       };
       groupListeners.set(`member_${callback}`, wrapper);
@@ -174,14 +151,12 @@ export const socketService = {
 
   onGroupDocumentUpdate: (callback) => {
     if (socket) {
-      // Hapus listener lama jika ada (mencegah duplicate)
       const existingWrapper = groupListeners.get(`doc_${callback}`);
       if (existingWrapper) {
         socket.off("group_document_update", existingWrapper);
       }
 
       const wrapper = (data) => {
-        console.log("📄 [Socket RECV] Document Update:", JSON.stringify(data, null, 2));
         callback(data);
       };
       groupListeners.set(`doc_${callback}`, wrapper);
@@ -201,14 +176,12 @@ export const socketService = {
 
   onGroupInfoUpdate: (callback) => {
     if (socket) {
-      // Hapus listener lama jika ada
       const existingWrapper = groupListeners.get(`info_${callback}`);
       if (existingWrapper) {
         socket.off("group_info_update", existingWrapper);
       }
 
       const wrapper = (data) => {
-        console.log("ℹ️ [Socket RECV] Group Info Update:", data);
         callback(data);
       };
       groupListeners.set(`info_${callback}`, wrapper);
@@ -226,7 +199,6 @@ export const socketService = {
     }
   },
 
-  // Helpers Generic
   on: (event, callback) => {
     if (socket) socket.on(event, callback);
   },

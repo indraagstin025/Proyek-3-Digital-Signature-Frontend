@@ -21,8 +21,8 @@ const generateUUID = () => {
 
 const getRandomColor = (name = "User") => {
   const colors = [
-    "bg-red-500", "bg-orange-500", "bg-amber-500", "bg-green-500", 
-    "bg-emerald-500", "bg-teal-500", "bg-cyan-500", "bg-blue-500", 
+    "bg-red-500", "bg-orange-500", "bg-amber-500", "bg-green-500",
+    "bg-emerald-500", "bg-teal-500", "bg-cyan-500", "bg-blue-500",
     "bg-indigo-500", "bg-violet-500", "bg-fuchsia-500", "bg-pink-500", "bg-rose-500"
   ];
   let hash = 0;
@@ -54,7 +54,7 @@ export const useSignatureManagerGroup = ({
   const [signatures, setSignatures] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isAuthVerified, setIsAuthVerified] = useState(false);
-  
+
   // State AI
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiData, setAiData] = useState(null);
@@ -77,8 +77,8 @@ export const useSignatureManagerGroup = ({
   // --- DEBUG ACTIVE USERS ---
   useEffect(() => {
     if (activeUsers.length > 0) {
-        // Optional: Uncomment for debug
-        // console.log("Total User Online:", activeUsers.length);
+      // Optional: Uncomment for debug
+      // console.log("Total User Online:", activeUsers.length);
     }
   }, [activeUsers]);
 
@@ -150,28 +150,28 @@ export const useSignatureManagerGroup = ({
 
         setSignatures((prev) => {
           const map = new Map();
-          
+
           // 1. Prioritaskan Data DB
           dbSignatures.forEach((sig) => {
-              if (!deletedSignaturesRef.current.has(sig.id)) {
-                  // Jika ID sama, data DB menimpa map
-                  map.set(sig.userId, sig); 
-              }
+            if (!deletedSignaturesRef.current.has(sig.id)) {
+              // Jika ID sama, data DB menimpa map
+              map.set(sig.userId, sig);
+            }
           });
 
           // 2. Gabungkan dengan State Lokal (jika ada update yg belum tersimpan)
           prev.forEach((local) => {
             if (deletedSignaturesRef.current.has(local.id)) return;
-            
+
             if (!map.has(local.userId)) {
-               // Jika di DB tidak ada, tapi di lokal ada (baru dibuat), masukkan
-               map.set(local.userId, { ...local, status: "draft" });
+              // Jika di DB tidak ada, tapi di lokal ada (baru dibuat), masukkan
+              map.set(local.userId, { ...local, status: "draft" });
             } else {
-               // Jika ada di keduanya, ambil yang lokal jika itu milik kita (sedang diedit)
-               if (String(local.userId) === String(currentUser.id)) {
-                 const dbItem = map.get(local.userId);
-                 map.set(local.userId, { ...dbItem, ...local });
-               }
+              // Jika ada di keduanya, ambil yang lokal jika itu milik kita (sedang diedit)
+              if (String(local.userId) === String(currentUser.id)) {
+                const dbItem = map.get(local.userId);
+                map.set(local.userId, { ...dbItem, ...local });
+              }
             }
           });
 
@@ -191,7 +191,7 @@ export const useSignatureManagerGroup = ({
   const flushUpdatesToState = useCallback(
     debounce(() => {
       if (incomingUpdatesRef.current.size === 0) return;
-      
+
       setSignatures((prev) => {
         const newSignatures = [...prev];
         let hasChanges = false;
@@ -207,7 +207,7 @@ export const useSignatureManagerGroup = ({
         incomingUpdatesRef.current.clear();
         return hasChanges ? newSignatures : prev;
       });
-    }, 500), // Delay 500ms
+    }, 500), 
     []
   );
 
@@ -224,33 +224,33 @@ export const useSignatureManagerGroup = ({
 
     // -- Handler User Avatar --
     const handleUserJoined = (data) => {
-        const incomingUserId = String(data.userId || "");
-        if (incomingUserId === String(userIdRef.current)) return;
+      const incomingUserId = String(data.userId || "");
+      if (incomingUserId === String(userIdRef.current)) return;
 
-        setActiveUsers((prev) => {
-            if (prev.find(u => String(u.userId) === incomingUserId)) return prev;
-            return [...prev, { 
-                userId: incomingUserId, 
-                userName: data.userName, 
-                profilePictureUrl: data.profilePictureUrl, 
-                color: getRandomColor(data.userName) 
-            }];
-        });
-        toast.success(`${data.userName || "Seseorang"} bergabung!`, { icon: "👋" });
+      setActiveUsers((prev) => {
+        if (prev.find(u => String(u.userId) === incomingUserId)) return prev;
+        return [...prev, {
+          userId: incomingUserId,
+          userName: data.userName,
+          profilePictureUrl: data.profilePictureUrl,
+          color: getRandomColor(data.userName)
+        }];
+      });
+      toast.success(`${data.userName || "Seseorang"} bergabung!`, { icon: "👋" });
     };
 
     const handleCurrentRoomUsers = (users) => {
-        const formattedUsers = users.map(u => ({
-            userId: String(u.userId),
-            userName: u.userName,
-            profilePictureUrl: u.profilePictureUrl,
-            color: getRandomColor(u.userName)
-        }));
-        setActiveUsers(formattedUsers);
+      const formattedUsers = users.map(u => ({
+        userId: String(u.userId),
+        userName: u.userName,
+        profilePictureUrl: u.profilePictureUrl,
+        color: getRandomColor(u.userName)
+      }));
+      setActiveUsers(formattedUsers);
     };
 
     const handleUserLeft = (data) => {
-        setActiveUsers((prev) => prev.filter(u => String(u.userId) !== String(data.userId)));
+      setActiveUsers((prev) => prev.filter(u => String(u.userId) !== String(data.userId)));
     };
 
     // -- Handler Signature --
@@ -267,7 +267,7 @@ export const useSignatureManagerGroup = ({
 
         const cleanPrev = prev.filter((s) => String(s.userId) !== incomingUserId);
         toast(`${newSig.signerName || "User lain"} sedang menandatangani...`, { icon: "✏️", id: `sig-toast-${incomingUserId}` });
-        
+
         return [...cleanPrev, { ...newSig, status: "draft", isLocked: true }];
       });
     };
@@ -278,13 +278,24 @@ export const useSignatureManagerGroup = ({
 
     // 🔥 [PERBAIKAN STUCK] Jangan update state langsung!
     const handlePositionUpdate = (data) => {
-       // 1. Simpan ke Ref (Buffer)
-       incomingUpdatesRef.current.set(data.signatureId, data);
-       // 2. Trigger debounce update
-       flushUpdatesToState();
+      // 1. Simpan ke Ref (Buffer)
+      incomingUpdatesRef.current.set(data.signatureId, data);
+      // 2. Trigger debounce update
+      flushUpdatesToState();
     };
 
     const handleRefetch = () => {
+      if (onRefreshRequestRef.current) onRefreshRequestRef.current();
+    };
+
+    // ✅ [BARU] Handler saat user lain menyimpan tanda tangan
+    const handleSignatureSaved = (data) => {
+      console.log("🔔 [SOCKET] signature_saved received:", data); // Debug log
+      toast.success(`${data.userName} telah menandatangani dokumen! ✍️`, {
+        icon: "✅",
+        duration: 4000,
+      });
+      // Trigger refresh data untuk memperbarui tampilan
       if (onRefreshRequestRef.current) onRefreshRequestRef.current();
     };
 
@@ -293,11 +304,12 @@ export const useSignatureManagerGroup = ({
     socketService.onAddSignatureLive(handleAddLive);
     socketService.onRemoveSignatureLive(handleRemoveLive);
     socketService.onRefetchData(handleRefetch);
-    
+    socketService.onSignatureSaved(handleSignatureSaved); // ✅ [BARU]
+
     if (socket.on) {
-        socket.on("user_joined", handleUserJoined);
-        socket.on("user_left", handleUserLeft);
-        socket.on("current_room_users", handleCurrentRoomUsers);
+      socket.on("user_joined", handleUserJoined);
+      socket.on("user_left", handleUserLeft);
+      socket.on("current_room_users", handleCurrentRoomUsers);
     }
 
     // -- Cleanup --
@@ -307,11 +319,12 @@ export const useSignatureManagerGroup = ({
       socketService.off("add_signature_live", handleAddLive);
       socketService.off("remove_signature_live", handleRemoveLive);
       socketService.off("refetch_data", handleRefetch);
-      
+      socketService.off("signature_saved", handleSignatureSaved); // ✅ [BARU]
+
       if (socket.off) {
-          socket.off("user_joined", handleUserJoined);
-          socket.off("user_left", handleUserLeft);
-          socket.off("current_room_users", handleCurrentRoomUsers);
+        socket.off("user_joined", handleUserJoined);
+        socket.off("user_left", handleUserLeft);
+        socket.off("current_room_users", handleCurrentRoomUsers);
       }
 
       socketService.leaveRoom(documentId);
@@ -323,86 +336,88 @@ export const useSignatureManagerGroup = ({
   const handleUpdateSignature = useCallback((updatedSignature) => {
     // Optimistic Update Lokal
     setSignatures((prev) => prev.map((sig) => (sig.id === updatedSignature.id ? updatedSignature : sig)));
-    
+
     // Cegah tabrakan dengan queue create
     if (pendingCreationIds.current.has(updatedSignature.id)) {
       pendingUpdates.current.set(updatedSignature.id, updatedSignature);
       return;
     }
-    
-    groupSignatureService.updateDraftPosition(updatedSignature.id, updatedSignature).catch(() => {});
+
+    groupSignatureService.updateDraftPosition(updatedSignature.id, updatedSignature).catch(() => { });
   }, []);
 
   const handleAddSignature = useCallback(async (signatureData, savedSignatureUrl, includeQrCode) => {
-      setIsSaving(true);
-      const fixedId = generateUUID(); 
-      pendingCreationIds.current.add(fixedId);
+    setIsSaving(true);
+    const fixedId = generateUUID();
+    pendingCreationIds.current.add(fixedId);
 
-      const newSignature = {
-        ...signatureData,
-        id: fixedId,
-        documentId,
-        documentVersionId,
-        userId: currentUser.id,
-        signerName: currentUser.name,
-        signatureImageUrl: savedSignatureUrl,
-        isLocked: false,
-        isTemp: false,
-        status: "draft",
-      };
+    const newSignature = {
+      ...signatureData,
+      id: fixedId,
+      documentId,
+      documentVersionId,
+      userId: currentUser.id,
+      signerName: currentUser.name,
+      signatureImageUrl: savedSignatureUrl,
+      isLocked: false,
+      isTemp: false,
+      status: "draft",
+    };
 
-      setSignatures((prev) => [...prev, newSignature]);
-      socketService.emitAddSignature(documentId, { ...newSignature, isLocked: true });
+    setSignatures((prev) => [...prev, newSignature]);
+    socketService.emitAddSignature(documentId, { ...newSignature, isLocked: true });
 
-      try {
-        await groupSignatureService.saveDraft(documentId, newSignature);
-        pendingCreationIds.current.delete(fixedId);
-        
-        // Cek apakah ada update posisi yg tertunda selama proses save
-        if (pendingUpdates.current.has(fixedId)) {
-          const latestData = pendingUpdates.current.get(fixedId);
-          handleUpdateSignature(latestData);
-          pendingUpdates.current.delete(fixedId);
-        }
-      } catch (error) {
-        toast.error("Gagal menyimpan draft.");
-        setSignatures((prev) => prev.filter((s) => s.id !== fixedId));
-        socketService.emitRemoveSignature(documentId, fixedId);
-        pendingCreationIds.current.delete(fixedId);
+    try {
+      await groupSignatureService.saveDraft(documentId, newSignature);
+      pendingCreationIds.current.delete(fixedId);
+
+      // Cek apakah ada update posisi yg tertunda selama proses save
+      if (pendingUpdates.current.has(fixedId)) {
+        const latestData = pendingUpdates.current.get(fixedId);
+        handleUpdateSignature(latestData);
         pendingUpdates.current.delete(fixedId);
-      } finally {
-        setIsSaving(false);
       }
-    }, [documentId, documentVersionId, currentUser, handleUpdateSignature]);
+    } catch (error) {
+      toast.error("Gagal menyimpan draft.");
+      setSignatures((prev) => prev.filter((s) => s.id !== fixedId));
+      socketService.emitRemoveSignature(documentId, fixedId);
+      pendingCreationIds.current.delete(fixedId);
+      pendingUpdates.current.delete(fixedId);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [documentId, documentVersionId, currentUser, handleUpdateSignature]);
 
   const handleDeleteSignature = useCallback(async (signatureId) => {
-      deletedSignaturesRef.current.add(signatureId);
-      setSignatures((prev) => prev.filter((sig) => sig.id !== signatureId));
-      socketService.emitRemoveSignature(documentId, signatureId);
-      try { await groupSignatureService.deleteDraft(signatureId); } catch (e) { console.error(e); }
-    }, [documentId]);
+    deletedSignaturesRef.current.add(signatureId);
+    setSignatures((prev) => prev.filter((sig) => sig.id !== signatureId));
+    socketService.emitRemoveSignature(documentId, signatureId);
+    try { await groupSignatureService.deleteDraft(signatureId); } catch (e) { console.error(e); }
+  }, [documentId]);
 
   const handleFinalSave = useCallback(async (includeQrCode) => {
-      const myDraft = signatures.find((sig) => String(sig.userId) === String(currentUser.id));
-      if (!myDraft) throw new Error("Tanda tangan Anda belum ditempatkan.");
-      
-      setIsSaving(true);
-      try {
-        const payload = {
-          id: myDraft.id,
-          signatureImageUrl: myDraft.signatureImageUrl,
-          positionX: myDraft.positionX,
-          positionY: myDraft.positionY,
-          pageNumber: myDraft.pageNumber,
-          width: myDraft.width,
-          height: myDraft.height,
-          method: "canvas",
-        };
-        await groupSignatureService.signDocument(documentId, payload);
-        socketService.notifyDataChanged(documentId);
-        setSignatures((prev) => prev.filter((s) => s.id !== myDraft.id));
-      } catch (error) { throw error; } finally { setIsSaving(false); }
-    }, [signatures, documentId, currentUser.id]);
+    const myDraft = signatures.find((sig) => String(sig.userId) === String(currentUser.id));
+    if (!myDraft) throw new Error("Tanda tangan Anda belum ditempatkan.");
+
+    setIsSaving(true);
+    try {
+      const payload = {
+        id: myDraft.id,
+        signatureImageUrl: myDraft.signatureImageUrl,
+        positionX: myDraft.positionX,
+        positionY: myDraft.positionY,
+        pageNumber: myDraft.pageNumber,
+        width: myDraft.width,
+        height: myDraft.height,
+        method: "canvas",
+      };
+      await groupSignatureService.signDocument(documentId, payload);
+      socketService.notifyDataChanged(documentId);
+      console.log("📤 [SOCKET] emitSignatureSaved:", documentId); // Debug log
+      socketService.emitSignatureSaved(documentId); // ✅ [BARU] Notifikasi ke user lain
+      setSignatures((prev) => prev.filter((s) => s.id !== myDraft.id));
+    } catch (error) { throw error; } finally { setIsSaving(false); }
+  }, [signatures, documentId, currentUser.id]);
 
   const handleAnalyzeDocument = useCallback(async () => {
     if (!documentId) return;
@@ -425,9 +440,9 @@ export const useSignatureManagerGroup = ({
   }, []);
 
   return {
-    signatures, setSignatures, isSaving, 
+    signatures, setSignatures, isSaving,
     isAnalyzing, aiData, handleAnalyzeDocument, handleAutoTag,
-    activeUsers, 
+    activeUsers,
     handleAddSignature, handleUpdateSignature, handleDeleteSignature, handleFinalSave,
   };
 };

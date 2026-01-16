@@ -42,7 +42,7 @@ export const GroupDocuments = ({ documents, groupId, groupData, members, current
   const isAdmin = useMemo(() => members.some((m) => m.userId === currentUserId && m.role === "admin_group"), [members, currentUserId]);
 
   // [PREMIUM LOGIC - Using QuotaContext + GroupData]
-  
+
   // 1. Cek Status User yang sedang Login (Anda)
   const currentUserStatus = quota?.userStatus || "FREE";
   const isCurrentUserPremium = currentUserStatus === "PREMIUM" || currentUserStatus === "PREMIUM_YEARLY";
@@ -162,7 +162,7 @@ export const GroupDocuments = ({ documents, groupId, groupData, members, current
       )}
 
       {isManagementModalOpen && DocumentManagementModal && (
-        <DocumentManagementModal mode="view" initialDocument={selectedDocForManage} currentUser={currentUser} onClose={() => setIsManagementModalOpen(false)} onSuccess={() => {}} initialTab="history" />
+        <DocumentManagementModal mode="view" initialDocument={selectedDocForManage} currentUser={currentUser} onClose={() => setIsManagementModalOpen(false)} onSuccess={() => { }} initialTab="history" />
       )}
 
       <ConfirmationModal
@@ -206,11 +206,10 @@ export const GroupDocuments = ({ documents, groupId, groupData, members, current
               <button
                 onClick={handleAssignClick}
                 className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl border transition-all shadow-sm
-                ${
-                  isLimitReached
+                ${isLimitReached
                     ? "bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed dark:bg-slate-800/50 dark:text-slate-600 dark:border-slate-700"
                     : "text-slate-700 bg-white border-slate-300 hover:bg-slate-50 hover:border-slate-400 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
-                }`}
+                  }`}
               >
                 {isLimitReached ? <HiLockClosed className="w-4 h-4" /> : <HiOutlineDocumentAdd className="w-4 h-4" />}
                 <span>Pilih Draft</span>
@@ -219,11 +218,10 @@ export const GroupDocuments = ({ documents, groupId, groupData, members, current
               <button
                 onClick={handleUploadClick}
                 className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl shadow-lg transition-all transform
-                ${
-                  isLimitReached
+                ${isLimitReached
                     ? "bg-slate-200 text-slate-500 cursor-not-allowed shadow-none dark:bg-slate-700 dark:text-slate-500"
                     : "text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-blue-500/20 hover:-translate-y-0.5 active:scale-95"
-                }`}
+                  }`}
               >
                 {isLimitReached ? <HiLockClosed className="w-4 h-4" /> : <HiOutlineUpload className="w-4 h-4" />}
                 <span>Upload Baru</span>
@@ -242,9 +240,8 @@ export const GroupDocuments = ({ documents, groupId, groupData, members, current
               </div>
               <div className="w-full h-2.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                 <div
-                  className={`h-full rounded-full transition-all duration-700 ease-out shadow-sm ${
-                    isLimitReached ? "bg-red-500" : usagePercentage > 80 ? "bg-gradient-to-r from-amber-400 to-orange-500" : "bg-gradient-to-r from-blue-400 to-indigo-500"
-                  }`}
+                  className={`h-full rounded-full transition-all duration-700 ease-out shadow-sm ${isLimitReached ? "bg-red-500" : usagePercentage > 80 ? "bg-gradient-to-r from-amber-400 to-orange-500" : "bg-gradient-to-r from-blue-400 to-indigo-500"
+                    }`}
                   style={{ width: `${usagePercentage}%` }}
                 ></div>
               </div>
@@ -257,21 +254,21 @@ export const GroupDocuments = ({ documents, groupId, groupData, members, current
                   <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
                     <HiLockClosed className="w-3.5 h-3.5" />
                     {isCurrentUserPremium ? (
-                       // KASUS A: Grup Penuh, tapi User Premium -> Beri info saja, jangan suruh upgrade
-                       <span className="font-bold cursor-help" title="Penyimpanan grup ini dibatasi oleh paket Admin Grup">
-                         Limit Grup Penuh
-                       </span>
+                      // KASUS A: Grup Penuh, tapi User Premium -> Beri info saja, jangan suruh upgrade
+                      <span className="font-bold cursor-help" title="Penyimpanan grup ini dibatasi oleh paket Admin Grup">
+                        Limit Grup Penuh
+                      </span>
                     ) : (
-                       // KASUS B: Grup Penuh, User Free -> Suruh upgrade (karena mungkin dia adminnya)
-                       <Link to="/pricing" className="font-bold hover:underline">
-                         Limit Penuh. Upgrade &rarr;
-                       </Link>
+                      // KASUS B: Grup Penuh, User Free -> Suruh upgrade (karena mungkin dia adminnya)
+                      <Link to="/pricing" className="font-bold hover:underline">
+                        Limit Penuh. Upgrade &rarr;
+                      </Link>
                     )}
                   </div>
                 ) : (
                   // Jika Limit Belum Penuh
                   !isCurrentUserPremium ? (
-                     // User Free -> Tampilkan Upsell
+                    // User Free -> Tampilkan Upsell
                     <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
                       <span>Butuh lebih? </span>
                       <Link to="/pricing" className="font-bold text-blue-600 dark:text-blue-400 hover:underline">
@@ -279,10 +276,10 @@ export const GroupDocuments = ({ documents, groupId, groupData, members, current
                       </Link>
                     </div>
                   ) : (
-                     // User Premium -> Tampilkan Info Mode Basic (Optional)
-                     <div className="text-slate-400 italic text-[10px]">
-                        Mode Basic (Milik Admin)
-                     </div>
+                    // User Premium -> Tampilkan Info Mode Basic (Optional)
+                    <div className="text-slate-400 italic text-[10px]">
+                      Mode Basic (Milik Admin)
+                    </div>
                   )
                 )}
               </div>

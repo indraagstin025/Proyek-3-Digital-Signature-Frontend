@@ -14,7 +14,7 @@ const SignatureSidebar = ({
   onAnalyze,
   readOnly = false,
   isSignedSuccess = false,
-  onViewResult = () => {},
+  onViewResult = () => { },
   hasPlacedSignature = false,
   // 🔥 Prop untuk Hint (Default false)
   showDragHint = false,
@@ -71,7 +71,12 @@ const SignatureSidebar = ({
             clone = null;
           }
           event.target.style.opacity = "1";
-          if (window.innerWidth < 1024) onClose();
+          // ✅ [FIX] Add delay before closing to allow drop animation to complete
+          if (window.innerWidth < 1024) {
+            setTimeout(() => {
+              onClose();
+            }, 500);
+          }
         },
       },
     });
@@ -80,9 +85,8 @@ const SignatureSidebar = ({
 
   return (
     <aside
-      className={`select-none w-full max-w-xs lg:w-80 lg:max-w-md bg-slate-50 dark:bg-slate-900/90 backdrop-blur-sm flex flex-col flex-shrink-0 border-l border-slate-200/80 dark:border-slate-700/50 shadow-2xl fixed top-16 right-0 z-40 h-[calc(100dvh-4rem)] transition-transform duration-300 ease-in-out ${
-        isOpen ? "translate-x-0" : "translate-x-full"
-      } lg:relative lg:h-full lg:translate-x-0 lg:top-0 landscape:lg:relative landscape:lg:h-full landscape:lg:translate-x-0 landscape:lg:top-0 portrait:fixed portrait:top-16 portrait:right-0 portrait:h-[calc(100dvh-4rem)]`}
+      className={`select-none w-full max-w-xs lg:w-80 lg:max-w-md bg-slate-50 dark:bg-slate-900/90 backdrop-blur-sm flex flex-col flex-shrink-0 border-l border-slate-200/80 dark:border-slate-700/50 shadow-2xl fixed top-16 right-0 z-40 h-[calc(100dvh-4rem)] transition-transform duration-300 ease-in-out ${isOpen ? "translate-x-0" : "translate-x-full"
+        } lg:relative lg:h-full lg:translate-x-0 lg:top-0 landscape:lg:relative landscape:lg:h-full landscape:lg:translate-x-0 landscape:lg:top-0 portrait:fixed portrait:top-16 portrait:right-0 portrait:h-[calc(100dvh-4rem)]`}
     >
       {/* Header */}
       <div className="py-6 px-6 border-b border-slate-200/80 dark:border-slate-700/50 flex justify-between items-center shrink-0">
@@ -148,9 +152,8 @@ const SignatureSidebar = ({
             <button
               onClick={() => !readOnly && !isSignedSuccess && onOpenSignatureModal()}
               disabled={readOnly || isSignedSuccess}
-              className={`w-full py-8 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg flex flex-col items-center justify-center text-slate-500 transition-all duration-300 group ${
-                readOnly || isSignedSuccess ? "cursor-not-allowed opacity-50" : "hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-blue-500 hover:text-blue-500"
-              }`}
+              className={`w-full py-8 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg flex flex-col items-center justify-center text-slate-500 transition-all duration-300 group ${readOnly || isSignedSuccess ? "cursor-not-allowed opacity-50" : "hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-blue-500 hover:text-blue-500"
+                }`}
             >
               <div className="p-3 rounded-full bg-slate-100 dark:bg-slate-700 group-hover:bg-blue-50 dark:group-hover:bg-slate-600 mb-3 transition-colors">
                 <FaPenNib size={20} />
@@ -211,9 +214,8 @@ const SignatureSidebar = ({
           id="tour-save-document"
           onClick={isSignedSuccess ? onViewResult : onSave}
           disabled={isLoading || (readOnly && !isSignedSuccess) || (!hasPlacedSignature && !isSignedSuccess)}
-          className={`w-full flex justify-center items-center text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all transform hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed disabled:shadow-none ${
-            isSignedSuccess ? "bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 shadow-green-500/30" : "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 shadow-blue-500/30"
-          }`}
+          className={`w-full flex justify-center items-center text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all transform hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed disabled:shadow-none ${isSignedSuccess ? "bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 shadow-green-500/30" : "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 shadow-blue-500/30"
+            }`}
         >
           {isLoading ? (
             <>

@@ -402,7 +402,7 @@ export const useSignPackage = () => {
         setIsProcessingModalOpen(false);
         setIsSubmitting(false);
         toast.success("Berhasil tersimpan!");
-        navigate("/dashboard/documents");
+        navigate("/dashboard/packages");
       }, 1000);
 
     } catch (err) {
@@ -432,7 +432,7 @@ export const useSignPackage = () => {
       // Handling logic sukses tapi message aneh
       if (backendMessage && (backendMessage.includes("selesai") || backendMessage.includes("completed") || backendMessage.includes("already signed"))) {
         toast.success("Dokumen sebenarnya sudah tersimpan!");
-        navigate("/dashboard/documents");
+        navigate("/dashboard/packages");
         return;
       }
 

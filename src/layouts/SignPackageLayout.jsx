@@ -51,7 +51,7 @@ const SignPackageLayout = ({
 }) => {
 
   const sidebarOpen = isLandscape ? true : isSidebarOpen;
-  
+
   // Pastikan logika tombol Sidebar aktif
   const hasPlacedSignature = currentSignatures && currentSignatures.length > 0;
 
@@ -68,27 +68,27 @@ const SignPackageLayout = ({
   return (
     <div className="absolute inset-0 bg-slate-200 dark:bg-slate-900 overflow-hidden">
       <Toaster position="top-center" containerStyle={{ zIndex: 9999 }} />
-      
+
       {/* --- MODALS --- */}
       {isSignatureModalOpen && (
         <SignatureModal onClose={() => setIsSignatureModalOpen(false)} onSave={handleSignatureSave} />
       )}
-      
+
       {/* INTEGRASI MODAL BARU */}
-      <ProcessingPackageModal 
-        isOpen={isProcessingModalOpen} 
-        totalDocs={totalDocs} 
-        currentDocIndex={progressIndex} 
-        currentDocTitle={processingTitle} 
-        onCancel={handleManualCancel} 
+      <ProcessingPackageModal
+        isOpen={isProcessingModalOpen}
+        totalDocs={totalDocs}
+        currentDocIndex={progressIndex}
+        currentDocTitle={processingTitle}
+        onCancel={handleManualCancel}
       />
 
-      <AiAnalysisModal 
-        isOpen={isAiModalOpen} 
-        onClose={() => setIsAiModalOpen(false)} 
-        data={aiAnalysisData} 
-        isLoading={isAiLoading} 
-        dbDocumentType={packageDetails?.documents[currentIndex]?.docVersion?.document?.type} 
+      <AiAnalysisModal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        data={aiAnalysisData}
+        isLoading={isAiLoading}
+        dbDocumentType={packageDetails?.documents[currentIndex]?.docVersion?.document?.type}
       />
 
       {/* --- HEADER --- */}

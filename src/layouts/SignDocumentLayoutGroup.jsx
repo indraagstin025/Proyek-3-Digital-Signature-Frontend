@@ -119,7 +119,7 @@ const SignDocumentLayoutGroup = ({
       <MobileFloatingActions
         canSign={canSign}
         isSignedSuccess={isSignedSuccess}
-        hasMySignatures={signatures.some((s) => !s.isLocked)}
+        hasMySignatures={hasPlacedSignature}
         isSaving={isSaving}
         onSave={onCommitSave}
         onToggleSidebar={() => setIsSidebarOpen(true)}

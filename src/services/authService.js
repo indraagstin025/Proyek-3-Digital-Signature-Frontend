@@ -6,6 +6,7 @@ const login = async (email, password) => {
 
   if (user) {
     localStorage.setItem("authUser", JSON.stringify(user));
+    window.dispatchEvent(new Event("auth-update")); // Notify UI
   }
   return { user };
 };
@@ -32,6 +33,7 @@ const logout = async () => {
     console.error("Gagal logout di server.", err);
   } finally {
     localStorage.removeItem("authUser");
+    window.dispatchEvent(new Event("auth-update")); // Notify UI
   }
 };
 
@@ -74,27 +76,50 @@ const verifyEmail = async (code) => {
  */
 const getMe = async () => {
   try {
-    const response = await apiClient.get("/users/me", { 
-      _skipSessionCheck: true 
+    const response = await apiClient.get("/users/me", {
+      _skipSessionCheck: true
     });
-    
+
     const user = response.data?.data;
     if (user) {
       // [FIXED] Simpan 'user' langsung, JANGAN dibungkus { user }
       // Agar konsisten dengan fungsi login() dan cara baca di ShortcutsPage
-      localStorage.setItem("authUser", JSON.stringify(user)); 
+      localStorage.setItem("authUser", JSON.stringify(user));
+      window.dispatchEvent(new Event("auth-update")); // Notify UI
     }
     return user;
   } catch (err) {
     // Jika error 401 (Belum login), bersihkan localStorage
     localStorage.removeItem("authUser");
-    throw err; 
+    window.dispatchEvent(new Event("auth-update")); // Notify UI
+    throw err;
   }
 };
 
-// Login Google (jika ada)
-const loginWithGoogle = async () => {
-    // Implementasi sesuai kebutuhan
+// Login Google - Redirect ke Supabase OAuth
+const loginWithGoogle = () => {
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+  const redirectTo = `${window.location.origin}/auth/callback`;
+
+  // Redirect ke Supabase OAuth endpoint
+  const oauthUrl = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectTo)}`;
+  // Gunakan replace agar halaman login tidak tersimpan di history, meminimalisir isu Back button
+  window.location.replace(oauthUrl);
+};
+
+// Google OAuth Callback - Kirim token ke backend
+const googleCallback = async (accessToken, refreshToken) => {
+  const response = await apiClient.post("/auth/google/callback", {
+    accessToken,
+    refreshToken
+  });
+
+  const user = response.data?.data?.user;
+  if (user) {
+    localStorage.setItem("authUser", JSON.stringify(user));
+    window.dispatchEvent(new Event("auth-update")); // Notify UI
+  }
+  return { user };
 };
 
 const authService = {
@@ -104,8 +129,9 @@ const authService = {
   forgotPassword,
   resetPassword,
   verifyEmail,
-  getMe, // Pastikan ini diexport
-  loginWithGoogle
+  getMe,
+  loginWithGoogle,
+  googleCallback
 };
 
 export default authService;

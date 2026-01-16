@@ -1,9 +1,9 @@
-// file: src/pages/DashboardPage/DashboardPage.jsx (atau DashboardOverview)
+// file: src/pages/DashboardPage/DashboardPage.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { userService } from "../../services/userService";
-// [1] IMPORT Toaster
 import toast, { Toaster } from "react-hot-toast";
+import { ImSpinner9 } from "react-icons/im"; // Tambahan icon loading
 
 import Sidebar from "../../components/Sidebar/Sidebar.jsx";
 import DashboardHeader from "../../components/DashboardHeader/DashboardHeader.jsx";
@@ -20,38 +20,50 @@ const DashboardPage = ({ theme, toggleTheme }) => {
     return savedUser ? JSON.parse(savedUser) : null;
   });
 
-  const [isLoadingUser, setIsLoadingUser] = useState(true); // Track loading state
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [pendingToken, setPendingToken] = useState(null);
   const [userError, setUserError] = useState("");
+
+  // Responsive Sidebar: Buka default hanya di layar besar (lg)
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1024);
+
   const userStatus = userData?.userStatus || "FREE";
-  const isPremium = userStatus === "PREMIUM";
+  const isPremium = userStatus === "PREMIUM" || userStatus === "PREMIUM_YEARLY";
 
   // --- Effects ---
+
+  // 1. Handle Toast Message dari navigasi sebelumnya
   useEffect(() => {
     const message = location.state?.message;
     if (message && !toastShownRef.current) {
       toastShownRef.current = true;
       toast.success(message);
+      // Bersihkan state agar toast tidak muncul lagi saat refresh
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location, navigate]);
 
+  // 2. Cek Token Undangan Pending
   useEffect(() => {
     const token = localStorage.getItem("pendingInviteToken");
     if (token) setPendingToken(token);
   }, []);
 
+  // 3. Sinkronisasi Data User (PENTING)
   useEffect(() => {
     const syncUserData = async () => {
-      setIsLoadingUser(true); // Start loading
+      setIsLoadingUser(true);
+
+      // Jika tidak ada data awal di localStorage, kita tunggu fetch selesai
       if (!userData) {
-        setIsLoadingUser(false);
-        return;
+        // Tetap loading...
       }
+
       try {
         setUserError("");
         const freshData = await userService.getMyProfile();
+
+        // Update state & localStorage hanya jika ada perubahan
         if (JSON.stringify(freshData) !== localStorage.getItem("authUser")) {
           setUserData(freshData);
           localStorage.setItem("authUser", JSON.stringify(freshData));
@@ -59,13 +71,17 @@ const DashboardPage = ({ theme, toggleTheme }) => {
       } catch (error) {
         if (error.response?.status !== 401) {
           console.error("Gagal sinkronisasi data pengguna:", error);
-          setUserError("Gagal menyinkronkan data terbaru. Menampilkan data offline.");
+          // Jangan tampilkan error ke user jika data offline masih ada
+          if (!userData) {
+            setUserError("Gagal memuat profil. Periksa koneksi internet Anda.");
+          }
         }
       } finally {
-        setIsLoadingUser(false); // Done loading
+        setIsLoadingUser(false);
       }
     };
     syncUserData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleProfileUpdate = (updatedUser) => {
@@ -78,9 +94,12 @@ const DashboardPage = ({ theme, toggleTheme }) => {
     setPendingToken(null);
   };
 
+  // Helper untuk menentukan menu aktif di sidebar
   const getActivePageFromPath = (pathname) => {
     const pathParts = pathname.split("/").filter((p) => p);
+    // Logika khusus untuk nested routes
     if (pathParts[0] === "dashboard") {
+      if (pathParts.length >= 2 && pathParts[1] === "documents") return "documents"; // Highlight parent documents
       if (pathParts.length >= 3 && pathParts[1] === "workspaces" && pathParts[2] === "group") return "workspaces";
       if (pathParts.length > 1) return pathParts[1];
       return "overview";
@@ -90,19 +109,35 @@ const DashboardPage = ({ theme, toggleTheme }) => {
 
   const activePage = getActivePageFromPath(location.pathname);
 
+  // --- TAMPILAN LOADING AWAL ---
+  // Jika data user belum ada sama sekali dan sedang loading, tampilkan spinner full screen
+  if (isLoadingUser && !userData) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-slate-50 dark:bg-slate-900 transition-colors">
+        <div className="flex flex-col items-center gap-4">
+          <ImSpinner9 className="animate-spin h-10 w-10 text-blue-600" />
+          <p className="text-slate-500 font-medium animate-pulse">Menyiapkan Dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="flex h-screen w-full overflow-hidden relative 
-                    bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 
-                    dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 
-                    transition-colors duration-300"
+                 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 
+                 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 
+                 transition-colors duration-300"
     >
-      {/* [2] PASANG TOASTER GLOBAL DI SINI */}
-      {/* zIndex 99999 (5 angka 9) menjamin selalu di atas Modal (biasanya 9999) */}
+      {/* TOASTER GLOBAL */}
       <Toaster
         position="top-center"
-        containerStyle={{
-          zIndex: 99999,
+        containerStyle={{ zIndex: 99999 }}
+        toastOptions={{
+          style: {
+            background: theme === 'dark' ? '#1e293b' : '#fff',
+            color: theme === 'dark' ? '#fff' : '#334155',
+          }
         }}
       />
 
@@ -113,13 +148,14 @@ const DashboardPage = ({ theme, toggleTheme }) => {
         <div className="hidden lg:block absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
       </div>
 
+      {/* Modal Invite Link (Jika ada) */}
       {pendingToken && <AcceptInviteLinks token={pendingToken} onDone={handleInviteDone} />}
 
+      {/* SIDEBAR */}
       <Sidebar
         userName={userData?.name}
         userEmail={userData?.email}
         userAvatar={userData?.profilePictureUrl}
-        // 🔥 [UPDATE] Oper status via Props agar Reaktif
         isPremium={isPremium}
         premiumUntil={userData?.premiumUntil}
         isOpen={isSidebarOpen}
@@ -128,6 +164,7 @@ const DashboardPage = ({ theme, toggleTheme }) => {
         theme={theme}
       />
 
+      {/* MAIN LAYOUT */}
       <div
         className={`
           flex-1 flex flex-col h-full
@@ -142,23 +179,32 @@ const DashboardPage = ({ theme, toggleTheme }) => {
           isSidebarOpen={isSidebarOpen}
           theme={theme}
           toggleTheme={toggleTheme}
-          // 🔥 [UPDATE] Oper status via Props
           userStatus={userStatus}
-          // 🔥 [NEW] Pass loading state untuk prevent flicker
           isLoadingUser={isLoadingUser}
         />
 
-        {/* MAIN CONTENT */}
-        <main className="flex-1 pt-20 h-full overflow-hidden flex flex-col relative no-scrollbar">
-          <div className="w-full h-full relative no-scrollbar">
+        {/* CONTENT AREA */}
+        <main className="flex-1 pt-20 h-full overflow-hidden flex flex-col relative">
+          <div className="w-full h-full relative">
             {userError ? (
-              <div className="p-8 text-red-500 text-center font-medium bg-red-50 rounded-lg m-4">{userError}</div>
+              <div className="flex items-center justify-center h-full">
+                <div className="p-8 text-red-500 text-center font-medium bg-red-50/90 backdrop-blur-sm border border-red-200 rounded-xl shadow-lg m-4 max-w-md">
+                  <p className="text-lg font-bold mb-2">Gagal Memuat Profil</p>
+                  <p>{userError}</p>
+                  <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                    Coba Lagi
+                  </button>
+                </div>
+              </div>
             ) : (
+              // 🔥 OUTLET: Tempat halaman anak (DashboardDocuments, dll) dirender
+              // Context ini akan ditangkap oleh useOutletContext() di halaman anak
               <Outlet
                 context={{
                   user: userData,
                   onProfileUpdate: handleProfileUpdate,
-                  setSidebarOpen: setIsSidebarOpen
+                  setSidebarOpen: setIsSidebarOpen, // Penting untuk Tour/Modal yang butuh akses sidebar
+                  isLoadingUser: isLoadingUser
                 }}
               />
             )}

@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import interact from "interactjs";
-import { FaSpinner, FaExclamationTriangle } from "react-icons/fa";
+import { FaSpinner } from "react-icons/fa";
 import PlacedSignature from "../PlacedSignature/PlacedSignature";
 
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.js";
@@ -38,8 +38,6 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
   const containerRef = useRef(null);
   const pageRefs = useRef(new Map());
   const observerRef = useRef(null);
-
-  // ✅ [FIX KOORDINAT] Simpan referensi Dropzone agar Marquee satu alam dengan Signature
   const dropzoneRefs = useRef(new Map());
 
   // --- STATE MARQUEE ---
@@ -51,12 +49,13 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
   const isSelectingRef = useRef(false);
   const selectionStartRef = useRef({ x: 0, y: 0 });
   const activePageRef = useRef(null);
-  // ✅ PENTING: useRef untuk track marquee box secara real-time (tidak async seperti state)
   const marqueeBoxRef = useRef(null);
-  // ✅ [OPTIMASI] RAF untuk batching state updates
   const rafRef = useRef(null);
   const pointerMoveListenerRef = useRef(null);
   const pointerUpListenerRef = useRef(null);
+
+  // Throttle click ref (untuk safety tambahan di mobile)
+  const lastClickTimeRef = useRef(0);
 
   function onDocumentLoadSuccess({ numPages: nextNumPages }) {
     setNumPages(nextNumPages);
@@ -119,10 +118,9 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
   }, [numPages, isMobileOrPortrait]);
 
   // =====================================================================
-  // ✅ LOGIKA MARQUEE: OPTIMIZED UNTUK SMOOTH DRAG (DESKTOP & TOUCH)
+  // LOGIKA MARQUEE
   // =====================================================================
 
-  // 2. Move Selection - OPTIMIZED dengan RAF
   const handlePointerMove = useCallback((e) => {
     if (!isSelectingRef.current) return;
 
@@ -140,31 +138,24 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
     const w = Math.abs(currentX - start.x);
     const h = Math.abs(currentY - start.y);
 
-    // ✅ Update ref immediately (synchronous)
     marqueeBoxRef.current = { x, y, w, h };
 
-    // ✅ Batch state update dengan RAF (tidak setiap frame)
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
       setMarqueeBox({ x, y, w, h });
     });
   }, []);
 
-  // 3. End Selection - OPTIMIZED
   const handlePointerUp = useCallback(
     (e) => {
       isSelectingRef.current = false;
-
       const pageElement = activePageRef.current;
       if (!pageElement) return;
 
-      // ✅ Cleanup RAF
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
-
-      // ✅ Remove listener references (cleanup)
       if (pointerMoveListenerRef.current) {
         pageElement.removeEventListener("pointermove", pointerMoveListenerRef.current);
         pointerMoveListenerRef.current = null;
@@ -178,7 +169,6 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
       pageElement.releasePointerCapture(e.pointerId);
 
       const finalBox = marqueeBoxRef.current;
-
       if (!finalBox || (finalBox.w < 5 && finalBox.h < 5)) {
         setMarqueeBox(null);
         setSelectionPage(null);
@@ -192,17 +182,13 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
 
       pageSignatures.forEach((sig) => {
         if (sig.x_display == null || sig.y_display == null) return;
-
         const sigX = sig.x_display;
         const sigY = sig.y_display;
         const sigW = sig.width_display;
         const sigH = sig.height_display;
-
         const isIntersecting = finalBox.x < sigX + sigW && finalBox.x + finalBox.w > sigX && finalBox.y < sigY + sigH && finalBox.y + finalBox.h > sigY;
 
-        if (isIntersecting) {
-          newSelected.push(sig.id);
-        }
+        if (isIntersecting) newSelected.push(sig.id);
       });
 
       setSelectedIds((prev) => {
@@ -218,23 +204,25 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
     [signatures]
   );
 
-  // 1. Start Selection - OPTIMIZED
   const handlePointerDown = useCallback(
     (e, pageNum) => {
       if (readOnly) return;
-      if (e.button !== 0 && e.button !== -1) return;
 
+      // Jika tap pada signature, jangan clear selection
       if (e.target.closest(".placed-signature")) return;
 
-      // ✅ Setup bound listeners untuk efficient cleanup
+      // ✅ [FIX] Clear selection saat tap area dokumen (berlaku untuk desktop dan mobile)
+      if (!e.shiftKey) setSelectedIds([]);
+
+      // ✅ [FIX] Disable Marquee on Mobile to allow scrolling, tapi selection sudah di-clear
+      if (isMobileOrPortrait) return;
+
+      if (e.button !== 0 && e.button !== -1) return;
+
       pointerMoveListenerRef.current = handlePointerMove;
       pointerUpListenerRef.current = handlePointerUp;
 
       e.currentTarget.setPointerCapture(e.pointerId);
-
-      if (!e.shiftKey) {
-        setSelectedIds([]);
-      }
 
       isSelectingRef.current = true;
       setSelectionPage(pageNum);
@@ -253,23 +241,25 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
       marqueeBoxRef.current = { x: startX, y: startY, w: 0, h: 0 };
       setMarqueeBox({ x: startX, y: startY, w: 0, h: 0 });
 
-      // ✅ Add listeners dengan reference yang bisa di-cleanup
       pageElement.addEventListener("pointermove", handlePointerMove, { passive: false });
       pageElement.addEventListener("pointerup", handlePointerUp);
       pageElement.addEventListener("pointercancel", handlePointerUp);
     },
-    [readOnly, handlePointerMove, handlePointerUp]
+    [readOnly, handlePointerMove, handlePointerUp, isMobileOrPortrait]
   );
 
   // --- TAP TO ADD ---
   const handleCanvasClick = (event, pageNumber) => {
     if (readOnly) return;
+
+    // Safety check throttle (sama seperti sebelumnya, tetap berguna)
+    const now = Date.now();
+    if (now - lastClickTimeRef.current < 500) return;
+    lastClickTimeRef.current = now;
+
     if (isSelectingRef.current) return;
 
-    if (!event.target.closest(".placed-signature") && !event.shiftKey) {
-      setSelectedIds([]);
-    }
-
+    // Cek target yang sangat penting!
     if (!event.target.classList.contains("dropzone-overlay")) return;
     if (!savedSignatureUrl) return;
 
@@ -282,7 +272,7 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
     let calculatedWidth = Math.max(rect.width * IDEAL_RATIO, MIN_PIXEL_SIZE);
     calculatedWidth = Math.min(calculatedWidth, rect.width * 0.6);
     const DEFAULT_WIDTH = calculatedWidth;
-    const DEFAULT_HEIGHT = DEFAULT_WIDTH * 0.5;
+    const DEFAULT_HEIGHT = DEFAULT_WIDTH * 0.75;
     const PADDING = 12;
     const centeredX = x_display - DEFAULT_WIDTH / 2;
     const centeredY = y_display - DEFAULT_HEIGHT / 2;
@@ -316,12 +306,37 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
     });
   }, []);
 
-  // --- INTERACT.JS ---
+  // --- INTERACT.JS (Disamakan dengan Group Version) ---
   useEffect(() => {
     if (readOnly) return;
+
+    // ✅ [FIX] Hapus 'overlap: pointer' yang menyebabkan sensitivitas berlebih di mobile
     interact(".dropzone-overlay").dropzone({
-      overlap: "pointer",
+      // ✅ [FIX] Gunakan logic ondropactivate/deactivate seperti di Group
+      ondropactivate(event) {
+        event.target.classList.remove("pointer-events-none");
+        event.target.classList.add("pointer-events-auto");
+      },
+      ondropdeactivate(event) {
+        event.target.classList.remove("pointer-events-auto");
+        event.target.classList.add("pointer-events-none");
+      },
       ondrop: (event) => {
+        const target = event.relatedTarget;
+
+        // ✅ [FIX] Deteksi class .placed-signature yang sudah ada (mencegah drop diri sendiri)
+        const isExistingSignature = target?.classList?.contains("placed-signature")
+          || target?.closest?.(".placed-signature");
+
+        if (isExistingSignature) {
+          // Jika drop berasal dari signature yang sudah ada (move), biarkan logic move di PlacedSignature handle
+          return;
+        }
+
+        // Drop dari Sidebar (drag baru)
+        if (!target?.classList?.contains("draggable-signature")) return;
+
+        // ... (Logic pembuatan signature baru dari Drag sama) ...
         const overlayElement = event.target;
         const pageNumber = parseInt(overlayElement.dataset.pageNumber, 10);
         const pageRect = overlayElement.getBoundingClientRect();
@@ -332,58 +347,38 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
         let calculatedWidth = Math.max(pageRect.width * IDEAL_RATIO, MIN_PIXEL_SIZE);
         calculatedWidth = Math.min(calculatedWidth, pageRect.width * 0.6);
         const DEFAULT_WIDTH_DISPLAY = calculatedWidth;
-        const DEFAULT_HEIGHT_DISPLAY = DEFAULT_WIDTH_DISPLAY * 0.5;
+        const DEFAULT_HEIGHT_DISPLAY = DEFAULT_WIDTH_DISPLAY * 0.75;
         const PADDING = 12;
         const TOTAL_PADDING = 24;
         const x_display = mouseX - DEFAULT_WIDTH_DISPLAY / 2;
         const y_display = mouseY - DEFAULT_HEIGHT_DISPLAY / 2;
 
-        const existingId = event.relatedTarget?.getAttribute("data-id");
+        const realWidth = DEFAULT_WIDTH_DISPLAY - TOTAL_PADDING;
+        const realHeight = DEFAULT_HEIGHT_DISPLAY - TOTAL_PADDING;
+        const realImageX = x_display + PADDING;
+        const realImageY = y_display + PADDING;
 
-        if (existingId) {
-          const realImageX = x_display + PADDING;
-          const realImageY = y_display + PADDING;
-          onUpdateSignature({
-            id: existingId,
-            pageNumber,
-            x_display,
-            y_display,
-            positionX: realImageX / pageRect.width,
-            positionY: realImageY / pageRect.height,
-          });
-          setSelectedIds([existingId]);
-        } else {
-          const realWidth = DEFAULT_WIDTH_DISPLAY - TOTAL_PADDING;
-          const realHeight = DEFAULT_HEIGHT_DISPLAY - TOTAL_PADDING;
-          const realImageX = x_display + PADDING;
-          const realImageY = y_display + PADDING;
-          const newSignature = {
-            id: `sig-${Date.now()}`,
-            signatureImageUrl: savedSignatureUrl,
-            pageNumber,
-            x_display,
-            y_display,
-            width_display: DEFAULT_WIDTH_DISPLAY,
-            height_display: DEFAULT_HEIGHT_DISPLAY,
-            positionX: realImageX / pageRect.width,
-            positionY: realImageY / pageRect.height,
-            width: realWidth / pageRect.width,
-            height: realHeight / pageRect.height,
-          };
-          console.log("✅ DROP: New signature created", {
-            id: newSignature.id,
-            x_display: newSignature.x_display,
-            y_display: newSignature.y_display,
-            width_display: newSignature.width_display,
-            height_display: newSignature.height_display,
-          });
-          onAddSignature(newSignature);
-          setSelectedIds([newSignature.id]);
-        }
+        const newSignature = {
+          id: `sig-${Date.now()}`,
+          signatureImageUrl: savedSignatureUrl,
+          pageNumber,
+          x_display,
+          y_display,
+          width_display: DEFAULT_WIDTH_DISPLAY,
+          height_display: DEFAULT_HEIGHT_DISPLAY,
+          positionX: realImageX / pageRect.width,
+          positionY: realImageY / pageRect.height,
+          width: realWidth / pageRect.width,
+          height: realHeight / pageRect.height,
+        };
+
+        lastClickTimeRef.current = Date.now(); // Reset throttle timer
+        onAddSignature(newSignature);
+        setSelectedIds([newSignature.id]);
       },
     });
     return () => interact(".dropzone-overlay").unset();
-  }, [savedSignatureUrl, onAddSignature, onUpdateSignature, readOnly]);
+  }, [savedSignatureUrl, onAddSignature, readOnly]);
 
   const scrollToPage = (pageNum) => {
     const pageElement = pageRefs.current.get(pageNum);
@@ -393,13 +388,11 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
     }
   };
 
-  // ✅ Cleanup RAF dan listeners saat component unmount
   useEffect(() => {
     return () => {
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
       }
-      // Optional: Force cleanup untuk pointer move listener
       const pageElement = activePageRef.current;
       if (pageElement && pointerMoveListenerRef.current) {
         pageElement.removeEventListener("pointermove", pointerMoveListenerRef.current);
@@ -409,11 +402,10 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
 
   return (
     <div className="w-full h-full relative bg-white dark:bg-slate-800/50 shadow-lg rounded-xl flex flex-col">
-      {/* Header */}
+      {/* ... (Header & Sidebar sama seperti sebelumnya) ... */}
       <div
-        className={`flex-shrink-0 h-16 flex justify-between items-center p-4 border-b border-slate-200/80 dark:border-slate-700/50 z-10 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm ${
-          !isMobileOrPortrait ? "rounded-t-xl" : "rounded-none"
-        }`}
+        className={`flex-shrink-0 h-16 flex justify-between items-center p-4 border-b border-slate-200/80 dark:border-slate-700/50 z-10 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm ${!isMobileOrPortrait ? "rounded-t-xl" : "rounded-none"
+          }`}
       >
         <div className="flex items-baseline gap-3 min-w-0">
           {!isMobileOrPortrait && <span className="text-sm font-medium text-slate-500 dark:text-slate-400 flex-shrink-0">Nama Dokumen:</span>}
@@ -429,13 +421,7 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
           <div className="w-48 overflow-y-auto bg-slate-100/50 dark:bg-slate-900/50 border-r border-slate-200/80 dark:border-slate-700 p-2 flex-shrink-0 hide-scrollbar">
             <Document
               file={fileUrl}
-              loading={
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-32 bg-slate-200 animate-pulse rounded-md" />
-                  ))}
-                </div>
-              }
+              loading={<div className="h-32 bg-slate-200 animate-pulse rounded-md" />}
             >
               {Array.from(new Array(numPages || 0), (el, index) => (
                 <div
@@ -469,11 +455,10 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
                     else pageRefs.current.delete(pageNum);
                   }}
                   data-page-number={pageNum}
-                  // ✅ [TOUCH FIX] Class 'touch-none' agar browser tidak scroll saat drag
-                  className={`mb-6 ${isMobileOrPortrait ? "mx-auto" : "mb-8 flex justify-center"} relative group/page select-none touch-none`}
+                  className={`mb-6 ${isMobileOrPortrait ? "mx-auto" : "mb-8 flex justify-center"} relative group/page select-none ${isMobileOrPortrait ? "" : "touch-none"}`}
                   style={{
                     ...(isMobileOrPortrait ? { width: `${containerWidth}px` } : {}),
-                    touchAction: "none", // Inline style untuk kepastian
+                    touchAction: isMobileOrPortrait ? "pan-y" : "none",
                   }}
                   onPointerDown={(e) => handlePointerDown(e, pageNum)}
                 >
@@ -489,18 +474,18 @@ const PDFViewer = ({ documentTitle, fileUrl, signatures, onAddSignature, onUpdat
                     />
                   </div>
 
-                  {/* ✅ Attach REF ke Dropzone untuk source-of-truth koordinat */}
                   <div
                     ref={(node) => {
                       if (node) dropzoneRefs.current.set(pageNum, node);
                       else dropzoneRefs.current.delete(pageNum);
                     }}
-                    className="dropzone-overlay absolute top-0 left-0 w-full h-full z-0"
+                    // ✅ [FIX] Gunakan Z-10 agar bisa diklik (sama seperti Group), dan touch-none
+                    // ✅ [FIX] Gunakan Z-10 agar bisa diklik (sama seperti Group), dan adjust touch action
+                    className={`dropzone-overlay absolute top-0 left-0 w-full h-full z-10 ${isMobileOrPortrait ? "touch-pan-y" : "touch-none"}`}
                     data-page-number={pageNum}
                     onClick={(e) => handleCanvasClick(e, pageNum)}
                   />
 
-                  {/* Kotak Biru Visual */}
                   {marqueeBox && selectionPage === pageNum && (
                     <div
                       className="absolute z-[9999] pointer-events-none"

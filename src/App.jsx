@@ -59,6 +59,28 @@ const AppWrapper = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [initError, setInitError] = useState(null);
 
+  // 7. Event Listener untuk perubahan Auth (Reactive isLoggedIn) - Ditaruh Di Atas agar tidak melanggar Rules of Hooks
+  const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem("authUser"));
+
+  useEffect(() => {
+    const handleAuthChange = () => {
+      setIsLoggedIn(!!localStorage.getItem("authUser"));
+    };
+
+    // Listen storage event (antar tab) dan custom event (tab yang sama)
+    window.addEventListener("storage", handleAuthChange);
+    window.addEventListener("auth-update", handleAuthChange);
+
+    // Interval check untuk safety (cleanup localStorage manual)
+    const interval = setInterval(handleAuthChange, 1000);
+
+    return () => {
+      window.removeEventListener("storage", handleAuthChange);
+      window.removeEventListener("auth-update", handleAuthChange);
+      clearInterval(interval);
+    };
+  }, []);
+
   // 1. Event Listener Session Expired
   useEffect(() => {
     const handleSessionExpired = () => setSessionModalOpen(true);
@@ -69,6 +91,8 @@ const AppWrapper = () => {
   // 2. Cookie Consent
   useEffect(() => {
     const consent = localStorage.getItem("cookie_consent");
+
+    // Tampilkan jika belum consent (Login atau tidak, tetap muncul)
     if (!consent) {
       const timer = setTimeout(() => setShowBanner(true), 2000);
       return () => clearTimeout(timer);
@@ -87,7 +111,7 @@ const AppWrapper = () => {
     const delayDuration = shouldShowSplash ? 2000 : 0;
 
     // Jika di halaman publik (/, /login, /register), jangan cek session
-    const publicOnlyPaths = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/join", "/verify-email", "/tour", "/demo", "/features", "/privacy-policy", "/terms-and-conditions"  ];
+    const publicOnlyPaths = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/join", "/verify-email", "/tour", "/demo", "/features", "/privacy-policy", "/terms-and-conditions", "/auth/callback", "/forgot-password", "/reset-password"];
     const isPublicPage = publicOnlyPaths.includes(currentPath);
 
     if (isPublicPage && isRefresh) {
@@ -240,7 +264,9 @@ const AppWrapper = () => {
     );
   }
 
-  // 7. RENDER APLIKASI UTAMA
+
+
+  // 8. RENDER APLIKASI UTAMA
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-300">
       <Toaster position="top-center" reverseOrder={false} toastOptions={toastOptions} containerStyle={{ zIndex: 99999 }} />
@@ -259,7 +285,8 @@ const AppWrapper = () => {
         confirmButtonColor="bg-blue-600 hover:bg-blue-700"
       />
 
-      {showBanner && <CookieBanner onAccept={handleAcceptCookie} onDecline={handleDeclineCookie} />}
+      {/* Tampilkan banner HANYA jika sudah login (dan belum consent) */}
+      {showBanner && isLoggedIn && <CookieBanner onAccept={handleAcceptCookie} onDecline={handleDeclineCookie} />}
     </div>
   );
 };

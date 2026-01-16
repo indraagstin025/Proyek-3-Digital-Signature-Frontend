@@ -4,13 +4,13 @@ import { toast } from "react-hot-toast";
 
 import SignDocumentLayoutGroup from "../../layouts/SignDocumentLayoutGroup";
 import { useDocumentDetail } from "../../hooks/Documents/useDocumentDetail";
-import { useSignatureManagerGroup } from "../../hooks/Signature/useSignatureManagerGroup"; 
+import { useSignatureManagerGroup } from "../../hooks/Signature/useSignatureManagerGroup";
 
 const SignGroupPage = ({ theme, toggleTheme }) => {
   const { documentId } = useParams();
   const navigate = useNavigate();
   const contextData = useOutletContext();
-  
+
   // UI State
   const [refreshKey, setRefreshKey] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -51,8 +51,8 @@ const SignGroupPage = ({ theme, toggleTheme }) => {
 
   useEffect(() => {
     if (!isLoadingDoc && isGroupDoc === false) {
-       toast("Halaman ini khusus Grup. Mengalihkan ke Penandatanganan Personal...", { icon: "👤" });
-       navigate(`/documents/${documentId}/sign`);
+      toast("Halaman ini khusus Grup. Mengalihkan ke Penandatanganan Personal...", { icon: "👤" });
+      navigate(`/documents/${documentId}/sign`);
     }
   }, [isLoadingDoc, isGroupDoc, navigate, documentId]);
 
@@ -67,7 +67,7 @@ const SignGroupPage = ({ theme, toggleTheme }) => {
     handleUpdateSignature,
     handleDeleteSignature,
     handleFinalSave,
-    handleAutoTag,       
+    handleAutoTag,
     handleAnalyzeDocument,
     activeUsers
   } = useSignatureManagerGroup({
@@ -78,14 +78,14 @@ const SignGroupPage = ({ theme, toggleTheme }) => {
     onRefreshRequest: handleRefreshRequest
   });
 
-  // 🔥 [PERBAIKAN] Pindahkan logika ini ke SINI (Setelah signatures didefinisikan)
+  // 🔥 [PERBAIKAN] Logika lebih toleran - cek signature milik user yg belum final
   const hasPlacedSignature = signatures?.some(
-    (s) => String(s.userId) === String(currentUser?.id) && s.status === "draft"
+    (s) => String(s.userId) === String(currentUser?.id) && s.status !== "final"
   );
 
   const handleAnalyzeClick = useCallback(() => {
-    setIsAiModalOpen(true); 
-    handleAnalyzeDocument(); 
+    setIsAiModalOpen(true);
+    handleAnalyzeDocument();
   }, [handleAnalyzeDocument]);
 
   useEffect(() => {
@@ -97,11 +97,11 @@ const SignGroupPage = ({ theme, toggleTheme }) => {
   const onSaveFromModal = useCallback((dataUrl) => {
     setSavedSignatureUrl(dataUrl);
     setIsSignatureModalOpen(false);
-    setIsSidebarOpen(true); 
+    setIsSidebarOpen(true);
   }, []);
 
   const onAddDraft = useCallback((data) => {
-    if(!canSign) return;
+    if (!canSign) return;
     handleAddSignature(data, savedSignatureUrl, includeQrCode);
   }, [canSign, handleAddSignature, savedSignatureUrl, includeQrCode]);
 
@@ -131,21 +131,21 @@ const SignGroupPage = ({ theme, toggleTheme }) => {
         canSign={canSign}
         isSignedSuccess={isSignedSuccess}
         isSaving={isSaving}
-        
-        isAnalyzing={isAnalyzing} 
-        
+
+        isAnalyzing={isAnalyzing}
+
         theme={theme}
         toggleTheme={toggleTheme}
         isSidebarOpen={isSidebarOpen}
         setIsSidebarOpen={setIsSidebarOpen}
         isSignatureModalOpen={isSignatureModalOpen}
         setIsSignatureModalOpen={setIsSignatureModalOpen}
-        
+
         isAiModalOpen={isAiModalOpen}
-        setIsAiModalOpen={setIsAiModalOpen} 
+        setIsAiModalOpen={setIsAiModalOpen}
         aiData={aiData}
-        handleAutoTag={handleAutoTag}      
-        handleAnalyzeDocument={handleAnalyzeClick} 
+        handleAutoTag={handleAutoTag}
+        handleAnalyzeDocument={handleAnalyzeClick}
 
         isLandscape={isLandscape}
         isPortrait={isPortrait}
@@ -158,9 +158,9 @@ const SignGroupPage = ({ theme, toggleTheme }) => {
         onSaveFromModal={onSaveFromModal}
         onCommitSave={onCommitSave}
         handleNavigateToView={handleNavigateToView}
-        
+
         activeUsers={activeUsers}
-        
+
         // ✅ Kirim prop ke layout
         hasPlacedSignature={hasPlacedSignature}
       />

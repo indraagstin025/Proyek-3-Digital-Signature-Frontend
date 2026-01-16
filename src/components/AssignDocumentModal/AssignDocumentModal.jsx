@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
 import { HiX, HiCheck, HiOutlineDocumentText } from "react-icons/hi";
+import { FaWhatsapp } from "react-icons/fa"; // 1. Import Logo WA
 import { ImSpinner9 } from "react-icons/im";
 import { useGetMyDocuments } from "../../hooks/Documents/useDocumentGroup";
 import { useAssignDocumentToGroup } from "../../hooks/Group/useGroups";
@@ -29,17 +30,10 @@ export const AssignDocumentModal = ({ isOpen, onClose, groupId, documentsAlready
     const existingIds = new Set(documentsAlreadyInGroup.map((doc) => doc.id));
     
     return allMyDocuments?.filter((doc) => {
-      // 1. Cek apakah dokumen sudah ada di grup ini
       const isAlreadyInGroup = existingIds.has(doc.id);
-      
-      // 2. Cek apakah dokumen ini sebenarnya milik grup lain (Personal doc biasanya groupId = null)
       const isGroupDoc = !!doc.groupId;
-
-      // 3. [BARU] Filter Status: Jangan tampilkan dokumen yang sudah selesai (Completed) atau diarsipkan.
-      // Ini mencegah bug "Ghost Signature" dimana data tanda tangan lama terbawa ke grup.
       const isCompletedOrArchived = doc.status === "completed" || doc.status === "archived";
 
-      // HANYA tampilkan jika: Tidak ada di grup && Dokumen Personal (Draft) && Belum Completed
       return !isAlreadyInGroup && !isGroupDoc && !isCompletedOrArchived;
     }) || [];
   }, [allMyDocuments, documentsAlreadyInGroup]);
@@ -141,31 +135,60 @@ export const AssignDocumentModal = ({ isOpen, onClose, groupId, documentsAlready
           {selectedDocumentId && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
               <div className="border-t border-slate-200 dark:border-slate-700 my-4"></div>
-              <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">2. Siapa yang wajib tanda tangan?</h4>
+              
+              <div className="flex items-center justify-between mb-3">
+                 <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">2. Siapa yang wajib tanda tangan?</h4>
+                 <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <FaWhatsapp className="w-3 h-3" /> Notifikasi WA Aktif
+                 </span>
+              </div>
 
-              <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 max-h-48 overflow-y-auto">
+              <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 max-h-48 overflow-y-auto custom-scrollbar">
                 {members.length > 0 ? (
-                  members.map((member) => (
-                    <label key={member.id} className="flex items-center gap-3 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer transition-colors">
-                      <div className="relative flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={selectedSigners.includes(member.userId)}
-                          onChange={() => handleCheckboxChange(member.userId)}
-                          className="peer w-5 h-5 border-2 border-slate-300 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{member.user.name}</p>
-                        <p className="text-xs text-slate-500 capitalize">{member.role.replace("_", " ")}</p>
-                      </div>
-                    </label>
-                  ))
+                  members.map((member) => {
+                    const isSelected = selectedSigners.includes(member.userId);
+                    return (
+                        <label 
+                            key={member.id} 
+                            className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all border ${
+                                isSelected 
+                                ? "bg-white dark:bg-slate-800 border-green-400 shadow-sm" 
+                                : "border-transparent hover:bg-slate-200/50 dark:hover:bg-slate-800"
+                            }`}
+                        >
+                        <div className="relative flex items-center">
+                            <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleCheckboxChange(member.userId)}
+                            className="peer w-5 h-5 border-2 border-slate-300 rounded text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                            />
+                        </div>
+                        
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                                <p className={`text-sm font-semibold ${isSelected ? 'text-slate-800 dark:text-white' : 'text-slate-600 dark:text-slate-300'}`}>
+                                    {member.user.name}
+                                </p>
+                                {isSelected && (
+                                    <FaWhatsapp className="text-green-500 w-4 h-4 animate-in fade-in zoom-in duration-200" title="Akan dikirim notifikasi WA" />
+                                )}
+                            </div>
+                            <p className="text-xs text-slate-500 capitalize">{member.role.replace("_", " ")}</p>
+                        </div>
+                        
+                        {/* Status Label Kecil */}
+                        {isSelected && <span className="text-[10px] text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded">Akan dinotifikasi</span>}
+                        </label>
+                    );
+                  })
                 ) : (
                   <p className="text-sm text-slate-500 text-center py-2">Tidak ada anggota lain di grup ini.</p>
                 )}
               </div>
-              <p className="text-xs text-slate-400 mt-2 ml-1">*Dokumen akan berstatus "Pending" sampai user terpilih melakukan tanda tangan.</p>
+              <p className="text-xs text-slate-400 mt-2 ml-1 flex items-center gap-1">
+                <span className="text-blue-500">*</span> Dokumen akan berstatus "Pending" sampai user terpilih melakukan tanda tangan.
+              </p>
             </div>
           )}
         </div>
@@ -186,7 +209,7 @@ export const AssignDocumentModal = ({ isOpen, onClose, groupId, documentsAlready
               </>
             ) : (
               <>
-                <HiCheck className="w-5 h-5" /> Tetapkan ke Grup
+                <HiCheck className="w-5 h-5" /> Tetapkan & Kirim WA
               </>
             )}
           </button>

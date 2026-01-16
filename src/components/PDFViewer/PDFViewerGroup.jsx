@@ -142,7 +142,7 @@ const PDFViewerGroup = ({
     calculatedWidth = Math.min(calculatedWidth, rect.width * 0.6);
 
     const DEFAULT_WIDTH = calculatedWidth;
-    const DEFAULT_HEIGHT = DEFAULT_WIDTH * 0.5;
+    const DEFAULT_HEIGHT = DEFAULT_WIDTH * 0.75;
     const PADDING = 12;
 
     const centeredX = x_display - DEFAULT_WIDTH / 2;
@@ -206,7 +206,7 @@ const PDFViewerGroup = ({
         let calculatedWidth = Math.max(pageRect.width * IDEAL_RATIO, MIN_PIXEL_SIZE);
         calculatedWidth = Math.min(calculatedWidth, pageRect.width * 0.6);
         const DEFAULT_WIDTH_DISPLAY = calculatedWidth;
-        const DEFAULT_HEIGHT_DISPLAY = DEFAULT_WIDTH_DISPLAY * 0.5;
+        const DEFAULT_HEIGHT_DISPLAY = DEFAULT_WIDTH_DISPLAY * 0.75;
         const TOTAL_PADDING = 24;
         const PADDING = 12;
 
@@ -342,9 +342,15 @@ const PDFViewerGroup = ({
   const handlePointerDown = useCallback(
     (e, pageNum) => {
       if (readOnly) return;
-      if (e.button !== 0 && e.button !== -1) return;
 
+      // Jika tap pada signature, jangan clear selection
       if (e.target.closest(".placed-signature-item")) return;
+
+      // ✅ [FIX] Clear selection saat tap area dokumen (berlaku untuk desktop dan mobile)
+      if (!e.shiftKey) setSelectedIds([]);
+
+      // ✅ [FIX] Disable Marquee on Mobile
+      if (isMobileOrPortrait) return;
 
       pointerMoveListenerRef.current = handlePointerMove;
       pointerUpListenerRef.current = handlePointerUp;
@@ -376,7 +382,7 @@ const PDFViewerGroup = ({
       pageElement.addEventListener("pointerup", handlePointerUp);
       pageElement.addEventListener("pointercancel", handlePointerUp);
     },
-    [readOnly, handlePointerMove, handlePointerUp]
+    [readOnly, handlePointerMove, handlePointerUp, isMobileOrPortrait]
   );
 
   // ✅ SELECT HANDLER untuk PlacedSignatureGroup
@@ -404,9 +410,8 @@ const PDFViewerGroup = ({
     <div className="w-full h-full relative bg-white dark:bg-slate-800/50 shadow-lg rounded-xl flex flex-col">
       {/* HEADER */}
       <div
-        className={`flex-shrink-0 h-16 flex justify-between items-center p-4 border-b border-slate-200/80 dark:border-slate-700/50 z-10 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm ${
-          !isMobileOrPortrait ? "rounded-t-xl" : "rounded-none"
-        }`}
+        className={`flex-shrink-0 h-16 flex justify-between items-center p-4 border-b border-slate-200/80 dark:border-slate-700/50 z-10 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm ${!isMobileOrPortrait ? "rounded-t-xl" : "rounded-none"
+          }`}
       >
         <div className="flex items-baseline gap-3 min-w-0">
           {!isMobileOrPortrait && <span className="text-sm font-medium text-slate-500 dark:text-slate-400 flex-shrink-0">[GROUP] Nama Dokumen:</span>}
@@ -448,10 +453,10 @@ const PDFViewerGroup = ({
                   else pageRefs.current.delete(index + 1);
                 }}
                 data-page-number={index + 1}
-                className={`mb-6 ${isMobileOrPortrait ? "mx-auto" : "mb-8 flex justify-center"} relative group/page select-none touch-none`}
+                className={`mb-6 ${isMobileOrPortrait ? "mx-auto" : "mb-8 flex justify-center"} relative group/page select-none ${isMobileOrPortrait ? "" : "touch-none"}`}
                 style={{
                   ...(isMobileOrPortrait ? { width: `${containerWidth}px` } : {}),
-                  touchAction: "none",
+                  touchAction: isMobileOrPortrait ? "pan-y" : "none",
                 }}
                 onPointerDown={(e) => handlePointerDown(e, index + 1)}
               >
@@ -473,7 +478,7 @@ const PDFViewerGroup = ({
                     if (node) dropzoneRefs.current.set(index + 1, node);
                     else dropzoneRefs.current.delete(index + 1);
                   }}
-                  className="dropzone-overlay absolute top-0 left-0 w-full h-full z-10 cursor-crosshair"
+                  className={`dropzone-overlay absolute top-0 left-0 w-full h-full z-10 cursor-crosshair ${isMobileOrPortrait ? "touch-pan-y" : "cursor-crosshair"}`}
                   data-page-number={index + 1}
                   onClick={(e) => handleCanvasClick(e, index + 1)}
                 />
@@ -507,6 +512,7 @@ const PDFViewerGroup = ({
                       currentUser={currentUser}
                       isSelected={selectedIds.includes(sig.id)}
                       onSelect={handleSelectSignature}
+                      totalPages={numPages || 1}
                     />
                   ))}
               </div>

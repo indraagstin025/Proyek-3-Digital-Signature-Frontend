@@ -1,20 +1,19 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from "react";
-import {motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { FiCheck, FiArrowRight, FiZap, FiStar, FiShield, FiCpu } from "react-icons/fi";
-import { FaSpinner } from "react-icons/fa"; // [BARU] Import Spinner
+import { FaSpinner, FaCheckCircle, FaPlusCircle } from "react-icons/fa"; 
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
+
 import paymentService from "../../services/paymentService";
 import apiClient from "../../services/apiClient";
+import LoginRedirectModal from "../../components/LoginModals/LoginRedirectModal";
 
-// --- MIDTRANS CONFIG (KHUSUS VITE) ---
 const MIDTRANS_CLIENT_KEY = import.meta.env.VITE_MIDTRANS_CLIENT_KEY;
 const MIDTRANS_SCRIPT_URL = import.meta.env.VITE_MIDTRANS_SNAP_URL || "https://app.sandbox.midtrans.com/snap/snap.js"; 
 
-// --- COMPONENT: PricingCard (Compact Version) ---
-// [UPDATE] Menerima props 'isLoading'
-const PricingCard = ({ title, price, features, isPremium, onAction, buttonText = "Pilih Paket", index, isYearly, isLoading }) => {
+const PricingCard = ({ title, price, features, isPremium, onAction, buttonText, isDisabled, index, isYearly, isLoading }) => {
   const displayPrice = isYearly && price !== "Rp 0" ? `Rp ${(parseInt(price.replace(/\D/g, "")) * 10).toLocaleString("id-ID")}` : price;
 
   return (
@@ -22,7 +21,7 @@ const PricingCard = ({ title, price, features, isPremium, onAction, buttonText =
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1 }}
-      whileHover={{ y: -5 }}
+      whileHover={!isDisabled ? { y: -5 } : {}}
       className={`relative flex flex-col p-8 md:p-10 rounded-[2rem] transition-all duration-500 overflow-hidden ${
         isPremium
           ? "bg-gradient-to-br from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 backdrop-blur-xl text-white shadow-[0_20px_50px_rgba(37,99,235,0.4)] ring-1 ring-white/30"
@@ -68,10 +67,14 @@ const PricingCard = ({ title, price, features, isPremium, onAction, buttonText =
 
       <button
         onClick={onAction}
-        disabled={isLoading} // [UPDATE] Disable button saat loading
-        className={`relative w-full py-3.5 px-6 rounded-2xl font-bold text-sm uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-2 overflow-hidden group ${
-          isPremium ? "bg-white text-blue-600 hover:bg-slate-50 shadow-xl hover:shadow-2xl" : "bg-slate-900 dark:bg-blue-600 text-white hover:bg-slate-800 dark:hover:bg-blue-700 shadow-lg"
-        } ${isLoading ? "opacity-80 cursor-not-allowed" : ""}`}
+        disabled={isLoading || isDisabled}
+        className={`relative w-full py-3.5 px-6 rounded-2xl font-bold text-sm uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-2 overflow-hidden group 
+        ${isDisabled 
+            ? "cursor-not-allowed opacity-80 bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-400 shadow-none" 
+            : isPremium 
+                ? "bg-white text-blue-600 hover:bg-slate-50 shadow-xl hover:shadow-2xl cursor-pointer" 
+                : "bg-slate-900 dark:bg-blue-600 text-white hover:bg-slate-800 dark:hover:bg-blue-700 shadow-lg cursor-pointer"
+        }`}
       >
         <span className="relative z-10 flex items-center gap-2 font-bold">
           {isLoading ? (
@@ -82,183 +85,170 @@ const PricingCard = ({ title, price, features, isPremium, onAction, buttonText =
           ) : (
             <>
               {buttonText}
-              <FiArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              {!isDisabled && isPremium && title.includes("PRO") ? (
+                  <FaPlusCircle className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              ) : (
+                  !isDisabled && <FiArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              )}
             </>
           )}
         </span>
-        {!isLoading && <div className={`absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity bg-current`} />}
       </button>
     </motion.div>
   );
 };
 
-// --- MAIN PAGE ---
 const PricingPage = () => {
   const navigate = useNavigate();
   const [isYearly, setIsYearly] = useState(false);
   const [isSnapLoaded, setIsSnapLoaded] = useState(false);
-  
-  // [BARU] State untuk melacak paket mana yang sedang diproses
-  // Bernilai 'PREMIUM_MONTHLY', 'PREMIUM_YEARLY', atau null
   const [processingPlan, setProcessingPlan] = useState(null);
+  const [showLoginAlert, setShowLoginAlert] = useState(false);
+  const [pendingPlanSelection, setPendingPlanSelection] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
 
+  // 1. SYNC USER DATA (Fetch API & Update LocalStorage)
   useEffect(() => {
-    if (!MIDTRANS_CLIENT_KEY) {
-        console.error("VITE_MIDTRANS_CLIENT_KEY tidak ditemukan di .env");
-        toast.error("Konfigurasi pembayaran belum lengkap.");
-        return;
-    }
+    const fetchLatestProfile = async () => {
+        try {
+            const authData = localStorage.getItem("authUser");
+            if (!authData) return;
 
+            // Fetch user terbaru (agar userStatus selalu fresh)
+            const response = await apiClient.get("/users/me");
+            const freshUser = response.data.data;
+
+            setCurrentUser(freshUser);
+
+            // Update LocalStorage
+            const oldAuth = JSON.parse(authData);
+            let newAuthData;
+            
+            // Pertahankan token jika ada
+            if (oldAuth.token) {
+                newAuthData = { ...oldAuth, user: freshUser };
+            } else {
+                newAuthData = { ...oldAuth, user: freshUser, ...freshUser }; 
+            }
+            
+            localStorage.setItem("authUser", JSON.stringify(newAuthData));
+        } catch (error) {
+            // Fallback ke LocalStorage jika API gagal
+            const authData = localStorage.getItem("authUser");
+            if (authData) {
+                const parsed = JSON.parse(authData);
+                setCurrentUser(parsed.user || parsed);
+            }
+        }
+    };
+
+    fetchLatestProfile();
+  }, []);
+
+  // 2. Load Script Midtrans
+  useEffect(() => {
+    if (!MIDTRANS_CLIENT_KEY) return;
     const existingScript = document.querySelector(`script[src="${MIDTRANS_SCRIPT_URL}"]`);
-    
-    if (existingScript) {
-      setIsSnapLoaded(true);
-      return;
-    }
+    if (existingScript) { setIsSnapLoaded(true); return; }
 
     const script = document.createElement("script");
     script.src = MIDTRANS_SCRIPT_URL;
     script.setAttribute("data-client-key", MIDTRANS_CLIENT_KEY);
     script.async = true;
-    
-    script.onload = () => {
-      console.log("[PricingPage] Midtrans Snap Script Loaded");
-      setIsSnapLoaded(true);
-    };
-    
-    script.onerror = () => {
-        console.error("[PricingPage] Gagal memuat Midtrans Snap Script");
-        toast.error("Gagal memuat sistem pembayaran. Cek koneksi internet.");
-    };
-
+    script.onload = () => setIsSnapLoaded(true);
     document.body.appendChild(script);
-
-    return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
-    };
+    return () => { if (document.body.contains(script)) document.body.removeChild(script); };
   }, []);
 
-  const handlePremiumUpgrade = async (planType) => {
+  const isUserPremium = currentUser?.userStatus === "PREMIUM" || currentUser?.userStatus === "PREMIUM_YEARLY";
+
+  // 3. Eksekusi Pembayaran
+  const executePayment = async (planType) => {
     if (!isSnapLoaded || !window.snap) {
-        toast.error("Sistem pembayaran belum siap. Mohon tunggu sebentar.");
-        return;
+      toast.error("Sistem pembayaran belum siap.");
+      return;
     }
 
-    if (processingPlan) return; 
-
-    console.log(`[DEBUG] Memulai upgrade ke: ${planType}`);
-    
     setProcessingPlan(planType);
-    const loadingToast = toast.loading("Menyiapkan pembayaran...");
+    const loadingToast = toast.loading("Menyiapkan jendela pembayaran...");
     let currentOrderId = null;
 
     try {
       const data = await paymentService.createSubscription(planType);
       currentOrderId = data.orderId;
 
-      console.log("[DEBUG] Snap Token diterima:", data.snapToken);
-
       window.snap.pay(data.snapToken, {
-        onSuccess: async (result) => {
-          console.log("[PAYMENT] Success:", result);
-          
-          // 1. Dismiss loading awal
+        onSuccess: (result) => {
           toast.dismiss(loadingToast);
+          toast.success("Pembayaran Berhasil! Mengalihkan...", { duration: 2000 });
 
-          // 2. Tampilkan Toast Verifikasi (Agar user tahu sedang loading)
-          const verifyToast = toast.loading("Pembayaran diterima! Memverifikasi status premium...");
-          
+          // Optimistic Update
           try {
-            // Polling: Cek status ke backend
-            let attempts = 0;
-            const maxAttempts = 5; // Kurangi jadi 5x saja biar ga kelamaan nunggu
-            let isPremium = false;
-            let updatedUser = null;
+            const oldAuthData = JSON.parse(localStorage.getItem("authUser") || "{}");
+            const userData = oldAuthData.user || oldAuthData;
+            
+            const newUserData = {
+                 ...userData,
+                 userStatus: "PREMIUM",
+                 premiumUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+            };
 
-            while (attempts < maxAttempts && !isPremium) {
-              await new Promise((resolve) => setTimeout(resolve, 2000)); // Cek tiap 2 detik
-              attempts++;
-              
-              // Bypass Cache browser dengan timestamp
-              const response = await apiClient.get(`/users/me?t=${Date.now()}`);
-              updatedUser = response.data?.data;
-              
-              if (updatedUser && (updatedUser.userStatus === "PREMIUM" || updatedUser.userStatus === "PREMIUM_YEARLY")) {
-                isPremium = true;
-              }
-            }
+            const newAuthData = oldAuthData.token ? { ...oldAuthData, user: newUserData } : newUserData;
+            localStorage.setItem("authUser", JSON.stringify(newAuthData));
+            window.dispatchEvent(new Event("storage"));
+          } catch (e) { console.error(e); }
 
-            // 3. Update Local Storage & Redirect
-            if (updatedUser) {
-               const oldAuthData = JSON.parse(localStorage.getItem("authUser") || "{}");
-               // Merge data baru (terutama userStatus & premiumUntil)
-               const newAuthData = { 
-                   ...oldAuthData, 
-                   user: { ...(oldAuthData.user || oldAuthData), ...updatedUser } 
-               };
-               localStorage.setItem("authUser", JSON.stringify(newAuthData));
-               
-               // Trigger event agar Sidebar/Header langsung update tanpa refresh
-               window.dispatchEvent(new Event("storage"));
-            }
-
-            toast.dismiss(verifyToast);
-
-            if (isPremium) {
-              toast.success("Upgrade Berhasil! Mengalihkan...", { duration: 3000 });
-            } else {
-              // Jika Webhook belum masuk (Localhost issue), beri info ini
-              toast.success("Pembayaran berhasil! Status akan update sebentar lagi.", { icon: "⏳" });
-            }
-
-            // 4. Force Redirect (Apapun yang terjadi, pindahkan user)
-            setTimeout(() => {
-                window.location.href = "/dashboard";
-            }, 1000);
-
-          } catch (updateError) {
-            console.error(updateError);
-            toast.dismiss(verifyToast);
-            window.location.href = "/dashboard";
-          } finally {
-            setProcessingPlan(null);
-          }
+          setTimeout(() => { window.location.href = "/dashboard"; }, 1000);
         },
-        onPending: (result) => {
-          console.log("[PAYMENT] Pending:", result);
+        onPending: () => {
           toast.dismiss(loadingToast);
           toast("Menunggu pembayaran...", { icon: "⏳" });
-          setProcessingPlan(null);
           setTimeout(() => window.location.href = "/dashboard", 1000);
         },
-        onError: (result) => {
-          console.error("[PAYMENT] Error:", result);
+        onError: () => {
           toast.dismiss(loadingToast);
-          toast.error("Pembayaran Gagal/Ditolak.");
+          toast.error("Pembayaran Gagal.");
           setProcessingPlan(null);
         },
-        onClose: async () => {
-          console.log("[PAYMENT] Closed without finishing");
-          if (currentOrderId) {
-            try {
-              await paymentService.cancelTransaction(currentOrderId);
-            } catch (e) { /* ignore */ }
-            toast.error("Pembayaran Dibatalkan.", { id: loadingToast });
-          } else {
-            toast.dismiss(loadingToast);
-          }
+        onClose: () => {
+          toast.dismiss(loadingToast);
+          toast.error("Pembayaran dibatalkan.");
           setProcessingPlan(null);
+          if (currentOrderId) paymentService.cancelTransaction(currentOrderId).catch(() => {});
         },
       });
     } catch (error) {
       console.error(error);
-      toast.dismiss(loadingToast); // Pastikan toast loading hilang kalau error
-      toast.error("Gagal memulai transaksi. Coba lagi nanti.");
+      toast.dismiss(loadingToast);
+      toast.error("Gagal menghubungi server pembayaran.");
       setProcessingPlan(null);
     }
   };
+
+  const handlePremiumUpgrade = (planType) => {
+    const authData = localStorage.getItem("authUser");
+    if (!authData) {
+      setPendingPlanSelection(planType);
+      setShowLoginAlert(true);
+      return;
+    }
+    if (processingPlan) return;
+    executePayment(planType);
+  };
+
+  const handleConfirmLoginRedirect = () => {
+    if (pendingPlanSelection) sessionStorage.setItem("pendingPlan", pendingPlanSelection);
+    navigate("/login?redirect=/pricing");
+  };
+
+  useEffect(() => {
+    const pendingPlan = sessionStorage.getItem("pendingPlan");
+    const authData = localStorage.getItem("authUser");
+    if (pendingPlan && authData && isSnapLoaded) {
+      sessionStorage.removeItem("pendingPlan"); 
+      executePayment(pendingPlan);
+    }
+  }, [isSnapLoaded]);
 
   const tiers = [
     {
@@ -272,9 +262,10 @@ const PricingPage = () => {
         { text: "Tanda Tangan Digital Dasar", included: true },
         { text: "AI Legal Analysis (Terbatas)", included: true },
       ],
+      isDisabled: isUserPremium, 
+      buttonText: isUserPremium ? "Termasuk di Premium" : "Paket Saat Ini",
       onAction: () => navigate("/dashboard"),
-      buttonText: "Tetap Free",
-      planId: "FREE" // Identifier untuk free
+      planId: "FREE"
     },
     {
       title: "PRO TIER",
@@ -288,9 +279,12 @@ const PricingPage = () => {
         { text: "Multi-user Simultaneous Sign", included: true },
         { text: "Prioritas Support 24/7", included: true },
       ],
+      isDisabled: isUserPremium && !isYearly, 
+      buttonText: isUserPremium 
+        ? (isYearly ? "Upgrade ke Tahunan" : "Paket Saat Ini") 
+        : "Upgrade Sekarang",
       onAction: () => handlePremiumUpgrade(isYearly ? "PREMIUM_YEARLY" : "PREMIUM_MONTHLY"),
-      buttonText: "Upgrade Sekarang",
-      planId: isYearly ? "PREMIUM_YEARLY" : "PREMIUM_MONTHLY" // Identifier untuk premium
+      planId: isYearly ? "PREMIUM_YEARLY" : "PREMIUM_MONTHLY"
     },
   ];
 
@@ -301,44 +295,26 @@ const PricingPage = () => {
       <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 flex flex-col items-center">
         <header className="w-full text-center mb-12 md:mb-16">
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5 }}
+            initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}
             className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-blue-100/80 to-indigo-100/80 dark:from-blue-900/30 dark:to-indigo-900/30 backdrop-blur-md border border-blue-200/50 dark:border-blue-800/50 mb-6"
           >
             <FiZap className="w-4 h-4 text-amber-500 animate-pulse" />
             <span className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider">Buka Potensi Penuh</span>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className="mb-4">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 dark:text-white mb-3 leading-[1.1]">Pilih Paket</h1>
-            <p className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 text-4xl sm:text-5xl md:text-6xl font-black">Sesuai Kebutuhan</p>
-          </motion.div>
-
-          <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }} className="text-slate-600 dark:text-slate-400 text-sm md:text-base max-w-2xl mx-auto leading-relaxed">
-            Dapatkan akses ke semua fitur unggulan dengan harga terjangkau dan fleksibel sesuai kebutuhan bisnis Anda.
-          </motion.p>
+          <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 dark:text-white mb-3 leading-[1.1]">
+             Pilih Paket <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600">Sesuai Kebutuhan</span>
+          </motion.h1>
 
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.3 }} className="flex items-center justify-center gap-4 mt-8 flex-wrap">
             <span className={`text-sm font-bold transition-colors duration-300 ${!isYearly ? "text-blue-600" : "text-slate-500 dark:text-slate-400"}`}>Bulanan</span>
             <button
               onClick={() => setIsYearly(!isYearly)}
               className="relative w-14 h-7 bg-slate-300 dark:bg-slate-700 rounded-full p-1 transition-all duration-300 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-              aria-label="Toggle billing period"
             >
               <motion.div animate={{ x: isYearly ? 28 : 0 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} className="w-5 h-5 bg-white dark:bg-blue-50 rounded-full shadow-md" />
             </button>
-            <div className="flex items-center gap-2">
-              <span className={`text-sm font-bold transition-colors duration-300 ${isYearly ? "text-blue-600" : "text-slate-500 dark:text-slate-400"}`}>Tahunan</span>
-              <motion.span
-                key={isYearly ? "yearly" : "monthly"}
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="text-xs font-bold px-2.5 py-1 rounded-full bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-950/50 dark:to-emerald-950/50 text-green-700 dark:text-green-300"
-              >
-                Hemat 20%
-              </motion.span>
-            </div>
+            <span className={`text-sm font-bold transition-colors duration-300 ${isYearly ? "text-blue-600" : "text-slate-500 dark:text-slate-400"}`}>Tahunan</span>
           </motion.div>
         </header>
 
@@ -349,7 +325,6 @@ const PricingPage = () => {
               {...tier} 
               index={index} 
               isYearly={isYearly} 
-              // [UPDATE] Pass prop isLoading jika planId cocok dengan yang sedang diproses
               isLoading={processingPlan === tier.planId}
             />
           ))}
@@ -405,6 +380,12 @@ const PricingPage = () => {
           <p className="text-[11px] uppercase tracking-widest text-slate-400 dark:text-slate-600 font-bold">© 2025 WESIGN - TANDA TANGAN DIGITAL TERPERCAYA</p>
         </motion.footer>
       </div>
+
+      <LoginRedirectModal
+        isOpen={showLoginAlert}
+        onClose={() => setShowLoginAlert(false)}
+        onConfirm={handleConfirmLoginRedirect}
+      />
     </div>
   );
 };

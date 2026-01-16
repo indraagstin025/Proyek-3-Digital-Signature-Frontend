@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { documentService } from "../../services/documentService.js";
 import { Document, Page, pdfjs } from "react-pdf";
-import { FaSpinner, FaChevronLeft, FaChevronRight, FaFolderOpen, FaArrowLeft, FaTimes, FaThLarge, FaExclamationTriangle } from "react-icons/fa";
+import { FaSpinner, FaFolderOpen, FaArrowLeft, FaTimes, FaThLarge, FaExclamationTriangle, FaDownload } from "react-icons/fa";
 
 import DashboardHeader from "../../components/DashboardHeader/DashboardHeader.jsx";
 import Sidebar from "../../components/Sidebar/Sidebar.jsx";
@@ -13,7 +13,6 @@ import "react-pdf/dist/Page/TextLayer.css";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
-console.log(`🔧 PDF.js Worker initialized. Version: ${pdfjs.version}`);
 // =========================================================================
 
 const MAIN_SIDEBAR_WIDTH = 256;
@@ -396,6 +395,16 @@ const ViewDocumentPage = ({ theme = "light", toggleTheme }) => {
 
   const togglePreview = () => setPreviewOpen((v) => !v);
   const toggleMainSidebar = () => setMainSidebarOpen((v) => !v);
+
+  // Download Handler
+  const handleDownload = async () => {
+    try {
+      await documentService.downloadDocument(documentId);
+    } catch (error) {
+      console.error("❌ Download failed:", error);
+    }
+  };
+
   const btnSizeClass = isMobile ? "w-12 h-12" : "w-9 h-9";
   const pageShadowStyle = theme === "dark" ? "0 4px 20px rgba(0,0,0,0.5)" : "0 4px 15px rgba(0,0,0,0.08)";
 
@@ -442,22 +451,12 @@ const ViewDocumentPage = ({ theme = "light", toggleTheme }) => {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => scrollToPage(Math.max(0, pageNumber - 2))}
-            disabled={pageNumber <= 1}
-            className={`flex items-center justify-center rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 transition-colors ${btnSizeClass}`}
+            onClick={handleDownload}
+            className={`rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors ${btnSizeClass}`}
+            title="Download Dokumen"
           >
-            <FaChevronLeft />
+            <FaDownload className="text-slate-700 dark:text-slate-200" />
           </button>
-          <button
-            onClick={() => scrollToPage(Math.min((numPages || 1) - 1, pageNumber))}
-            disabled={pageNumber >= numPages}
-            className={`flex items-center justify-center rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 transition-colors ${btnSizeClass}`}
-          >
-            <FaChevronRight />
-          </button>
-        </div>
-
-        <div className="flex items-center gap-2">
           <button
             onClick={togglePreview}
             className={`rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors ${btnSizeClass} ${previewOpen ? "bg-slate-100 dark:bg-slate-800" : ""}`}

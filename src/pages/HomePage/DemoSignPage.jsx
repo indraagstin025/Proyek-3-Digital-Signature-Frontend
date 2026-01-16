@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { FaFileUpload, FaArrowLeft, FaFilePdf, FaTrashAlt, FaCheckCircle, FaDownload, FaRedo } from "react-icons/fa";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, degrees } from "pdf-lib";
 
 import SignDocumentLayout from "../../layouts/SignDocumentLayout";
 
@@ -113,7 +113,7 @@ const DemoSignPage = ({ theme, toggleTheme }) => {
 
     setStep("PROCESSING");
 
-    const texts = ["Membaca PDF...", "Menempelkan Tanda Tangan...", "Finalisasi Dokumen...", "Selesai!"];
+    const texts = ["Membaca PDF...", "Normalisasi Halaman...", "Menempelkan Tanda Tangan...", "Selesai!"];
     for (let i = 0; i < texts.length; i++) {
       setLoadingText(texts[i]);
       await new Promise((r) => setTimeout(r, 800));
@@ -125,22 +125,100 @@ const DemoSignPage = ({ theme, toggleTheme }) => {
 
       for (const sig of signatures) {
         if (!sig.signatureImageUrl) continue;
+
         const pngImage = await pdfDoc.embedPng(sig.signatureImageUrl);
+
+        // 1. Ambil Halaman
         const pageIndex = (sig.pageNumber || 1) - 1;
         const page = pages[pageIndex];
         if (!page) continue;
 
-        const { width, height } = page.getSize();
-        const sigWidth = sig.width * width;
-        const sigHeight = sig.height * height;
-        const sigX = sig.positionX * width;
-        const sigY = height - sig.positionY * height - sigHeight;
+        // 2. Ambil dimensi halaman PDF (CropBox lebih akurat dari MediaBox)
+        const cropBox = page.getCropBox() || page.getMediaBox();
+        const { x: pageX, y: pageY, width: pageWidth, height: pageHeight } = cropBox;
+        const rotation = page.getRotation().angle;
 
+        // 3. Tentukan dimensi visual berdasarkan rotasi
+        // Jika rotasi 90 atau 270, swap width dan height
+        const isRotated = rotation === 90 || rotation === 270;
+        const visualWidth = isRotated ? pageHeight : pageWidth;
+        const visualHeight = isRotated ? pageWidth : pageHeight;
+
+        // 4. PERBAIKAN: Implementasi object-contain seperti CSS
+        // Gambar di UI ditampilkan dengan object-contain, artinya:
+        // - Jika rasio gambar > rasio kotak: gambar dibatasi oleh WIDTH
+        // - Jika rasio gambar < rasio kotak: gambar dibatasi oleh HEIGHT
+
+        // Hitung dimensi kotak berdasarkan persentase UI
+        const boxWidth = sig.width * visualWidth;
+        const boxHeight = sig.height * visualHeight;
+        const boxRatio = boxWidth / boxHeight;
+
+        // Rasio natural gambar PNG
+        const pngRatio = pngImage.width / pngImage.height;
+
+        let drawWidth, drawHeight;
+
+        if (pngRatio > boxRatio) {
+          // Gambar lebih lebar dari kotak - constrained by WIDTH
+          drawWidth = boxWidth;
+          drawHeight = boxWidth / pngRatio;
+        } else {
+          // Gambar lebih tinggi dari kotak - constrained by HEIGHT
+          drawHeight = boxHeight;
+          drawWidth = boxHeight * pngRatio;
+        }
+
+        // 5. Calculate position (mapping from visual coordinates to PDF)
+        const visualX = sig.positionX * visualWidth;
+        const visualY = sig.positionY * visualHeight;
+
+        // 6. KOREKSI POSISI untuk object-contain centering
+        // Karena gambar di-center di dalam kotak, kita perlu menyesuaikan posisi
+        // berdasarkan perbedaan antara ukuran kotak dan ukuran gambar yang sebenarnya
+        const widthDifference = boxWidth - drawWidth;
+        const heightDifference = boxHeight - drawHeight;
+
+        // Koreksi posisi (center offset)
+        const correctedVisualX = visualX + (widthDifference / 2);
+        const correctedVisualY = visualY + (heightDifference / 2);
+
+        // 7. Transformasi koordinat berdasarkan rotasi halaman
+        // PDF menggunakan koordinat bottom-left origin, UI menggunakan top-left
+        let finalX, finalY;
+
+        if (rotation === 0) {
+          // Standard: X sama, Y di-flip (PDF origin di bawah)
+          finalX = pageX + correctedVisualX;
+          finalY = pageY + pageHeight - correctedVisualY - drawHeight;
+        }
+        else if (rotation === 90) {
+          // Rotasi 90° CW
+          finalX = pageX + pageWidth - correctedVisualY - drawHeight;
+          finalY = pageY + correctedVisualX;
+        }
+        else if (rotation === 180) {
+          // Rotasi 180°
+          finalX = pageX + pageWidth - correctedVisualX - drawWidth;
+          finalY = pageY + correctedVisualY;
+        }
+        else if (rotation === 270) {
+          // Rotasi 270° CW (90° CCW)
+          finalX = pageX + correctedVisualY;
+          finalY = pageY + pageHeight - correctedVisualX - drawWidth;
+        }
+        else {
+          // Fallback
+          finalX = pageX + correctedVisualX;
+          finalY = pageY + pageHeight - correctedVisualY - drawHeight;
+        }
+
+        // 7. Gambar tanda tangan ke PDF
         page.drawImage(pngImage, {
-          x: sigX,
-          y: sigY,
-          width: sigWidth,
-          height: sigHeight,
+          x: finalX,
+          y: finalY,
+          width: drawWidth,
+          height: drawHeight,
         });
       }
 
@@ -275,7 +353,7 @@ const DemoSignPage = ({ theme, toggleTheme }) => {
         isSignatureModalOpen={isSignatureModalOpen}
         setIsSignatureModalOpen={setIsSignatureModalOpen}
         isAiModalOpen={false}
-        setIsAiModalOpen={() => {}}
+        setIsAiModalOpen={() => { }}
         includeQrCode={includeQrCode}
         setIncludeQrCode={setIncludeQrCode}
         aiData={null}
@@ -288,7 +366,7 @@ const DemoSignPage = ({ theme, toggleTheme }) => {
         onCommitSave={onCommitSave}
         handleAutoTag={() => toast("Fitur Auto Tagging perlu login.")}
         handleAnalyzeDocument={() => toast("Fitur AI perlu login.")}
-        handleNavigateToView={() => {}}
+        handleNavigateToView={() => { }}
       />
 
       {/* Floating Reset Button */}

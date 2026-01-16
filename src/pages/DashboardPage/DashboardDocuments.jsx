@@ -1,262 +1,182 @@
-import React, { useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
-import { FaPlus, FaSpinner, FaFileAlt, FaUsers, FaArrowRight, FaBuilding } from "react-icons/fa";
-import { useDashboardDocuments } from "../../hooks/Documents/useDashboardDocuments"; // Sesuaikan path hook Anda
-import DocumentFilters from "../../components/DashboardDocuments/DocumentFilters";
-import DocumentCard from "../../components/DashboardDocuments/DocumentCard.jsx";
-import BatchActionBar from "../../components/DashboardDocuments/BatchActionBar";
-import ViewDocumentModal from "../../components/ViewDocumentModal/ViewDocumentModal.jsx";
-import DocumentManagementModal from "../../components/DocumentManagementModal/DocumentManagementModal.jsx";
-import ConfirmationModal from "../../components/ConfirmationModal/ConfirmationModal.jsx";
+// Tambahkan FaCodeBranch (Versioning) dan FaTags (Labeling)
+import { 
+  FaFilePdf, FaUsers, FaBoxOpen, FaArrowRight, FaLayerGroup, 
+  FaShieldAlt, FaSignature, FaCodeBranch, FaTags 
+} from "react-icons/fa";
 
-const GroupShortcutView = ({ onGoToWorkspace }) => {
+// --- KOMPONEN BARU: INFO CARD ---
+const DocumentsInfoCard = () => {
   return (
-    <div className="flex flex-col items-center justify-center py-20 px-4 text-center animate-fade-in bg-white/50 dark:bg-slate-800/30 rounded-3xl border border-dashed border-slate-300 dark:border-slate-700 mt-4">
-      <div className="bg-white dark:bg-slate-800 p-6 rounded-full mb-5 shadow-sm border border-slate-100 dark:border-slate-700">
-        <FaUsers className="w-12 h-12 text-blue-500" />
+    <div
+      className="mb-8 relative overflow-hidden rounded-2xl 
+      bg-gradient-to-r from-indigo-600 via-purple-600 to-fuchsia-700
+      dark:from-slate-900 dark:via-indigo-950 dark:to-slate-900
+      dark:border dark:border-indigo-500/30 dark:shadow-indigo-900/20
+      px-6 py-6 text-white shadow-lg shadow-indigo-500/20 animate-fade-in transition-colors duration-300"
+    >
+      {/* Dekorasi Background */}
+      <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 rounded-full bg-white opacity-10 blur-3xl pointer-events-none"></div>
+      <div className="absolute bottom-0 left-1/3 w-60 h-60 rounded-full bg-purple-400 opacity-20 blur-[100px] pointer-events-none"></div>
+
+      <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+        {/* BAGIAN KIRI: Teks & Penjelasan */}
+        <div className="flex-1 w-full">
+          <div className="flex items-center gap-3 mb-2">
+            <h2 className="text-xl sm:text-2xl font-extrabold leading-tight tracking-tight">
+              Pusat Kontrol <span className="text-indigo-100 drop-shadow-sm">Dokumen</span>
+            </h2>
+            <span className="hidden sm:inline-block px-2 py-0.5 rounded-md bg-white/20 text-[10px] font-bold border border-white/20 backdrop-blur-sm">ALL-IN-ONE</span>
+          </div>
+
+          <p className="text-indigo-50 dark:text-slate-300 text-sm mb-5 leading-relaxed font-medium max-w-2xl opacity-90">
+            Satu tempat untuk semua kebutuhan tanda tangan Anda. Kelola dokumen <strong>Personal</strong>, kolaborasi <strong>Grup</strong>, atau <strong>Paket</strong> massal. 
+            Dilengkapi dengan <strong className="text-white">Versioning</strong> untuk melacak setiap revisi dan <strong className="text-white">Labeling</strong> agar arsip tetap rapi.
+          </p>
+
+          {/* FITUR HORIZONTAL (Pills) */}
+          <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-2 bg-white/10 dark:bg-slate-800/50 hover:bg-white/20 px-3 py-1.5 rounded-lg border border-white/10 dark:border-slate-700 backdrop-blur-md transition-colors cursor-default">
+              <FaShieldAlt className="text-red-300 text-xs" />
+              <span className="text-xs font-semibold">Privasi Terjamin</span>
+            </div>
+            
+            {/* Fitur Versioning */}
+            <div className="flex items-center gap-2 bg-white/10 dark:bg-slate-800/50 hover:bg-white/20 px-3 py-1.5 rounded-lg border border-white/10 dark:border-slate-700 backdrop-blur-md transition-colors cursor-default">
+              <FaCodeBranch className="text-yellow-300 text-xs" />
+              <span className="text-xs font-semibold">Auto Versioning</span>
+            </div>
+
+            {/* Fitur Labeling */}
+            <div className="flex items-center gap-2 bg-white/10 dark:bg-slate-800/50 hover:bg-white/20 px-3 py-1.5 rounded-lg border border-white/10 dark:border-slate-700 backdrop-blur-md transition-colors cursor-default">
+              <FaTags className="text-pink-300 text-xs" />
+              <span className="text-xs font-semibold">Smart Labeling</span>
+            </div>
+
+            <div className="flex items-center gap-2 bg-white/10 dark:bg-slate-800/50 hover:bg-white/20 px-3 py-1.5 rounded-lg border border-white/10 dark:border-slate-700 backdrop-blur-md transition-colors cursor-default">
+              <FaSignature className="text-purple-300 text-xs" />
+              <span className="text-xs font-semibold">Bulk Signing</span>
+            </div>
+          </div>
+        </div>
+
+        {/* BAGIAN KANAN: Ilustrasi Icon Besar */}
+        <div className="hidden md:flex flex-shrink-0 relative pr-4">
+          <div className="absolute inset-0 bg-white blur-3xl opacity-20 rounded-full animate-pulse"></div>
+          <FaLayerGroup className="relative z-10 text-[6rem] text-white/20 dark:text-indigo-500/20 -rotate-12 transform transition-transform duration-700 hover:rotate-0 drop-shadow-xl" />
+        </div>
       </div>
-      <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Belum Ada Dokumen Grup</h3>
-      <p className="text-slate-500 dark:text-slate-400 max-w-md mb-8 text-sm leading-relaxed">Anda belum tergabung dalam grup manapun atau grup Anda belum memiliki dokumen. Kelola tim dan kolaborasi di Workspace.</p>
-      <button
-        onClick={onGoToWorkspace}
-        className="group flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg shadow-blue-500/20 transition-all hover:-translate-y-0.5 active:scale-95"
-      >
-        <FaBuilding className="text-lg" />
-        <span>Buka Workspace</span>
-        <FaArrowRight className="group-hover:translate-x-1 transition-transform text-sm" />
-      </button>
     </div>
   );
 };
 
+// --- MAIN PAGE ---
 const DashboardDocuments = () => {
-  const {
-    personalDocuments,
-    groupDocuments,
-    isLoading,
-    isSearching,
-    error,
-    getDerivedStatus,
-    fetchDocuments,
-    deleteDocument,
-    selectedDocIds,
-    toggleDocumentSelection,
-    clearSelection,
-    startBatchSigning,
-    isSubmittingBatch,
-    searchQuery,
-    setSearchQuery,
-    isUploadModalOpen,
-    setIsUploadModalOpen,
-    currentUser // [PENTING] Data user (Free/Premium)
-  } = useDashboardDocuments();
-
-  const [activeTab, setActiveTab] = useState("personal");
-  const [isManagementModalOpen, setManagementModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState("create");
-  const [selectedDocument, setSelectedDocument] = useState(null);
-  const [isViewModalOpen, setViewModalOpen] = useState(false);
-  const [selectedDocumentUrl, setSelectedDocumentUrl] = useState("");
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [documentToDelete, setDocumentToDelete] = useState(null);
-
   const navigate = useNavigate();
 
-  // --- HANDLER ---
-  const handleTabChange = (tab) => {
-    setActiveTab(tab);
-    clearSelection();
-  };
-
-  const handleGoToWorkspace = () => {
-    navigate("/dashboard/workspaces");
-  };
-
-  const handleSmartNavigation = (doc, action = "sign") => {
-    if (action === "view") {
-      navigate(`/documents/${doc.id}/view`);
-      return;
+  // Konfigurasi Kartu Navigasi
+  const documentSections = [
+    {
+      id: "personal",
+      title: "Arsip Pribadi",
+      description: "Kelola dokumen milik Anda sendiri. Upload, tanda tangani, dan simpan secara privat.",
+      icon: <FaFilePdf className="w-8 h-8 text-red-600 dark:text-red-500" />,
+      path: "/dashboard/documents/personal",
+      colorClass: "from-red-500 to-rose-600",
+      bgClass: "bg-red-50 dark:bg-red-900/10",
+      borderClass: "group-hover:border-red-400 dark:group-hover:border-red-700",
+      textClass: "text-red-600 dark:text-red-400"
+    },
+    {
+      id: "group",
+      title: "Arsip Grup",
+      description: "Akses dokumen kolaborasi tim. Lihat dokumen yang dibagikan dalam Workspace Anda.",
+      icon: <FaUsers className="w-8 h-8 text-blue-600 dark:text-blue-500" />,
+      path: "/dashboard/documents/group",
+      colorClass: "from-blue-500 to-indigo-600",
+      bgClass: "bg-blue-50 dark:bg-blue-900/10",
+      borderClass: "group-hover:border-blue-400 dark:group-hover:border-blue-700",
+      textClass: "text-blue-600 dark:text-blue-400"
+    },
+    {
+      id: "package",
+      title: "Riwayat Paket",
+      description: "Lacak status pengiriman dokumen massal (Batch Signing) yang Anda kirimkan.",
+      icon: <FaBoxOpen className="w-8 h-8 text-purple-600 dark:text-purple-500" />,
+      path: "/dashboard/packages",
+      colorClass: "from-purple-500 to-violet-600",
+      bgClass: "bg-purple-50 dark:bg-purple-900/10",
+      borderClass: "group-hover:border-purple-400 dark:group-hover:border-purple-700",
+      textClass: "text-purple-600 dark:text-purple-400"
     }
-    const isGroupDoc = doc.groupId || (doc.group && doc.group.id);
-    if (isGroupDoc) {
-      navigate(`/documents/${doc.id}/group-sign`);
-    } else {
-      navigate(`/documents/${doc.id}/sign`);
-    }
-  };
-
-  // ✅ [FIX UTAMA] Handler Modal yang lebih kuat
-  // Menangani panggilan onManage("update", doc) dari DocumentCard
-  const openManagementModal = (modeInput, docInput = null) => {
-    let mode = modeInput;
-    let doc = docInput;
-
-    // Jika dipanggil: onManage("update", doc) -> ubah "update" jadi "view"
-    if (mode === "update") {
-      mode = "view";
-    }
-
-    setModalMode(mode);
-    setSelectedDocument(doc);
-    setManagementModalOpen(true);
-  };
-
-  const handleDeleteClick = (docId) => {
-    setDocumentToDelete(docId);
-    setIsConfirmOpen(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!documentToDelete) return;
-    await deleteDocument(documentToDelete);
-    setIsConfirmOpen(false);
-    setDocumentToDelete(null);
-  };
-
-  const formatDate = (dateString) => new Date(dateString).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
-
-  const getStatusClass = (status) => {
-    switch ((status || "").toLowerCase()) {
-      case "completed": return "bg-emerald-100 text-emerald-700 border-emerald-200";
-      case "pending": return "bg-amber-100 text-amber-700 border-amber-200";
-      case "action_needed": return "bg-blue-100 text-blue-700 border-blue-200 animate-pulse";
-      case "waiting": return "bg-slate-100 text-slate-500 border-slate-200";
-      default: return "bg-slate-100 text-slate-600 border-slate-200";
-    }
-  };
-
-  const getTypeColor = (type) => {
-    if (!type || type === "General") return "bg-gray-100 text-gray-600 border-gray-200";
-    return "bg-teal-100 text-teal-700 border-teal-200";
-  };
-
-  const displayedDocuments = activeTab === "personal" ? personalDocuments : groupDocuments;
-  const showGroupShortcut = activeTab === "group" && groupDocuments.length === 0 && !searchQuery && !isLoading;
+  ];
 
   return (
     <div className="h-full w-full overflow-y-auto custom-scrollbar relative bg-transparent">
-      {/* --- STICKY HEADER --- */}
-      <div className="sticky top-0 z-30 px-3 sm:px-8 pt-2 sm:pt-4 pb-2">
+      
+      {/* --- HEADER SECTION --- */}
+      <div className="sticky top-0 z-30 px-3 sm:px-8 pt-6 pb-2">
         <div className="absolute inset-0 bg-gray-50/95 dark:bg-slate-900/95 backdrop-blur-md -z-10 shadow-sm border-b border-gray-200/50 dark:border-slate-700/50 transition-colors duration-300" />
-
-        <div className="bg-white/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 shadow-sm rounded-xl sm:rounded-2xl p-4 sm:p-6 transition-all">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 sm:mb-5">
-            <div>
-              <h1 className="text-xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Dokumen Saya</h1>
-              <p className="text-slate-500 dark:text-slate-400 mt-1 text-xs sm:text-sm">Arsip digital & pelabelan otomatis AI.</p>
-            </div>
-
-            {activeTab === "personal" && (
-              <button
-                onClick={() => openManagementModal("create")}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-6 rounded-lg sm:rounded-xl shadow-md shadow-blue-500/20 transition-all active:scale-95 hover:-translate-y-0.5"
-              >
-                <FaPlus className="w-3.5 h-3.5" /> <span>Upload Pribadi</span>
-              </button>
-            )}
-          </div>
-
-          <div className="w-full overflow-x-auto no-scrollbar">
-            <DocumentFilters
-              activeTab={activeTab}
-              onTabChange={handleTabChange}
-              personalCount={personalDocuments.length}
-              groupCount={groupDocuments.length}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              isSearching={isSearching}
-              disableSearch={showGroupShortcut}
-            />
-          </div>
+        
+        <div className="flex flex-col gap-1 mb-2">
+            <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                Dokumen
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 text-sm">
+                Pilih jenis penyimpanan dokumen yang ingin Anda akses.
+            </p>
         </div>
       </div>
 
       {/* --- CONTENT AREA --- */}
-      <div className="px-3 sm:px-8 pb-32 max-w-7xl mx-auto mt-2 sm:mt-4">
-        {showGroupShortcut ? (
-          <GroupShortcutView onGoToWorkspace={handleGoToWorkspace} />
-        ) : (
-          <>
-            {isLoading && displayedDocuments.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
-                <FaSpinner className="animate-spin text-4xl text-blue-500 mb-4" />
-                <span className="text-slate-500 font-medium">Memuat dokumen...</span>
-              </div>
-            )}
+      <div className="px-3 sm:px-8 pb-24 max-w-7xl mx-auto mt-6">
+        
+        {/* 🔥 TAMPILKAN CARD INFO DI SINI */}
+        <DocumentsInfoCard />
 
-            {error && <div className="text-center text-red-500 p-4 border border-red-200 bg-red-50 rounded-xl mb-6">{error}</div>}
+        {/* GRID NAVIGATION CARDS */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {documentSections.map((section) => (
+                <div 
+                    key={section.id}
+                    onClick={() => navigate(section.path)}
+                    className={`group relative flex flex-col justify-between p-6 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${section.borderClass}`}
+                >
+                    {/* Background Gradient Effect on Hover */}
+                    <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${section.colorClass} opacity-0 group-hover:opacity-5 transition-opacity duration-300 pointer-events-none`}></div>
 
-            <div className={`transition-opacity duration-300 ${isSearching ? "opacity-50 pointer-events-none" : "opacity-100"}`}>
-              {!isLoading && displayedDocuments.length === 0 && (
-                <div className="text-center py-20 px-4 bg-white/60 dark:bg-slate-800/60 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
-                  <div className="bg-slate-50 dark:bg-slate-700 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    {searchQuery ? <span className="text-4xl">🔍</span> : <FaFileAlt className="h-8 w-8 text-slate-400" />}
-                  </div>
-                  <h4 className="text-lg font-bold text-slate-800 dark:text-white">{searchQuery ? "Tidak ditemukan" : activeTab === "personal" ? "Belum Ada Dokumen" : "Dokumen Grup Kosong"}</h4>
-                  <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{searchQuery ? `Hasil pencarian "${searchQuery}" nihil.` : "Upload dokumen PDF untuk mulai."}</p>
+                    <div>
+                        {/* Header Card */}
+                        <div className="flex justify-between items-start mb-4">
+                            <div className={`p-3 rounded-2xl ${section.bgClass} transition-colors`}>
+                                {section.icon}
+                            </div>
+                            <div className="p-2 rounded-full bg-slate-50 dark:bg-slate-700/50 group-hover:bg-white dark:group-hover:bg-slate-600 transition-colors">
+                                <FaArrowRight className="text-slate-400 group-hover:text-slate-600 dark:group-hover:text-white" />
+                            </div>
+                        </div>
+
+                        {/* Text Content */}
+                        <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                            {section.title}
+                        </h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                            {section.description}
+                        </p>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-700/60 flex items-center">
+                        <span className={`text-xs font-semibold ${section.textClass} flex items-center gap-1`}>
+                            Buka {section.title}
+                        </span>
+                    </div>
                 </div>
-              )}
-
-              {displayedDocuments.length > 0 && (
-                <div className="grid grid-cols-1 gap-3">
-                  {displayedDocuments.map((doc) => (
-                    <DocumentCard
-                      key={doc.id}
-                      doc={doc}
-                      isSelected={selectedDocIds.has(doc.id)}
-                      onNavigate={(action) => handleSmartNavigation(doc, action)}
-                      onToggle={toggleDocumentSelection}
-                      onManage={openManagementModal}
-                      onDelete={handleDeleteClick}
-                      getStatusClass={getStatusClass}
-                      getTypeColor={getTypeColor}
-                      formatDate={formatDate}
-                      getDerivedStatus={getDerivedStatus}
-                      enableSelection={activeTab === "personal"}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          </>
-        )}
-      </div>
-
-      {activeTab === "personal" && (
-        <div className="fixed bottom-6 left-0 right-0 z-50 flex justify-center pointer-events-none px-4">
-          <div className="pointer-events-auto shadow-2xl w-full sm:w-auto">
-            <BatchActionBar selectedCount={selectedDocIds.size} onClear={clearSelection} onSign={startBatchSigning} isSubmitting={isSubmittingBatch} />
-          </div>
+            ))}
         </div>
-      )}
 
-      {/* --- MODALS --- */}
-      {isManagementModalOpen && (
-        <DocumentManagementModal
-          mode={modalMode} // Ini sekarang akan bernilai "view" atau "create"
-          initialDocument={selectedDocument}
-          currentUser={currentUser} // Data user untuk logic premium
-          onClose={() => setManagementModalOpen(false)}
-          onSuccess={() => fetchDocuments(searchQuery)}
-          onViewRequest={(url) => {
-            setSelectedDocumentUrl(url);
-            setViewModalOpen(true);
-          }}
-        />
-      )}
-
-      {isUploadModalOpen && (
-        <DocumentManagementModal 
-          mode="create" 
-          currentUser={currentUser} 
-          onClose={() => setIsUploadModalOpen(false)} 
-          onSuccess={() => fetchDocuments(searchQuery)} 
-        />
-      )}
-
-      <ViewDocumentModal isOpen={isViewModalOpen} onClose={() => setViewModalOpen(false)} url={selectedDocumentUrl} />
-
-      <ConfirmationModal isOpen={isConfirmOpen} onClose={() => setIsConfirmOpen(false)} onConfirm={confirmDelete} title="Hapus Dokumen" message="Dokumen ini akan dihapus permanen?" confirmButtonColor="bg-red-600" />
+      </div>
     </div>
   );
 };

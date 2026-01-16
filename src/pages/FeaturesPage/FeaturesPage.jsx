@@ -1,65 +1,102 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import { ImSpinner9 } from "react-icons/im";
-import { Link } from 'react-router-dom';
-import { 
-  FaPenNib, 
-  FaLayerGroup, 
-  FaUsers, 
-  FaWhatsapp, 
-  FaBolt, 
-  FaMagic,
-  FaCheckCircle
-} from 'react-icons/fa';
+import { Link } from "react-router-dom";
+import {
+  FaPenNib, FaLayerGroup, FaUsers, FaWhatsapp, FaBolt, FaMagic,
+  FaCheckCircle, FaChevronLeft, FaChevronRight, FaImage
+} from "react-icons/fa";
 
-/* =========================================
-   Reusable Component: FeatureRow
-   ========================================= */
-const FeatureRow = ({ 
-  title, 
-  description, 
-  badge, 
-  badgeColor, 
-  icon: Icon, 
-  featuresList, 
-  imagePlaceholder, 
-  isReversed 
+// Import Gambar
+import foto1 from "../../assets/images/Foto1.png";
+import foto2 from "../../assets/images/Foto2.png";
+import foto3 from "../../assets/images/Foto3.jpeg";
+import foto4 from "../../assets/images/Foto4.jpeg";
+import foto5 from "../../assets/images/Foto5.jpeg";
+import foto6 from "../../assets/images/Foto6.jpeg";
+
+const FeatureRow = ({
+  title, description, badge, badgeColor, icon: Icon, featuresList, slides = [], isReversed
 }) => {
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  const nextSlide = () => setCurrentSlide((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
+  const prevSlide = () => setCurrentSlide((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
+
   return (
     <div className={`flex flex-col ${isReversed ? 'lg:flex-row-reverse' : 'lg:flex-row'} items-center gap-12 mb-24 last:mb-0`}>
-      
-      {/* --- BAGIAN GAMBAR (Placeholder) --- */}
+
+      {/* --- SLIDER AREA --- */}
       <div className="w-full lg:w-1/2">
-        <div className="bg-slate-50 dark:bg-slate-800 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 aspect-[4/3] flex items-center justify-center relative overflow-hidden group hover:border-blue-400 transition-colors">
-            
-            <div className="text-center p-8">
-                <div className="w-16 h-16 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl text-slate-400">
-                    <Icon />
+        <div className="relative group bg-slate-50 dark:bg-slate-800 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 aspect-[4/3] overflow-hidden hover:border-blue-400 transition-colors shadow-sm">
+
+          <div
+            className="flex h-full transition-transform duration-500 ease-out"
+            style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+          >
+            {slides.map((slide, index) => (
+              <div key={index} className="w-full h-full flex-shrink-0 flex flex-col bg-slate-100 dark:bg-slate-900">
+                {/* 1. BAGIAN GAMBAR */}
+                <div className="flex-1 w-full relative flex items-center justify-center overflow-hidden p-1">
+                  {slide.src ? (
+                    <img
+                      src={slide.src}
+                      alt={slide.title || `Slide ${index}`}
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <div className="text-3xl text-slate-300">
+                      {slide.icon ? <slide.icon /> : <FaImage />}
+                    </div>
+                  )}
                 </div>
-                <p className="text-slate-500 dark:text-slate-400 font-mono text-sm font-bold mb-2">
-                    {imagePlaceholder.title}
-                </p>
-                <p className="text-xs text-slate-400">
-                    {imagePlaceholder.subtitle}
-                </p>
-            </div>
-            {/* <img src={imagePlaceholder.src} alt={title} className="absolute inset-0 w-full h-full object-cover" /> */}
+
+                {/* 2. BAGIAN TEKS */}
+                {(slide.title || slide.subtitle) && (
+                  <div className="shrink-0 w-full py-3 px-4 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 text-center relative z-20">
+                    <p className="text-sm font-bold text-slate-800 dark:text-white">{slide.title}</p>
+                    {slide.subtitle && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{slide.subtitle}</p>}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Navigasi Arrows */}
+          {slides.length > 1 && (
+            <>
+              <button
+                onClick={prevSlide}
+                className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/90 dark:bg-slate-700/90 p-2 rounded-full text-slate-700 dark:text-white shadow-md opacity-0 group-hover:opacity-100 transition-all hover:scale-110 z-30"
+              >
+                <FaChevronLeft size={14} />
+              </button>
+              <button
+                onClick={nextSlide}
+                className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/90 dark:bg-slate-700/90 p-2 rounded-full text-slate-700 dark:text-white shadow-md opacity-0 group-hover:opacity-100 transition-all hover:scale-110 z-30"
+              >
+                <FaChevronRight size={14} />
+              </button>
+
+              <div className="absolute bottom-[4.5rem] left-0 right-0 flex justify-center gap-1.5 z-30 pointer-events-none">
+                {slides.map((_, idx) => (
+                  <div
+                    key={idx}
+                    className={`h-1.5 rounded-full transition-all shadow-sm ${currentSlide === idx ? "bg-blue-500 w-4" : "bg-slate-300/80 w-1.5"}`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      {/* --- BAGIAN TEKS --- */}
+      {/* --- TEXT CONTENT --- */}
       <div className="w-full lg:w-1/2">
         <span className={`font-bold tracking-wider text-sm uppercase px-3 py-1 rounded-lg mb-4 inline-block ${badgeColor}`}>
           {badge}
         </span>
-        
-        <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-4 leading-tight">
-          {title}
-        </h2>
-        
-        <p className="text-slate-600 dark:text-slate-400 text-lg leading-relaxed mb-6">
-          {description}
-        </p>
-
+        <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-4 leading-tight">{title}</h2>
+        <p className="text-slate-600 dark:text-slate-400 text-lg leading-relaxed mb-6">{description}</p>
         {featuresList && (
           <ul className="space-y-3">
             {featuresList.map((item, idx) => (
@@ -71,53 +108,42 @@ const FeatureRow = ({
           </ul>
         )}
       </div>
-
     </div>
   );
 };
 
 const FeaturesPage = () => {
-  // 1. State untuk Loading
   const [isLoading, setIsLoading] = useState(true);
 
-  // 2. Efek Loading & Scroll to Top
   useEffect(() => {
-    window.scrollTo(0, 0); // Pastikan scroll ke atas saat halaman dibuka
-    
-    // Simulasi loading selama 0.8 detik
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 800);
-
+    // Memastikan FeaturesPage sendiri load dari paling atas
+    window.scrollTo(0, 0);
+    const timer = setTimeout(() => setIsLoading(false), 800);
     return () => clearTimeout(timer);
   }, []);
 
-  // 3. Tampilan Loading Spinner
   if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-white dark:bg-slate-900 transition-colors">
         <div className="flex flex-col items-center gap-4">
-           <ImSpinner9 className="animate-spin h-10 w-10 text-indigo-600" />
-           <p className="text-slate-500 text-sm font-medium animate-pulse">Menyiapkan Fitur...</p>
+          <ImSpinner9 className="animate-spin h-10 w-10 text-indigo-600" />
+          <p className="text-slate-500 text-sm font-medium animate-pulse">Menyiapkan Fitur...</p>
         </div>
       </div>
     );
   }
 
-  // 4. Konten Utama
   return (
     <main className="w-full bg-white dark:bg-slate-900 min-h-screen pt-24 pb-24 transition-colors duration-300">
-      
-      {/* === HERO SECTION === */}
+
+      {/* HERO SECTION */}
       <div className="max-w-7xl mx-auto px-6 text-center mb-24">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-sm font-bold uppercase tracking-wider mb-6">
           <FaMagic /> Fitur Lengkap
         </div>
         <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white leading-tight mb-6">
-          Solusi Tanda Tangan untuk <br/>
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
-            Setiap Kebutuhan Bisnis
-          </span>
+          Solusi Tanda Tangan untuk <br />
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Setiap Kebutuhan Bisnis</span>
         </h1>
         <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
           Dari penggunaan pribadi hingga kolaborasi tim korporat. Pelajari bagaimana WeSign mempermudah alur dokumen Anda.
@@ -125,135 +151,156 @@ const FeaturesPage = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-6">
-        
+
         {/* 1. PERSONAL SIGNING */}
-        <FeatureRow 
+        <FeatureRow
           isReversed={false}
           icon={FaPenNib}
           badge="Individual"
           badgeColor="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
           title="Tanda Tangan Personal"
-          description="Fitur dasar untuk kebutuhan sehari-hari. Upload dokumen PDF tunggal, bubuhkan tanda tangan, inisial, atau stempel tanggal dengan mudah melalui editor drag-and-drop."
+          description="Fitur dasar untuk kebutuhan sehari-hari. Upload dokumen PDF tunggal, bubuhkan tanda tangan, inisial, atau stempel tanggal dengan mudah."
           featuresList={[
             "Editor Dokumen Intuitif (Drag & Drop).",
             "Mendukung Tanda Tangan Gambar, Tulis, atau Font.",
             "Unduh langsung hasil PDF tervalidasi."
           ]}
-          imagePlaceholder={{
-            title: "[Screenshot Editor Personal]",
-            subtitle: "Tampilkan UI saat user menaruh tanda tangan di PDF."
-          }}
+          slides={[
+            { src: foto1, title: "Dashboard Utama", subtitle: "Tampilan awal dashboard dokumen." },
+            { src: foto2, title: "Upload Dokumen", subtitle: "Proses upload file PDF." },
+            { src: foto3, title: "Editor Tanda Tangan", subtitle: "Drag & drop tanda tangan ke halaman." },
+            { src: foto4, title: "Setting Penanda Tangan", subtitle: "Atur posisi dan ukuran." },
+            { src: foto5, title: "Preview Dokumen", subtitle: "Lihat hasil sebelum finalisasi." },
+            { src: foto6, title: "Dokumen Selesai", subtitle: "Download hasil PDF yang sudah ditandatangani." }
+          ]}
         />
 
         {/* 2. PACKAGE SIGNING */}
-        <FeatureRow 
+        <FeatureRow
           isReversed={true}
           icon={FaLayerGroup}
           badge="Bulk Action"
           badgeColor="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
           title="Package Signing (Multi-Dokumen)"
-          description="Efisiensi waktu untuk HRD atau Legal. Tanda tangani puluhan dokumen sekaligus (seperti Kontrak Karyawan atau Invoice) dalam satu kali proses upload."
+          description="Tanda tangani banyak dokumen sekaligus dengan efisien. Upload beberapa file PDF, pilih dokumen yang ingin ditandatangani, lalu bubuhkan tanda tangan ke setiap dokumen dengan mudah."
           featuresList={[
-            "Upload Banyak File PDF sekaligus.",
-            "Bubuhkan tanda tangan ke posisi yang sama di semua halaman.",
-            "Output berupa file ZIP yang berisi semua dokumen."
+            "Upload multiple dokumen PDF dalam satu waktu.",
+            "Pilih dokumen dengan sistem checklist yang fleksibel.",
+            "Drag & Drop tanda tangan ke setiap halaman dokumen.",
+            "Simpan semua dokumen yang sudah ditandatangani secara langsung."
           ]}
-          imagePlaceholder={{
-            title: "[Visual Package/Bulk]",
-            subtitle: "Tampilkan list banyak file yang sedang diproses sekaligus."
-          }}
+          slides={[
+            { title: "Upload Dokumen", subtitle: "Upload 2 atau lebih dokumen PDF sekaligus.", icon: FaLayerGroup },
+            { title: "Pilih Dokumen", subtitle: "Centang dokumen yang ingin ditandatangani.", icon: FaCheckCircle },
+            { title: "Tanda Tangan", subtitle: "Drag & drop tanda tangan ke setiap dokumen.", icon: FaPenNib },
+            { title: "Simpan Langsung", subtitle: "Klik simpan untuk menyimpan semua dokumen.", icon: FaBolt }
+          ]}
         />
 
-        {/* DIVIDER */}
         <div className="py-16 text-center">
-            <div className="h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent w-full mb-8"></div>
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Deep Dive: Group Signing</h3>
-            <p className="text-slate-500 text-sm">Kolaborasi tim tingkat lanjut dengan alur kerja terautomasi.</p>
+          <div className="h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent w-full mb-8"></div>
+          <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Deep Dive: Group Signing</h3>
+          <p className="text-slate-500 text-sm">Kolaborasi tim tingkat lanjut dengan alur kerja terautomasi.</p>
         </div>
 
-        {/* 3. GROUP - SETUP & INVITE */}
-        <FeatureRow 
+        {/* 3. GROUP SETUP */}
+        <FeatureRow
           isReversed={false}
           icon={FaUsers}
           badge="Langkah 1: Setup"
           badgeColor="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
           title="Buat Grup & Undang Anggota"
-          description="Mulai dengan membuat 'Room' tanda tangan. Undang pihak internal maupun eksternal via email. Tentukan siapa yang hanya melihat (Viewer) dan siapa yang harus tanda tangan (Signer)."
+          description="Mulai dengan membuat grup tanda tangan digital. Undang anggota tim menggunakan link undangan, lalu upload dokumen dan atur siapa saja yang menjadi penandatangan."
           featuresList={[
-            "Manajemen anggota grup yang mudah.",
-            "Atur peran: Admin, Signer, atau Viewer.",
-            "Mendukung urutan penandatanganan (Sequential/Parallel)."
+            "Buat grup kolaborasi dengan mudah.",
+            "Invite anggota melalui link undangan.",
+            "Upload dokumen langsung ke dalam grup.",
+            "Atur signer yang akan menandatangani dokumen.",
+            "Berbagi dokumen dengan seluruh anggota grup."
           ]}
-          imagePlaceholder={{
-            title: "[UI Modal Invite Member]",
-            subtitle: "Tampilkan form invite user dan list anggota grup."
-          }}
+          slides={[
+            { title: "Buat Grup", subtitle: "Buat room kolaborasi baru.", icon: FaUsers },
+            { title: "Invite Anggota", subtitle: "Bagikan link undangan ke tim.", icon: FaPenNib },
+            { title: "Upload Dokumen", subtitle: "Upload dokumen yang akan ditandatangani.", icon: FaLayerGroup },
+            { title: "Atur Signer", subtitle: "Pilih dan atur anggota sebagai penandatangan.", icon: FaCheckCircle }
+          ]}
         />
 
-        {/* 4. GROUP - WHATSAPP NOTIF */}
-        <FeatureRow 
+        {/* 4. GROUP NOTIFICATION */}
+        <FeatureRow
           isReversed={true}
           icon={FaWhatsapp}
           badge="Langkah 2: Notifikasi"
           badgeColor="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-          title="Notifikasi via WhatsApp"
-          description="Tidak semua orang rajin cek email. Sistem kami terintegrasi dengan WhatsApp Gateway untuk mengirim link akses dokumen secara instan kepada penandatangan saat giliran mereka tiba."
+          title="Notifikasi Otomatis via WhatsApp"
+          description="Setelah pengupload dokumen mengatur dan menyimpan daftar penandatangan, sistem akan otomatis mengirimkan notifikasi ke WhatsApp setiap signer dengan link akses dokumen."
           featuresList={[
-            "Pesan otomatis terkirim ke nomor WA terdaftar.",
-            "Link akses aman (tanpa perlu login ribet).",
-            "Reminder otomatis jika belum ditandatangani."
+            "Notifikasi otomatis terkirim saat signer diatur.",
+            "Pesan berisi link langsung ke dokumen yang perlu ditandatangani.",
+            "Akses aman tanpa perlu login berulang.",
+            "Reminder otomatis untuk signer yang belum menandatangani."
           ]}
-          imagePlaceholder={{
-            title: "[Mockup Chat WhatsApp]",
-            subtitle: "Tampilkan simulasi chat WA berisi link dokumen WeSign."
-          }}
+          slides={[
+            { title: "Pengaturan Signer", subtitle: "Atur dan simpan daftar penandatangan.", icon: FaUsers },
+            { title: "Kirim Otomatis", subtitle: "Notifikasi WhatsApp terkirim otomatis.", icon: FaWhatsapp },
+            { title: "Akses Dokumen", subtitle: "Signer klik link untuk akses langsung.", icon: FaBolt }
+          ]}
         />
 
-        {/* 5. GROUP - REALTIME SYNC */}
-        <FeatureRow 
+        {/* 5. GROUP REALTIME */}
+        <FeatureRow
           isReversed={false}
           icon={FaBolt}
-          badge="Langkah 3: Eksekusi"
+          badge="Langkah 3: Eksekusi & Finalisasi"
           badgeColor="bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400"
-          title="Real-time Collaboration (Live)"
-          description="Pengalaman futuristik layaknya Canva/Figma. Lihat kursor dan aktivitas penandatangan lain secara langsung di layar Anda. Transparan dan mencegah konflik edit."
+          title="Tanda Tangan Real-time & Finalisasi"
+          description="Pengalaman kolaborasi futuristik seperti Canva dan Google Docs. Semua penandatangan dapat melihat dan membubuhkan tanda tangan secara live. Setelah semua signer selesai, pengupload dokumen dapat melakukan finalisasi."
           featuresList={[
-            "Sinkronisasi kursor & posisi tanda tangan (WebSocket).",
-            "Indikator 'User sedang mengetik/tanda tangan'.",
-            "Update status dokumen secara live tanpa refresh halaman."
+            "Tanda tangan secara live dan realtime.",
+            "Lihat aktivitas penandatangan lain secara langsung.",
+            "Sinkronisasi posisi tanda tangan dengan WebSocket.",
+            "Finalisasi dokumen oleh pengupload setelah semua selesai.",
+            "Dokumen final siap diunduh atau dibagikan."
           ]}
-          imagePlaceholder={{
-            title: "[Visual Real-time Canvas]",
-            subtitle: "Tampilkan dokumen dengan banyak kursor warna-warni."
-          }}
+          slides={[
+            { title: "Live Signing", subtitle: "Tanda tangan bersama secara realtime.", icon: FaBolt },
+            { title: "Lihat Progres", subtitle: "Pantau status setiap penandatangan.", icon: FaUsers },
+            { title: "Finalisasi", subtitle: "Pengupload memfinalisasi dokumen.", icon: FaCheckCircle },
+            { title: "Dokumen Selesai", subtitle: "Download atau bagikan dokumen final.", icon: FaLayerGroup }
+          ]}
         />
 
       </div>
 
-      {/* === CTA SECTION === */}
+      {/* CTA SECTION */}
       <section className="mt-24 py-16 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
-         <div className="max-w-4xl mx-auto px-6 text-center">
-             <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-6">
-                Siap Meningkatkan Produktivitas Tim?
-             </h2>
-             <p className="text-slate-600 dark:text-slate-400 mb-8">
-                Pilih fitur yang sesuai dengan skala bisnis Anda. Mulai dari Personal hingga Enterprise Group Signing.
-             </p>
-             <div className="flex flex-col sm:flex-row justify-center gap-4">
-                
-                {/* Tombol Demo mengarah ke /demo */}
-                <Link 
-                  to="/demo" 
-                  className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full shadow-lg hover:shadow-blue-500/30 transition-all transform hover:-translate-y-1 inline-flex items-center justify-center"
-                >
-                   Coba Demo Group Sign
-                </Link>
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-6">
+            Siap Meningkatkan Produktivitas Tim?
+          </h2>
+          <p className="text-slate-600 dark:text-slate-400 mb-8">
+            Pilih fitur yang sesuai dengan skala bisnis Anda. Mulai dari Personal hingga Enterprise.
+          </p>
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <Link
+              to="/demo"
+              // Opsional: Jika Demo juga butuh scroll ke atas
+              onClick={() => window.scrollTo(0, 0)}
+              className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full shadow-lg hover:shadow-blue-500/30 transition-all transform hover:-translate-y-1 inline-flex items-center justify-center"
+            >
+              Coba Demo
+            </Link>
 
-                <button className="px-8 py-3 bg-white dark:bg-slate-700 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-600 font-bold rounded-full hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">
-                   Lihat Paket Harga
-                </button>
-             </div>
-         </div>
+            {/* [PERBAIKAN] Tambahkan onClick window.scrollTo(0,0) di sini */}
+            <Link
+              to='/pricing'
+              onClick={() => window.scrollTo(0, 0)}
+              className="px-8 py-3 bg-white dark:bg-slate-700 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-600 font-bold rounded-full hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors"
+            >
+              Lihat Paket Harga
+            </Link>
+          </div>
+        </div>
       </section>
 
     </main>

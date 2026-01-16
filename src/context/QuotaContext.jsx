@@ -14,18 +14,21 @@ export const QuotaProvider = ({ children }) => {
       setError(null);
       const data = await getQuota();
       setQuota(data);
-      console.log("[QuotaContext] ✅ Quota loaded:", data);
     } catch (err) {
-      console.error("[QuotaContext] ❌ Failed to fetch quota:", err);
       setError(err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch quota saat component mount
   useEffect(() => {
-    fetchQuota();
+    // Only fetch quota if user is authenticated (has authUser in localStorage)
+    const authUser = localStorage.getItem("authUser");
+    if (authUser) {
+      fetchQuota();
+    } else {
+      setLoading(false);
+    }
   }, []);
 
   // Refetch quota setelah aksi yang mengubah usage

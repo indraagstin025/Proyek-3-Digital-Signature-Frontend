@@ -29,10 +29,10 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
   const [isGroupDoc, setIsGroupDoc] = useState(false);
   const [canSign, setCanSign] = useState(false);
   const [isSignedSuccess, setIsSignedSuccess] = useState(false);
-  
+
   // Loading States
   const [isLoadingDoc, setIsLoadingDoc] = useState(true);
-  
+
   // Ref untuk caching versi agar tidak download ulang PDF saat refreshKey berubah
   const loadedVersionRef = useRef(null);
 
@@ -71,7 +71,7 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
 
         // 1. Fetch Metadata Dokumen (Selalu ambil yang terbaru)
         const doc = await documentService.getDocumentById(documentId, { signal: controller.signal });
-        
+
         if (!doc || !doc.currentVersion?.id) throw new Error("Dokumen tidak ditemukan.");
 
         if (isMounted) {
@@ -87,24 +87,21 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
         const shouldFetchPdf = !loadedVersionRef.current || loadedVersionRef.current !== doc.currentVersion.id || !pdfFile;
 
         if (shouldFetchPdf) {
-            console.log("📥 [useDocumentDetail] Mengunduh File PDF Baru...");
-            try {
-                const tempSignedUrl = await documentService.getDocumentFileUrl(documentId);
-                const response = await fetch(tempSignedUrl, { signal: controller.signal });
-                if (!response.ok) throw new Error("Gagal mengunduh PDF.");
-                
-                const blob = await response.blob();
-                if (isMounted) {
-                    objectUrl = URL.createObjectURL(blob);
-                    setPdfFile(objectUrl);
-                    // Update Cache Ref
-                    loadedVersionRef.current = doc.currentVersion.id;
-                }
-            } catch (pdfError) {
-                if (pdfError.name !== "AbortError") console.error("PDF fetch error:", pdfError);
+          try {
+            const tempSignedUrl = await documentService.getDocumentFileUrl(documentId);
+            const response = await fetch(tempSignedUrl, { signal: controller.signal });
+            if (!response.ok) throw new Error("Gagal mengunduh PDF.");
+
+            const blob = await response.blob();
+            if (isMounted) {
+              objectUrl = URL.createObjectURL(blob);
+              setPdfFile(objectUrl);
+              // Update Cache Ref
+              loadedVersionRef.current = doc.currentVersion.id;
             }
-        } else {
-            console.log("♻️ [useDocumentDetail] PDF Versi sama. Menggunakan cache Blob (Mencegah Refresh).");
+          } catch (pdfError) {
+            if (pdfError.name !== "AbortError");
+          }
         }
 
         // --- STATUS LOGIC (Tetap jalankan ini agar tombol berubah status) ---
@@ -143,7 +140,6 @@ export const useDocumentDetail = (documentId, contextData, refreshKey) => {
             setIsSignedSuccess(false);
           }
         }
-
       } catch (error) {
         if (error.name !== "CanceledError") {
           console.error("Error fetching doc:", error);

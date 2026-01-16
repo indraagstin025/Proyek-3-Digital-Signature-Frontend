@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import interact from "interactjs";
-import { FaTimes } from "react-icons/fa";
+import { FaTimes, FaCopy } from "react-icons/fa";
 import { socketService } from "../../services/socketService"; // Pastikan path ini benar
 
 // Helper throttle
@@ -30,7 +30,8 @@ const PlacedSignatureGroup = ({
   documentId, // Wajib ada untuk socket room
   currentUser, // Wajib ada untuk proteksi
   isSelected = false, // ✅ Marquee selection state
-  onSelect = () => {}, // ✅ Marquee selection callback
+  onSelect = () => { }, // ✅ Marquee selection callback
+  totalPages = 1, // ✅ Untuk modal pindah halaman
 }) => {
   const elementRef = useRef(null);
 
@@ -58,6 +59,13 @@ const PlacedSignatureGroup = ({
   // State Remote
   const [isRemoteActive, setIsRemoteActive] = useState(false);
   const [isLockedByRemote, setIsLockedByRemote] = useState(false);
+  const [showPageModal, setShowPageModal] = useState(false);
+
+  // Handler pindah halaman
+  const handlePageChange = (newPage) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    onUpdate({ ...signature, pageNumber: newPage });
+  };
 
   // 3. SOCKET EMITTER
   const emitSocketDrag = useMemo(
@@ -294,7 +302,7 @@ const PlacedSignatureGroup = ({
     <div
       ref={elementRef}
       // 1. Pastikan class marker ada
-      className={`placed-signature-item absolute select-none touch-none group flex flex-col ${isSelected ? "z-50 ring-2 ring-blue-400 shadow-lg" : isActive || isRemoteActive ? "z-50" : "z-10"}`}
+      className={`placed-signature-item absolute select-none ${isDragging || isResizing ? "touch-none" : ""} group flex flex-col ${isSelected ? "z-50 ring-2 ring-blue-400" : isActive || isRemoteActive ? "z-50" : "z-10"}`}
       style={{
         left: 0,
         top: 0,
@@ -317,21 +325,37 @@ const PlacedSignatureGroup = ({
         }
       }}
     >
-      <div style={{ padding: `${CSS_PADDING}px` }} className={`relative w-full h-full flex items-center justify-center transition-all duration-100 ${borderClass}`}>
+      <div style={{ padding: `${CSS_PADDING}px` }} className={`relative w-full h-full transition-all duration-200 ${isActive || isRemoteActive ? "bg-white/80 shadow-lg" : ""} ${borderClass}`}>
         {isActive && canInteract && !isLockedByRemote && (
           <>
-            {/* Tombol Hapus */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(signature.id);
-              }}
-              className="absolute -top-3 -right-3 w-6 h-6 bg-red-600 text-white rounded-md flex items-center justify-center shadow-sm hover:bg-red-700 z-[70] pointer-events-auto"
-            >
-              <FaTimes size={12} />
-            </button>
+            {/* Toolbar di tengah garis border atas */}
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center gap-1 z-[70] pointer-events-auto">
+              {/* Button Pindah Halaman (Copy Icon) */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPageModal(true);
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                className="w-6 h-6 bg-blue-500 text-white rounded-md flex items-center justify-center shadow-md hover:bg-blue-600 transition-colors"
+                title="Pindah ke halaman lain"
+              >
+                <FaCopy size={10} />
+              </button>
+              {/* Button Delete */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(signature.id);
+                }}
+                className="w-6 h-6 bg-slate-100 text-slate-500 rounded-md flex items-center justify-center shadow-md hover:bg-red-500 hover:text-white transition-colors border border-slate-200"
+                title="Hapus tanda tangan"
+              >
+                <FaTimes size={10} />
+              </button>
+            </div>
 
-            {/* 3. 🔥 WAJIB ADA: Resize Handles (agar bisa dibesarkan/kecilkan) */}
+            {/* Resize Handles */}
             <div className={`${handleStyle} -top-1.5 -left-1.5 cursor-nw-resize`}></div>
             <div className={`${handleStyle} -top-1.5 -right-1.5 cursor-ne-resize`}></div>
             <div className={`${handleStyle} -bottom-1.5 -left-1.5 cursor-sw-resize`}></div>
@@ -339,21 +363,76 @@ const PlacedSignatureGroup = ({
           </>
         )}
 
+        {/* Modal Pindah Halaman */}
+        {showPageModal && (
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowPageModal(false);
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div
+              className="bg-white rounded-xl shadow-2xl p-5 min-w-[280px] max-w-[90vw]"
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-bold text-slate-800 mb-3">Pindah ke Halaman</h3>
+              <p className="text-sm text-slate-500 mb-4">Pilih halaman tujuan untuk tanda tangan ini:</p>
+
+              <div className="grid grid-cols-5 gap-2 max-h-[200px] overflow-y-auto mb-4">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
+                  <button
+                    key={num}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePageChange(num);
+                      setShowPageModal(false);
+                    }}
+                    className={`p-2 rounded-lg text-sm font-medium transition-all ${signature.pageNumber === num
+                        ? "bg-blue-500 text-white shadow-md"
+                        : "bg-slate-100 text-slate-700 hover:bg-blue-100 hover:text-blue-600"
+                      }`}
+                  >
+                    {num}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowPageModal(false);
+                  }}
+                  className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {isRemoteActive && <div className="absolute -top-6 left-0 bg-green-500 text-white text-[10px] px-2 py-0.5 rounded shadow-sm z-[60] whitespace-nowrap animate-pulse">{displayName} sedang mengedit...</div>}
 
-        <div className={`w-full h-full relative overflow-hidden ${isActive && canInteract ? "border-red-400 border" : "border-transparent"}`}>
-          {signature.signatureImageUrl ? (
-            <img
-              src={signature.signatureImageUrl}
-              alt="Sign"
-              className="w-full h-full object-contain pointer-events-none select-none"
+        {/* Container untuk gambar signature dengan padding untuk jarak */}
+        <div className="w-full h-full p-1 box-border flex items-center justify-center">
+          <div className={`w-full h-full overflow-hidden transition-all duration-200 ${isActive && canInteract ? "bg-white/80 shadow-lg border-red-400 border" : "border-transparent"}`}>
+            {signature.signatureImageUrl ? (
+              <img
+                src={signature.signatureImageUrl}
+                alt="Sign"
+                className="w-full h-full object-contain pointer-events-none select-none"
               // (OnLoad logic Anda sebelumnya...)
-            />
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-yellow-100/50 border-2 border-dashed border-yellow-500 text-yellow-700 rounded">
-              <span className="text-xs font-bold text-center">Sign Here</span>
-            </div>
-          )}
+              />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center bg-yellow-100/50 border-2 border-dashed border-yellow-500 text-yellow-700 rounded">
+                <span className="text-xs font-bold text-center">Sign Here</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

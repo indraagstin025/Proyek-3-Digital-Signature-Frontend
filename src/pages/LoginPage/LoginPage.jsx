@@ -70,12 +70,17 @@ const LoginPage = () => {
       const { user } = await authService.login(email, password);
       setIsRedirecting(true);
 
-      const from = location.state?.from?.pathname || null;
       
-      // ✅ UBAH DI SINI: Default redirect ke /dashboard/shortcuts
-      const defaultDestination = user?.isSuperAdmin ? "/admin/dashboard" : "/dashboard/shortcuts";
-      const finalDestination = from || defaultDestination;
+      const redirectParam = searchParams.get("redirect");
 
+      // 2. Ambil dari Location State (Biasanya dari ProtectedRoute) -> Prioritas Kedua
+      const stateFrom = location.state?.from?.pathname;
+
+      // 3. Default jika tidak ada keduanya -> Prioritas Terakhir
+      const defaultDestination = user?.isSuperAdmin ? "/admin/dashboard" : "/dashboard/shortcuts";
+
+      // Gabungkan logika prioritas
+      const finalDestination = redirectParam || stateFrom || defaultDestination;
       const welcomeMessage = `Login berhasil, selamat datang ${user.name}!`;
 
       setTimeout(() => {
