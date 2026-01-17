@@ -84,7 +84,9 @@ export const signatureService = {
    */
   async analyzeDocument(documentId) {
     try {
-      const response = await apiClient.post(`documents/${documentId}/analyze`);
+      const response = await apiClient.post(`documents/${documentId}/analyze`, {}, {
+        timeout: 120000, // 120 detik untuk AI analysis (sesuai backend)
+      });
       return response.data.data;
     } catch (error) {
       console.error("❌ Error analyzeDocument:", error);
