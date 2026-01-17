@@ -112,7 +112,11 @@ const AppWrapper = () => {
 
     // Jika di halaman publik (/, /login, /register), jangan cek session
     const publicOnlyPaths = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/join", "/verify-email", "/tour", "/demo", "/features", "/privacy-policy", "/terms-and-conditions", "/auth/callback", "/forgot-password", "/reset-password"];
-    const isPublicPage = publicOnlyPaths.includes(currentPath);
+
+    // Dynamic public paths (untuk route dengan parameter seperti /verify/:signatureId)
+    const publicPathPrefixes = ["/verify/"];
+
+    const isPublicPage = publicOnlyPaths.includes(currentPath) || publicPathPrefixes.some(prefix => currentPath.startsWith(prefix));
 
     if (isPublicPage && isRefresh) {
       // Jika sudah pernah load sebelumnya dan user masuk kembali ke halaman publik, jangan cek session

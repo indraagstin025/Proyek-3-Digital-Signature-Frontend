@@ -28,6 +28,13 @@ const onRefreshComplete = (success) => {
   refreshSubscribers = [];
 };
 
+// Helper: Cek apakah path adalah halaman publik (termasuk dynamic routes)
+const isPublicPath = (path) => {
+  const publicPages = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/join", "/verify-email", "/tour", "/demo", "/features", "/privacy-policy", "/terms-and-conditions", "/auth/callback"];
+  const publicPrefixes = ["/verify/"];
+  return publicPages.includes(path) || publicPrefixes.some(prefix => path.startsWith(prefix));
+};
+
 apiClient.interceptors.request.use(
   (config) => {
     return config;
@@ -55,9 +62,8 @@ apiClient.interceptors.response.use(
       if (status === 401) {
         if (config._retry) {
           const currentPath = window.location.pathname;
-          const publicPages = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/join", "/verify-email,", "/tour", "/demo", "/features", "/privacy-policy", "/terms-and-conditions", "/auth/callback", "/forgot-password", "/reset-password"];
 
-          if (!publicPages.includes(currentPath)) {
+          if (!isPublicPath(currentPath)) {
             window.dispatchEvent(new CustomEvent("sessionExpired"));
           }
           return Promise.reject(error);
@@ -69,8 +75,7 @@ apiClient.interceptors.response.use(
 
 
           const currentPath = window.location.pathname;
-          const publicPages = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/join", "/verify-email", "/tour", "/demo", "/features", "/privacy-policy", "/terms-and-conditions", "/auth/callback", "/forgot-password", "/reset-password"];
-          if (!publicPages.includes(currentPath)) {
+          if (!isPublicPath(currentPath)) {
             window.dispatchEvent(new CustomEvent("sessionExpired"));
           }
           return Promise.reject(error);
@@ -104,9 +109,8 @@ apiClient.interceptors.response.use(
 
           if (retryError.response?.status === 401) {
             const currentPath = window.location.pathname;
-            const publicPages = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/join", "/verify-email ", "/tour", "/demo", "/features", "/privacy-policy", "/terms-and-conditions", "/auth/callback", "/forgot-password", "/reset-password"];
 
-            if (!publicPages.includes(currentPath)) {
+            if (!isPublicPath(currentPath)) {
               window.dispatchEvent(new CustomEvent("sessionExpired"));
             }
           }
