@@ -6,7 +6,7 @@ import {
   FaCheckCircle, FaChevronLeft, FaChevronRight, FaImage
 } from "react-icons/fa";
 
-// Import Gambar
+
 import foto1 from "../../assets/images/Foto1.png";
 import foto2 from "../../assets/images/Foto2.png";
 import foto3 from "../../assets/images/Foto3.jpeg";
