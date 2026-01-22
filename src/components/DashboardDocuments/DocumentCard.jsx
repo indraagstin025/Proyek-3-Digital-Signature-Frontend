@@ -1,6 +1,6 @@
 // src/components/dashboard/DocumentCard.jsx
 import React from "react";
-import { FaCheck, FaRobot, FaSignature, FaCheckCircle, FaEye, FaCog, FaTrashAlt, FaFileAlt, FaFilePdf } from "react-icons/fa";
+import { FaCheck, FaTags, FaSignature, FaCheckCircle, FaEye, FaCog, FaTrashAlt, FaFileAlt, FaFilePdf } from "react-icons/fa";
 
 const DocumentCard = ({ 
   doc, 
@@ -96,7 +96,7 @@ const DocumentCard = ({
             <div className="flex flex-wrap items-center gap-2 mt-1">
               {doc.type && doc.type !== "Uncategorized" && (
                 <div className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border tracking-wide ${getTypeColor ? getTypeColor(doc.type) : 'bg-gray-100 text-gray-600'}`}>
-                  <FaRobot className="w-2.5 h-2.5" />
+                  <FaTags className="w-2.5 h-2.5" />
                   {doc.type}
                 </div>
               )}

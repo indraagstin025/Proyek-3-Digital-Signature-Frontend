@@ -1,15 +1,13 @@
-// File: components/Group/AcceptInviteLinks.jsx
-
-import React, { useEffect, useRef } from "react"; // ✅ 1. Impor 'useRef'
+import React, { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAcceptInvitation } from "../../hooks/Group/useGroups"; // Sesuaikan path
+import { useAcceptInvitation } from "../../hooks/Group/useGroups";
 import toast from "react-hot-toast";
 import { ImSpinner9 } from "react-icons/im";
+import { useQuota } from "../../context/QuotaContext";
 
 export const AcceptInviteLinks = ({ token, onDone }) => {
   const navigate = useNavigate();
-
-  // ✅ 2. Buat 'ref' untuk menyimpan ID toast
+  const { refreshQuota } = useQuota(); // Get refresh function
   const loadingToastId = useRef(null);
 
   const { mutate: acceptInvite, isPending, isError, error, isSuccess } = useAcceptInvitation();
@@ -17,7 +15,9 @@ export const AcceptInviteLinks = ({ token, onDone }) => {
   // Handler saat sukses
   useEffect(() => {
     if (isSuccess) {
-      // ✅ 3. Perbarui toast yang ada, JANGAN buat yang baru
+      // Refresh quota agar status premium grup terupdate
+      refreshQuota();
+
       toast.success("Berhasil bergabung dengan grup!", {
         id: loadingToastId.current,
       });
@@ -27,7 +27,7 @@ export const AcceptInviteLinks = ({ token, onDone }) => {
         navigate("/dashboard/workspaces");
       }, 500);
     }
-  }, [isSuccess, onDone, navigate]);
+  }, [isSuccess, onDone, navigate, refreshQuota]);
 
   // Handler saat error
   useEffect(() => {

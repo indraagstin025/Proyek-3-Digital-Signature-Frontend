@@ -13,6 +13,28 @@ import foto3 from "../../assets/images/Foto3.jpeg";
 import foto4 from "../../assets/images/Foto4.jpeg";
 import foto5 from "../../assets/images/Foto5.jpeg";
 import foto6 from "../../assets/images/Foto6.jpeg";
+// import foto_ws1 from "../../assets/images/Foto_ws1.jpeg";
+import foto_pkt1 from "../../assets/images/FotoPkt1.png"; // Ganti dengan nama file Anda
+import foto_pkt2 from "../../assets/images/FotoPkt2.png"; // Ganti dengan nama file Anda
+import foto_pkt3 from "../../assets/images/FotoPkt3.png"; // Ganti dengan nama file Anda
+import foto_pkt4 from "../../assets/images/FotoPkt4.png"; // Ganti dengan nama file Anda
+//import gambar group settup
+import foto_group1 from "../../assets/images/FotoGroup1.png"; 
+import foto_group2 from "../../assets/images/FotoGroup2.png";
+import foto_group3 from "../../assets/images/FotoGroup3.png";
+import foto_group4 from "../../assets/images/FotoGroup4.png";
+// import GROUP NOTIFICATION
+import foto_notif1 from "../../assets/images/FotoNotif1.png";
+import foto_notif2 from "../../assets/images/FotoNotif2.png";
+import foto_notif3 from "../../assets/images/FotoNotif3.png";
+// import GROUP REALTIME
+import foto_groupRealtime1 from "../../assets/images/FotoGroupRealtime1.png";
+import foto_groupRealtime2 from "../../assets/images/FotoGroupRealtime2.png";
+import foto_groupRealtime3 from "../../assets/images/FotoGroupRealtime3.png";
+import foto_groupRealtime4 from "../../assets/images/FotoGroupRealtime4.png";
+
+
+
 
 const FeatureRow = ({
   title, description, badge, badgeColor, icon: Icon, featuresList, slides = [], isReversed
@@ -190,10 +212,10 @@ const FeaturesPage = () => {
             "Simpan semua dokumen yang sudah ditandatangani secara langsung."
           ]}
           slides={[
-            { title: "Upload Dokumen", subtitle: "Upload 2 atau lebih dokumen PDF sekaligus.", icon: FaLayerGroup },
-            { title: "Pilih Dokumen", subtitle: "Centang dokumen yang ingin ditandatangani.", icon: FaCheckCircle },
-            { title: "Tanda Tangan", subtitle: "Drag & drop tanda tangan ke setiap dokumen.", icon: FaPenNib },
-            { title: "Simpan Langsung", subtitle: "Klik simpan untuk menyimpan semua dokumen.", icon: FaBolt }
+            { src: foto_pkt1, title: "Upload Dokumen", subtitle: "Upload 2 atau lebih dokumen PDF sekaligus." },
+            { src: foto_pkt2, title: "Pilih Dokumen", subtitle: "Centang dokumen yang ingin ditandatangani.", icon: FaCheckCircle },
+            { src: foto_pkt3, title: "Tanda Tangan", subtitle: "Drag & drop tanda tangan ke setiap dokumen.", icon: FaPenNib },
+            { src: foto_pkt4, title: "Simpan Langsung", subtitle: "Klik simpan untuk menyimpan semua dokumen.", icon: FaBolt }
           ]}
         />
 
@@ -219,10 +241,10 @@ const FeaturesPage = () => {
             "Berbagi dokumen dengan seluruh anggota grup."
           ]}
           slides={[
-            { title: "Buat Grup", subtitle: "Buat room kolaborasi baru.", icon: FaUsers },
-            { title: "Invite Anggota", subtitle: "Bagikan link undangan ke tim.", icon: FaPenNib },
-            { title: "Upload Dokumen", subtitle: "Upload dokumen yang akan ditandatangani.", icon: FaLayerGroup },
-            { title: "Atur Signer", subtitle: "Pilih dan atur anggota sebagai penandatangan.", icon: FaCheckCircle }
+            { src: foto_group1, title: "Buat Grup", subtitle: "Buat room kolaborasi baru.", icon: FaUsers },
+            { src: foto_group2, title: "Invite Anggota", subtitle: "Bagikan link undangan ke tim.", icon: FaPenNib },
+            { src: foto_group3, title: "Upload Dokumen", subtitle: "Upload dokumen yang akan ditandatangani.", icon: FaLayerGroup },
+            { src: foto_group4, title: "Atur Signer", subtitle: "Pilih dan atur anggota sebagai penandatangan.", icon: FaCheckCircle }
           ]}
         />
 
@@ -241,9 +263,9 @@ const FeaturesPage = () => {
             "Reminder otomatis untuk signer yang belum menandatangani."
           ]}
           slides={[
-            { title: "Pengaturan Signer", subtitle: "Atur dan simpan daftar penandatangan.", icon: FaUsers },
-            { title: "Kirim Otomatis", subtitle: "Notifikasi WhatsApp terkirim otomatis.", icon: FaWhatsapp },
-            { title: "Akses Dokumen", subtitle: "Signer klik link untuk akses langsung.", icon: FaBolt }
+            { src: foto_notif1, title: "Pengaturan Signer", subtitle: "Atur dan simpan daftar penandatangan.", icon: FaUsers },
+            { src: foto_notif2, title: "Kirim Otomatis", subtitle: "Notifikasi WhatsApp terkirim otomatis.", icon: FaWhatsapp },
+            { src: foto_notif3, title: "Akses Dokumen", subtitle: "Signer klik link untuk akses langsung.", icon: FaBolt }
           ]}
         />
 
@@ -263,10 +285,10 @@ const FeaturesPage = () => {
             "Dokumen final siap diunduh atau dibagikan."
           ]}
           slides={[
-            { title: "Live Signing", subtitle: "Tanda tangan bersama secara realtime.", icon: FaBolt },
-            { title: "Lihat Progres", subtitle: "Pantau status setiap penandatangan.", icon: FaUsers },
-            { title: "Finalisasi", subtitle: "Pengupload memfinalisasi dokumen.", icon: FaCheckCircle },
-            { title: "Dokumen Selesai", subtitle: "Download atau bagikan dokumen final.", icon: FaLayerGroup }
+            { src: foto_groupRealtime1, title: "Live Signing", subtitle: "Tanda tangan bersama secara realtime.", icon: FaBolt },
+            { src: foto_groupRealtime2, title: "Lihat Progres", subtitle: "Pantau status setiap penandatangan.", icon: FaUsers },
+            { src: foto_groupRealtime3, title: "Finalisasi", subtitle: "Pengupload memfinalisasi dokumen.", icon: FaCheckCircle },
+            { src: foto_groupRealtime4, title: "Dokumen Selesai", subtitle: "Download atau bagikan dokumen final.", icon: FaLayerGroup }
           ]}
         />
 

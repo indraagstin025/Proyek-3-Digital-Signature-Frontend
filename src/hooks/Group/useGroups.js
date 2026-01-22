@@ -262,10 +262,7 @@ export const useUploadGroupDocument = () => {
       // Toast dihilangkan - notifikasi akan datang dari socket untuk user lain
     },
 
-    onError: (error) => {
-      const message = error?.response?.data?.message || "Gagal mengupload dokumen.";
-      toast.error(message, { id: "upload-doc-error" });
-    },
+    // onError dihilangkan agar bisa di-handle spesifik di component (UploadGroupDocumentModal)
   });
 };
 

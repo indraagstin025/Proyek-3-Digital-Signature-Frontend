@@ -88,6 +88,7 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
   const MAX_VERSIONS = isPremium ? 20 : 5;
   const currentVersionCount = versions.length;
   const isLimitReached = currentVersionCount >= MAX_VERSIONS;
+  const [activeVersionId, setActiveVersionId] = useState(initialDocument?.currentVersionId);
 
   const canManageVersions = useMemo(() => {
     if (!initialDocument || !currentUser?.id) return false;
@@ -108,6 +109,12 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
   }, [initialDocument, currentUser]);
 
   const { canPerform: canCreateVersion, reason: createVersionReason } = useCanPerformAction("create_version", currentVersionCount);
+
+  useEffect(() => {
+    if (initialDocument?.currentVersionId) {
+      setActiveVersionId(initialDocument.currentVersionId);
+    }
+  }, [initialDocument]);
 
   useEffect(() => {
     if (activeTab === "history" && initialDocument?.id) {
@@ -186,8 +193,8 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
     const toastId = toast.loading("Mengembalikan versi...");
     try {
       await documentService.useOldVersion(initialDocument.id, versionId);
+      setActiveVersionId(versionId);
       toast.success("Versi berhasil dipulihkan!", { id: toastId });
-
       onSuccess();
 
       const updatedHistory = await documentService.getDocumentHistory(initialDocument.id);
@@ -249,7 +256,7 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
 
   const getVersionStatus = (version) => {
     if (version.signedFileHash) return { label: "FINAL (SIGNED)", color: "text-green-600 bg-green-50 border-green-200" };
-    if (initialDocument?.currentVersionId === version.id) return { label: "AKTIF", color: "text-blue-600 bg-blue-50 border-blue-200" };
+    if (activeVersionId === version.id) return { label: "AKTIF", color: "text-blue-600 bg-blue-50 border-blue-200" };
     return { label: "ARSIP", color: "text-slate-500 bg-slate-50 border-slate-200" };
   };
 
@@ -285,9 +292,8 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
           <div className="flex border-b border-slate-200 dark:border-slate-700 px-6 gap-6 bg-white dark:bg-slate-900">
             <button
               onClick={() => setActiveTab("info")}
-              className={`py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "info" ? "border-blue-500 text-blue-600 dark:text-blue-400" : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-              }`}
+              className={`py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === "info" ? "border-blue-500 text-blue-600 dark:text-blue-400" : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                }`}
             >
               <div className="flex items-center gap-2">
                 <FaInfoCircle /> Informasi
@@ -295,9 +301,8 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
             </button>
             <button
               onClick={() => setActiveTab("history")}
-              className={`py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "history" ? "border-blue-500 text-blue-600 dark:text-blue-400" : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-              }`}
+              className={`py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === "history" ? "border-blue-500 text-blue-600 dark:text-blue-400" : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                }`}
             >
               <div className="flex items-center gap-2">
                 <FaHistory /> Riwayat Versi
@@ -312,9 +317,8 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
           {activeTab === "upload" && (
             <div className="space-y-6">
               <div
-                className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all ${
-                  file ? "border-blue-500 bg-blue-50 dark:bg-blue-900/10" : "border-slate-300 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500"
-                }`}
+                className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all ${file ? "border-blue-500 bg-blue-50 dark:bg-blue-900/10" : "border-slate-300 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500"
+                  }`}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleFileDrop}
               >
@@ -529,23 +533,22 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
                 <ul className="space-y-4 relative before:absolute before:left-4 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-700">
                   {versions.map((version, index) => {
                     const status = getVersionStatus(version);
-                    const isCurrent = initialDocument?.currentVersionId === version.id;
+                    const isCurrent = activeVersionId === version.id;
+                    const isOldestVersion = index === versions.length - 1;
 
                     return (
                       <li key={version.id} className="relative pl-10 group">
                         {/* Dot Indicator */}
                         <div
-                          className={`absolute left-[13px] top-6 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 transition-all ${
-                            isCurrent ? "bg-blue-500 scale-125 ring-4 ring-blue-100 dark:ring-blue-900/30" : "bg-slate-400"
-                          }`}
+                          className={`absolute left-[13px] top-6 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 transition-all ${isCurrent ? "bg-blue-500 scale-125 ring-4 ring-blue-100 dark:ring-blue-900/30" : "bg-slate-400"
+                            }`}
                         />
 
                         <div
-                          className={`p-4 rounded-xl border transition-all ${
-                            isCurrent
-                              ? "bg-blue-50/50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-800 shadow-sm"
-                              : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600"
-                          }`}
+                          className={`p-4 rounded-xl border transition-all ${isCurrent
+                            ? "bg-blue-50/50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-800 shadow-sm"
+                            : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600"
+                            }`}
                         >
                           <div className="flex justify-between items-start">
                             <div>
@@ -574,8 +577,12 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
                               )}
 
                               {/* Tombol Delete Version - HANYA untuk pemilik dokumen atau admin grup */}
-                              {!isCurrent && canManageVersions && (
-                                <button onClick={() => handleDeleteVersion(version.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Hapus Versi Permanen">
+                              {!isCurrent && !isOldestVersion && canManageVersions && (
+                                <button
+                                  onClick={() => handleDeleteVersion(version.id)}
+                                  className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                  title="Hapus Versi Permanen"
+                                >
                                   <FaTrash />
                                 </button>
                               )}

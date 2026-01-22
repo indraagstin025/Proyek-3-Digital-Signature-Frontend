@@ -14,8 +14,10 @@ export const QuotaProvider = ({ children }) => {
       setError(null);
       const data = await getQuota();
       setQuota(data);
+      return data; // 🆕 Return data untuk bisa di-await
     } catch (err) {
       setError(err);
+      return null; // 🆕 Return null jika error
     } finally {
       setLoading(false);
     }
@@ -32,8 +34,9 @@ export const QuotaProvider = ({ children }) => {
   }, []);
 
   // Refetch quota setelah aksi yang mengubah usage
+  // 🆕 Sekarang mengembalikan Promise dengan data quota
   const refreshQuota = async () => {
-    await fetchQuota();
+    return await fetchQuota();
   };
 
   const value = {

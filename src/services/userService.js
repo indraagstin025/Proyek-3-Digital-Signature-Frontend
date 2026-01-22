@@ -99,8 +99,12 @@ const deleteProfilePicture = async (pictureId) => {
  * Ambil User Quota.
  */
 const getQuota = async () => {
-  const response = await apiClient.get("/users/me/quota");
-  return response.data.data;
+  try {
+    const response = await apiClient.get("/users/me/quota");
+    return response.data.data;
+  } catch (error) {
+    throw error;
+  }
 };
 
 /**
