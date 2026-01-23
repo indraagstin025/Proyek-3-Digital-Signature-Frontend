@@ -8,6 +8,7 @@ import SignatureModal from "../components/SignatureModal/SignatureModal";
 import AiAnalysisModal from "../components/AiAnalysisModal/AiAnalysisModal";
 import MobileFloatingActions from "../components/Signature/MobileFloatingActions";
 import ProcessingModal from "../components/ProcessingModal/ProcessingModal";
+import ConnectionStatus from "../components/ConnectionStatus"; // ✅ [BARU] Status koneksi socket
 
 import PDFViewerGroup from "../components/PDFViewer/PDFViewerGroup";
 
@@ -65,6 +66,9 @@ const SignDocumentLayoutGroup = ({
     <div className="absolute inset-0 bg-slate-200 dark:bg-slate-900 overflow-hidden">
       {/* Toast Notification Container */}
       <Toaster position="top-center" containerStyle={{ zIndex: 9999 }} />
+
+      {/* ✅ [BARU] Banner Status Koneksi Socket */}
+      <ConnectionStatus />
 
       {/* HEADER */}
       <header className="fixed top-0 left-0 w-full h-16 z-50">

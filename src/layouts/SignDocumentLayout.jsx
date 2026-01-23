@@ -11,6 +11,7 @@ import PDFViewer from "../components/PDFViewer/PDFViewer";
 import AiAnalysisModal from "../components/AiAnalysisModal/AiAnalysisModal";
 import MobileFloatingActions from "../components/Signature/MobileFloatingActions";
 import ProcessingModal from "../components/ProcessingModal/ProcessingModal";
+import ConnectionStatus from "../components/ConnectionStatus"; // ✅ [BARU] Status koneksi socket
 
 const SignDocumentLayout = ({
   // Data
@@ -107,6 +108,9 @@ const SignDocumentLayout = ({
   return (
     <div className="absolute inset-0 bg-slate-200 dark:bg-slate-900 overflow-hidden">
       <Toaster position="top-center" containerStyle={{ zIndex: 9999 }} />
+
+      {/* ✅ [BARU] Banner Status Koneksi Socket */}
+      <ConnectionStatus />
 
       {/* Header */}
       <header className="fixed top-0 left-0 w-full h-16 z-50">

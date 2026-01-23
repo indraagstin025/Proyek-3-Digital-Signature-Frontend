@@ -8,32 +8,117 @@ let socket;
 
 const groupListeners = new Map();
 
+// ✅ [BARU] Track rooms yang sudah di-join untuk auto-rejoin setelah reconnect
+let currentDocumentRoom = null;
+let currentGroupRooms = new Set();
+
+// ✅ [BARU] Connection state callbacks
+const connectionCallbacks = new Set();
+
 export const socketService = {
   connect: () => {
     if (socket && socket.connected) {
       return socket;
     }
 
+    // Disconnect socket lama jika ada tapi tidak connected
+    if (socket) {
+      socket.disconnect();
+    }
+
     socket = io(SOCKET_URL, {
       withCredentials: true,
-      transports: ["websocket"],
-      reconnectionAttempts: 10,
-      reconnectionDelay: 3000,
+      // ✅ [PERBAIKAN] Coba WebSocket dulu, fallback ke polling jika gagal
+      transports: ["websocket", "polling"],
+      // ✅ [PERBAIKAN] Upgrade ke WebSocket setelah polling berhasil
+      upgrade: true,
+      // ✅ [PERBAIKAN] Unlimited reconnection attempts
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      // ✅ [PERBAIKAN] Exponential backoff: 1s, 2s, 4s, ... max 30s
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 30000,
+      randomizationFactor: 0.5,
+      // ✅ [PERBAIKAN] Timeout settings
+      timeout: 20000,
       path: "/socket.io/",
     });
 
     socket.on("connect", () => {
+      console.log("🟢 Socket connected:", socket.id);
+
+      // ✅ [BARU] Auto-rejoin document room setelah reconnect
+      if (currentDocumentRoom) {
+        console.log("🔄 Auto-rejoining document room:", currentDocumentRoom);
+        socket.emit("join_room", currentDocumentRoom);
+      }
+
+      // ✅ [BARU] Auto-rejoin group rooms setelah reconnect
+      currentGroupRooms.forEach((groupId) => {
+        console.log("🔄 Auto-rejoining group room:", groupId);
+        socket.emit("join_group_room", groupId);
+      });
+
+      // ✅ [BARU] Notify connection state change
+      connectionCallbacks.forEach(cb => cb({ connected: true, transport: socket.io.engine.transport.name }));
     });
 
     socket.on("connect_error", (err) => {
-      if (err.message.includes("Authentication error")) {
-    
+      console.error("❌ Socket connection error:", err.message);
+
+      // ✅ [BARU] Jika WebSocket gagal, akan otomatis fallback ke polling
+      if (socket.io.engine) {
+        console.log("📡 Current transport:", socket.io.engine.transport?.name);
       }
+
+      if (err.message.includes("Authentication error")) {
+        console.warn("🔐 Authentication error - token mungkin expired");
+        // Bisa trigger refresh token di sini jika perlu
+      }
+
+      connectionCallbacks.forEach(cb => cb({ connected: false, error: err.message }));
     });
 
     socket.on("disconnect", (reason) => {
-      console.warn(`${reason}`);
+      console.warn("🔴 Socket disconnected:", reason);
+      connectionCallbacks.forEach(cb => cb({ connected: false, reason }));
+
+      // ✅ [BARU] Jika disconnect karena server, coba reconnect manual
+      if (reason === "io server disconnect") {
+        // Server memutus koneksi, perlu reconnect manual
+        console.log("🔄 Server disconnected, attempting manual reconnect...");
+        socket.connect();
+      }
+      // Untuk alasan lain, Socket.IO akan otomatis reconnect
     });
+
+    // ✅ [BARU] Log ketika reconnecting
+    socket.io.on("reconnect_attempt", (attemptNumber) => {
+      console.log(`🔄 Reconnection attempt #${attemptNumber}...`);
+    });
+
+    socket.io.on("reconnect", (attemptNumber) => {
+      console.log(`✅ Reconnected after ${attemptNumber} attempts`);
+    });
+
+    socket.io.on("reconnect_failed", () => {
+      console.error("❌ Reconnection failed after all attempts");
+    });
+
+    // ✅ [BARU] Network online/offline detection
+    if (typeof window !== "undefined") {
+      window.addEventListener("online", () => {
+        console.log("🌐 Network online - attempting to reconnect...");
+        if (socket && !socket.connected) {
+          socket.connect();
+        }
+      });
+
+      window.addEventListener("offline", () => {
+        console.log("📵 Network offline");
+        connectionCallbacks.forEach(cb => cb({ connected: false, reason: "offline" }));
+      });
+    }
 
     return socket;
   },
@@ -43,15 +128,28 @@ export const socketService = {
       socket.disconnect();
       socket = null;
     }
+    // ✅ [BARU] Clear tracked rooms
+    currentDocumentRoom = null;
+    currentGroupRooms.clear();
   },
 
   joinRoom: (documentId) => {
+    // ✅ [BARU] Track room untuk auto-rejoin
+    currentDocumentRoom = documentId;
+
     if (socket && socket.connected) {
       socket.emit("join_room", documentId);
+    } else {
+      console.warn("⚠️ Socket not connected, will join room after reconnect");
     }
   },
 
   leaveRoom: (documentId) => {
+    // ✅ [BARU] Clear tracked room
+    if (currentDocumentRoom === documentId) {
+      currentDocumentRoom = null;
+    }
+
     if (socket) {
       socket.emit("leave_room", documentId);
     }
@@ -114,12 +212,20 @@ export const socketService = {
    * Bergabung ke Room Grup untuk menerima update Member & Dokumen.
    */
   joinGroupRoom: (groupId) => {
+    // ✅ [BARU] Track group room untuk auto-rejoin
+    currentGroupRooms.add(groupId);
+
     if (socket && socket.connected) {
       socket.emit("join_group_room", groupId);
+    } else {
+      console.warn("⚠️ Socket not connected, will join group room after reconnect");
     }
   },
 
   leaveGroupRoom: (groupId) => {
+    // ✅ [BARU] Clear tracked group room
+    currentGroupRooms.delete(groupId);
+
     if (socket) {
       socket.emit("leave_group_room", groupId);
     }
@@ -204,5 +310,70 @@ export const socketService = {
   },
   off: (event, callback) => {
     if (socket) socket.off(event, callback);
+  },
+
+  // ✅ [BARU] Helper functions untuk connection management
+
+  /**
+   * Cek apakah socket sedang connected
+   */
+  isConnected: () => {
+    return socket && socket.connected;
+  },
+
+  /**
+   * Dapatkan socket instance (untuk advanced usage)
+   */
+  getSocket: () => socket,
+
+  /**
+   * Subscribe ke perubahan status koneksi
+   * @param {Function} callback - Called with { connected: boolean, transport?: string, reason?: string, error?: string }
+   * @returns {Function} Unsubscribe function
+   */
+  onConnectionChange: (callback) => {
+    connectionCallbacks.add(callback);
+
+    // Immediately call with current state
+    if (socket) {
+      callback({
+        connected: socket.connected,
+        transport: socket.connected ? socket.io?.engine?.transport?.name : null
+      });
+    }
+
+    // Return unsubscribe function
+    return () => {
+      connectionCallbacks.delete(callback);
+    };
+  },
+
+  /**
+   * Force reconnect - untuk manual retry
+   */
+  forceReconnect: () => {
+    console.log("🔄 Force reconnecting...");
+
+    if (socket) {
+      socket.disconnect();
+      socket.connect();
+    } else {
+      // Jika socket belum pernah dibuat, panggil connect
+      socketService.connect();
+    }
+  },
+
+  /**
+   * Get current connection info
+   */
+  getConnectionInfo: () => {
+    if (!socket) {
+      return { connected: false, transport: null, id: null };
+    }
+    return {
+      connected: socket.connected,
+      transport: socket.io?.engine?.transport?.name || null,
+      id: socket.id || null,
+    };
   },
 };
