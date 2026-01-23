@@ -95,7 +95,39 @@ const WorkspaceInfoCard = () => {
   );
 };
 
-// --- 3. [BARU] KOMPONEN: GROUP CARD (Reusable) ---
+// --- 3. [BARU] KOMPONEN: PHONE ALERT ---
+const PhoneNumberAlert = ({ onClose }) => (
+  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 dark:from-emerald-600 dark:to-teal-700 shadow-lg shadow-emerald-500/20 mb-8 p-1">
+    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none -mr-10 -mt-10"></div>
+    <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 relative z-10">
+      <div className="p-3 bg-white/20 rounded-full text-white shrink-0">
+        <FaWhatsapp className="w-6 h-6" />
+      </div>
+      <div className="flex-1 text-white">
+        <h4 className="text-lg font-bold mb-1">Lengkapi Profil Anda</h4>
+        <p className="text-sm text-emerald-50 leading-relaxed opacity-90">
+          Agar Anda mendapatkan notifikasi dokumen baru via <strong>WhatsApp</strong>, silakan lengkapi nomor telepon Anda di halaman profil.
+        </p>
+      </div>
+      <div className="flex items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+        <button
+          onClick={onClose}
+          className="px-4 py-2 rounded-lg text-sm font-semibold text-emerald-100 hover:bg-emerald-700/30 transition-colors"
+        >
+          Nanti Saja
+        </button>
+        <Link
+          to="/dashboard/profile"
+          className="px-5 py-2.5 rounded-lg text-sm font-bold bg-white text-emerald-600 shadow-sm hover:bg-emerald-50 transition-colors active:scale-95"
+        >
+          Isi Sekarang
+        </Link>
+      </div>
+    </div>
+  </div>
+);
+
+// --- 4. KOMPONEN: GROUP CARD (Reusable) ---
 const GroupCard = ({ group, isOwner }) => {
   return (
     <Link
@@ -113,10 +145,10 @@ const GroupCard = ({ group, isOwner }) => {
       <div className="relative z-10 pl-2">
         <div className="flex justify-between items-start mb-3">
           <div className={`p-2.5 rounded-xl text-slate-500 dark:text-slate-400 transition-all duration-300 shadow-sm
-                ${isOwner 
-                    ? 'bg-slate-100 dark:bg-slate-700/50 group-hover:bg-gradient-to-br group-hover:from-blue-500 group-hover:to-cyan-400 group-hover:text-white' 
-                    : 'bg-slate-100 dark:bg-slate-700/50 group-hover:bg-gradient-to-br group-hover:from-purple-500 group-hover:to-pink-400 group-hover:text-white'
-                }`}
+                ${isOwner
+              ? 'bg-slate-100 dark:bg-slate-700/50 group-hover:bg-gradient-to-br group-hover:from-blue-500 group-hover:to-cyan-400 group-hover:text-white'
+              : 'bg-slate-100 dark:bg-slate-700/50 group-hover:bg-gradient-to-br group-hover:from-purple-500 group-hover:to-pink-400 group-hover:text-white'
+            }`}
           >
             {isOwner ? <FaUsers className="text-lg" /> : <FaSignInAlt className="text-lg" />}
           </div>
@@ -154,6 +186,8 @@ const GroupCard = ({ group, isOwner }) => {
 const DashboardWorkspaces = ({ theme }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const navigate = useNavigate();
+  // State untuk alert phone number
+  const [isPhoneAlertVisible, setIsPhoneAlertVisible] = useState(true);
 
   // Ambil Context User
   const context = useOutletContext();
@@ -164,17 +198,17 @@ const DashboardWorkspaces = ({ theme }) => {
 
   const isPremium = user?.userStatus === "PREMIUM" || user?.userStatus === "PREMIUM_YEARLY";
   const MAX_GROUPS = isPremium ? 10 : 1;
-  
+
   // 🔥 Filter Grup: Milik Saya vs Gabung
-const { myWorkspaces, joinedWorkspaces } = useMemo(() => {
+  const { myWorkspaces, joinedWorkspaces } = useMemo(() => {
     if (!groups) return { myWorkspaces: [], joinedWorkspaces: [] };
-    
+
     // Sekarang Backend sudah mengirim 'ownerId', jadi filter ini akan BERHASIL
-    const my = groups.filter(g => g.ownerId === user?.id); 
+    const my = groups.filter(g => g.ownerId === user?.id);
     const joined = groups.filter(g => g.ownerId !== user?.id);
-    
+
     return { myWorkspaces: my, joinedWorkspaces: joined };
-}, [groups, user]);
+  }, [groups, user]);
 
   const currentGroupCount = myWorkspaces.length; // Limit dihitung berdasarkan workspace yang dibuat sendiri
   const isLimitReached = currentGroupCount >= MAX_GROUPS;
@@ -225,7 +259,12 @@ const { myWorkspaces, joinedWorkspaces } = useMemo(() => {
   return (
     <div className="h-full w-full overflow-y-auto custom-scrollbar">
       <div id="tab-workspaces" className="mx-auto max-w-screen-xl px-4 pt-6 pb-24 sm:px-6 lg:px-8">
-        
+
+        {/* Render Alert jika belum punya nomor HP */}
+        {(!user?.phoneNumber || user?.phoneNumber.length < 5) && isPhoneAlertVisible && (
+          <PhoneNumberAlert onClose={() => setIsPhoneAlertVisible(false)} />
+        )}
+
         {!isPremium && <UpgradeBanner />}
         <WorkspaceInfoCard />
 
@@ -274,22 +313,22 @@ const { myWorkspaces, joinedWorkspaces } = useMemo(() => {
         {/* --- SECTION: JOINED WORKSPACES --- */}
         {/* Hanya tampilkan jika ada workspace yang diikuti */}
         {joinedWorkspaces.length > 0 && (
-            <div className="animate-fade-in">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-slate-200 dark:border-slate-700/60 pb-5">
-                    <div>
-                        <h3 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                            Workspace Kolaborasi
-                        </h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Grup tempat Anda bergabung sebagai anggota.</p>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {joinedWorkspaces.map((group) => (
-                        <GroupCard key={group.id} group={group} isOwner={false} />
-                    ))}
-                </div>
+          <div className="animate-fade-in">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-slate-200 dark:border-slate-700/60 pb-5">
+              <div>
+                <h3 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                  Workspace Kolaborasi
+                </h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Grup tempat Anda bergabung sebagai anggota.</p>
+              </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {joinedWorkspaces.map((group) => (
+                <GroupCard key={group.id} group={group} isOwner={false} />
+              ))}
+            </div>
+          </div>
         )}
 
       </div>
