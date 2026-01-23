@@ -7,10 +7,23 @@ const OnboardingTour = ({ tourKey, steps, onOpenSidebar }) => {
 
   useEffect(() => {
     const checkTourStatus = async () => {
+      // Dapatkan User ID dari localStorage untuk namespace key
+      let userId = "anon";
+      try {
+        const authUserStr = localStorage.getItem("authUser");
+        if (authUserStr) {
+          const authUser = JSON.parse(authUserStr);
+          userId = authUser.id || "anon";
+        }
+      } catch (e) {
+        console.error("Error parsing authUser", e);
+      }
+
+      const storageKey = `tour_done_${userId}_${tourKey}`;
+
       // [1] CEK LOCALSTORAGE (Pengecekan Instan)
-      // Jika di browser ini sudah ditandai selesai, jangan jalankan lagi.
-      // Ini mencegah tour muncul sesaat sebelum data API dimuat.
-      const localStatus = localStorage.getItem(`tour_done_${tourKey}`);
+      // Gunakan key spesifik user agar tidak bentrok antar akun di browser yang sama
+      const localStatus = localStorage.getItem(storageKey);
       if (localStatus === "true") {
         setRun(false);
         return;
@@ -22,10 +35,10 @@ const OnboardingTour = ({ tourKey, steps, onOpenSidebar }) => {
         const user = await userService.getMyProfile();
         if (user) {
           const progress = user.tourProgress || {};
-          
+
           // Jika di database sudah true, tapi di local belum, sinkronkan local
           if (progress[tourKey]) {
-            localStorage.setItem(`tour_done_${tourKey}`, "true");
+            localStorage.setItem(storageKey, "true");
             setRun(false);
           } else {
             // Jika di database juga belum, baru jalankan Tour
@@ -59,8 +72,20 @@ const OnboardingTour = ({ tourKey, steps, onOpenSidebar }) => {
     if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
       setRun(false); // Stop UI Tour
 
+      // Dapatkan User ID lagi untuk storage key
+      let userId = "anon";
+      try {
+        const authUserStr = localStorage.getItem("authUser");
+        if (authUserStr) {
+          const authUser = JSON.parse(authUserStr);
+          userId = authUser.id || "anon";
+        }
+      } catch (e) { console.error(e); }
+
+      const storageKey = `tour_done_${userId}_${tourKey}`;
+
       // A. Simpan ke LocalStorage (Agar refresh instan aman)
-      localStorage.setItem(`tour_done_${tourKey}`, "true");
+      localStorage.setItem(storageKey, "true");
 
       // B. Simpan ke Database (Agar tersimpan permanen di akun)
       try {
@@ -88,9 +113,9 @@ const OnboardingTour = ({ tourKey, steps, onOpenSidebar }) => {
       // --- STYLING (Tetap Sama) ---
       styles={{
         options: {
-          zIndex: 10000, 
+          zIndex: 10000,
           primaryColor: '#2563EB',
-          overlayColor: 'rgba(15, 23, 42, 0.75)', 
+          overlayColor: 'rgba(15, 23, 42, 0.75)',
           width: 420,
         },
         tooltip: {
@@ -141,7 +166,7 @@ const OnboardingTour = ({ tourKey, steps, onOpenSidebar }) => {
           fontWeight: '500',
         }
       }}
-      
+
       locale={{
         back: 'Kembali', close: 'Tutup', last: 'Selesai!', next: 'Lanjut →', skip: 'Lewati',
       }}

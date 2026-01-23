@@ -9,6 +9,7 @@ import {
 } from "react-icons/hi";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 import { ImSpinner9 } from "react-icons/im";
+import { FcGoogle } from "react-icons/fc";
 
 import nameLogo from "../../assets/images/WeSign.png";
 
@@ -220,6 +221,23 @@ const RegisterPage = () => {
               )}
             </button>
           </div>
+
+          {/* DIVIDER */}
+          <div className="flex items-center gap-4 my-2">
+            <div className="h-px bg-slate-300 dark:bg-slate-700 flex-1"></div>
+            <span className="text-xs text-slate-400 font-medium">ATAU</span>
+            <div className="h-px bg-slate-300 dark:bg-slate-700 flex-1"></div>
+          </div>
+
+          {/* GOOGLE BUTTON */}
+          <button
+            type="button"
+            onClick={() => authService.loginWithGoogle()}
+            className="w-full flex items-center justify-center gap-2 bg-white dark:bg-white/10 border border-slate-300 dark:border-white/20 text-slate-700 dark:text-white font-semibold py-2.5 px-4 rounded-lg hover:bg-slate-50 dark:hover:bg-white/20 transition-all active:scale-95"
+          >
+            <FcGoogle className="w-5 h-5" />
+            <span>Daftar dengan Google</span>
+          </button>
         </form>
 
         <div className="mt-8 text-center">
