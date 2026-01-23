@@ -14,6 +14,7 @@ import { GroupMembers } from "./GroupMembers";
 import { GroupSettings } from "./GroupSettings";
 import { HiOutlineDocumentText, HiOutlineUsers, HiOutlineCog } from "react-icons/hi";
 import { ImSpinner9 } from "react-icons/im";
+import ConnectionStatus from "../../components/ConnectionStatus"; // ✅ [BARU] Status koneksi socket
 
 // --- KOMPONEN TAB BUTTON (Tidak Berubah) ---
 const TabButton = ({ icon, label, count, isActive, onClick }) => (
@@ -145,7 +146,9 @@ const GroupDetailPage = () => {
   }
 
   return (
-    <div className="h-[calc(100vh-64px)] flex flex-col mx-auto max-w-screen-xl px-2 sm:px-6 lg:px-8 py-4 sm:py-6">
+    <div className="h-[calc(100vh-64px)] flex flex-col mx-auto max-w-screen-xl px-2 sm:px-6 lg:px-8 py-4 sm:py-6 relative">
+      <ConnectionStatus /> {/* ✅ [BARU] Banner Status Koneksi */}
+
       {/* 1. HEADER GRUP */}
       <div className="flex-none bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700 mb-5 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-500">
         <div className="h-1.5 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
