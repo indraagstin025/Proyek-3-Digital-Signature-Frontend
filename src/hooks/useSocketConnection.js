@@ -17,11 +17,14 @@ import { socketService } from '../services/socketService';
  * }
  */
 export const useSocketConnection = () => {
-    const [connectionState, setConnectionState] = useState({
-        isConnected: false,
-        transport: null,
-        error: null,
-        reason: null,
+    const [connectionState, setConnectionState] = useState(() => {
+        const info = socketService.getConnectionInfo();
+        return {
+            isConnected: info.connected,
+            transport: info.transport,
+            error: null,
+            reason: null,
+        };
     });
 
     useEffect(() => {
