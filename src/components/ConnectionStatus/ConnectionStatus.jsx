@@ -21,6 +21,8 @@ const ConnectionStatus = () => {
         return null;
     }
 
+    console.log("[ConnectionStatus] Rendering Banner. Reason:", reason, "Error:", error);
+
     // Tentukan pesan berdasarkan reason
     const getMessage = () => {
         if (reason === 'offline') {

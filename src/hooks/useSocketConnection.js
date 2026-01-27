@@ -19,6 +19,7 @@ import { socketService } from '../services/socketService';
 export const useSocketConnection = () => {
     const [connectionState, setConnectionState] = useState(() => {
         const info = socketService.getConnectionInfo();
+        console.log("[useSocketConnection] Initial State:", info);
         return {
             isConnected: info.connected,
             transport: info.transport,
@@ -30,6 +31,7 @@ export const useSocketConnection = () => {
     useEffect(() => {
         // Subscribe ke connection changes
         const unsubscribe = socketService.onConnectionChange((state) => {
+            console.log("[useSocketConnection] State Update:", state);
             setConnectionState({
                 isConnected: state.connected,
                 transport: state.transport || null,

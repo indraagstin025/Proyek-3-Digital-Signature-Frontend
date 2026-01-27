@@ -55,24 +55,25 @@ export const socketService = {
 
       // ✅ [BARU] Auto-rejoin group rooms setelah reconnect
       currentGroupRooms.forEach((groupId) => {
-        console.log("🔄 Auto-rejoining group room:", groupId);
+        console.log("🔄 [SocketService] Auto-rejoining group room:", groupId);
         socket.emit("join_group_room", groupId);
       });
 
       // ✅ [BARU] Notify connection state change
+      console.log("[SocketService] Notify connectionCallbacks (Connected)");
       connectionCallbacks.forEach(cb => cb({ connected: true, transport: socket.io.engine.transport.name }));
     });
 
     socket.on("connect_error", (err) => {
-      console.error("❌ Socket connection error:", err.message);
+      console.error("❌ [SocketService] Connection error:", err.message, err);
 
       // ✅ [BARU] Jika WebSocket gagal, akan otomatis fallback ke polling
       if (socket.io.engine) {
-        console.log("📡 Current transport:", socket.io.engine.transport?.name);
+        console.log("📡 [SocketService] Current transport:", socket.io.engine.transport?.name);
       }
 
       if (err.message.includes("Authentication error")) {
-        console.warn("🔐 Authentication error - token mungkin expired");
+        console.warn("🔐 [SocketService] Authentication error - token mungkin expired");
         // Bisa trigger refresh token di sini jika perlu
       }
 
@@ -80,7 +81,7 @@ export const socketService = {
     });
 
     socket.on("disconnect", (reason) => {
-      console.warn("🔴 Socket disconnected:", reason);
+      console.warn("🔴 [SocketService] Disconnected:", reason);
       connectionCallbacks.forEach(cb => cb({ connected: false, reason }));
 
       // ✅ [BARU] Jika disconnect karena server, coba reconnect manual
