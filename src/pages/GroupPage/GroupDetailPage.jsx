@@ -77,6 +77,8 @@ const GroupDetailPage = () => {
     // Event Handlers
     const handleMemberUpdate = () => queryClient.invalidateQueries(["group", gId]);
     const handleDocumentUpdate = (data) => {
+      // ✅ [CRITICAL FIX] ALWAYS invalidate dulu, termasuk untuk actor
+      // Ini memastikan user yang rollback/sign juga langsung dapat update UI
       queryClient.invalidateQueries(["group", gId]);
 
       // Cek apakah user saat ini adalah actor (gunakan actorId dari backend)
@@ -87,6 +89,7 @@ const GroupDetailPage = () => {
       const actorMember = groupData?.members?.find((m) => m.userId === data.actorId);
       const actorName = actorMember?.user?.name || data.uploaderName || "Anggota";
 
+      // HANYA tampilkan toast untuk user lain (bukan actor)
       if (data.action === "new_document" && !isActor) {
         toast.success(`${actorName} menambahkan dokumen baru.`, {
           id: `new-doc-${data.document?.id || Date.now()}`,
@@ -108,6 +111,17 @@ const GroupDetailPage = () => {
       } else if (data.action === "rollback_version" && !isActor) {
         const docTitle = data.document?.title || "Dokumen";
         toast.success(`Dokumen "${docTitle}" dikembalikan ke versi sebelumnya oleh ${actorName}.`, {
+          id: `rollback-${data.documentId}`,
+          icon: "↺",
+        });
+      } else if (data.action === "signature_added" && !isActor) {
+        // ✅ [FIX REALTIME] Update signature count tanpa toast (terlalu spammy)
+        // Query sudah di-invalidate di atas, cukup log untuk debugging
+        console.log(`📝 [Realtime] ${actorName} menandatangani dokumen "${data.document?.title}"`);
+      } else if (data.action === "document_rolled_back" && !isActor) {
+        // Alternative action name untuk rollback (jika backend punya 2 event berbeda)
+        const docTitle = data.document?.title || "Dokumen";
+        toast.success(`${actorName} rollback dokumen "${docTitle}".`, {
           id: `rollback-${data.documentId}`,
           icon: "↺",
         });
