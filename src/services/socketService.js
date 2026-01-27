@@ -1,4 +1,5 @@
 import { io } from "socket.io-client";
+import authService from "./authService"; // Import authService
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (import.meta.env.MODE === "production" ? "https://api.moodvis.my.id" : "http://localhost:3000");
 
@@ -72,9 +73,23 @@ export const socketService = {
         console.log("📡 [SocketService] Current transport:", socket.io.engine.transport?.name);
       }
 
-      if (err.message.includes("Authentication error")) {
-        console.warn("🔐 [SocketService] Authentication error - token mungkin expired");
-        // Bisa trigger refresh token di sini jika perlu
+      // ✅ [FIX] Auto Refresh Token jika Socket Auth Gagal
+      if (err.message.includes("Authentication error") || err.message.includes("Invalid or expired") || err.message.includes("Access token missing")) {
+        console.warn("🔐 [SocketService] Auth error detected. Attempting to refresh token...");
+
+        // Panggil getMe() untuk memicu axios interceptor refresh token
+        authService.getMe()
+          .then(() => {
+            console.log("✅ [SocketService] Token refreshed successfully. Reconnecting...");
+            // Force reconnect dengan cookie baru
+            socket.disconnect();
+            socket.connect();
+          })
+          .catch((refreshErr) => {
+            console.error("❌ [SocketService] Token refresh failed:", refreshErr);
+            // Jika refresh gagal (misal session habis total), user mungkin perlu login ulang
+            // Event 'auth-update' dari authService akan menangani logout UI jika 401
+          });
       }
 
       connectionCallbacks.forEach(cb => cb({ connected: false, error: err.message }));
