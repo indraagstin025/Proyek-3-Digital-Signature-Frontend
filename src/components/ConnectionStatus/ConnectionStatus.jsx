@@ -24,11 +24,11 @@ const ConnectionStatus = () => {
             return;
         }
 
-        // Jika disconnected, tunggu 2 detik sebelum menampilkan banner
-        // Ini mencegah flashing saat refresh page atau transport upgrade (polling -> websocket)
+        // Jika disconnected, tunggu 5 detik sebelum menampilkan banner
+        // Ini mencegah flashing saat refresh page atau transport upgrade dan toleransi sinyal mobile lemah
         const timer = setTimeout(() => {
             setShowBanner(true);
-        }, 2000);
+        }, 5000);
 
         return () => clearTimeout(timer);
     }, [isConnected]);
@@ -46,7 +46,7 @@ const ConnectionStatus = () => {
             return 'Tidak ada koneksi internet';
         }
         if (error?.includes('Authentication')) {
-            return 'Sesi Anda telah berakhir. Silakan refresh halaman.';
+            return 'Sesi Anda telah berakhir.';
         }
         return 'Koneksi terputus. Mencoba menyambung kembali...';
     };
@@ -60,14 +60,26 @@ const ConnectionStatus = () => {
                 <span className="connection-status-message">
                     {getMessage()}
                 </span>
-                <button
-                    className="connection-status-retry"
-                    onClick={forceReconnect}
-                    title="Coba sambungkan kembali"
-                >
-                    <IoRefresh className="refresh-icon" />
-                    <span>Coba Lagi</span>
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        className="connection-status-retry"
+                        onClick={forceReconnect}
+                        title="Coba sambungkan kembali"
+                    >
+                        <IoRefresh className="refresh-icon" />
+                        <span>Coba Lagi</span>
+                    </button>
+                    {/* Tombol Reload untuk solusi pamungkas jika cookie/socket nyangkut */}
+                    <button
+                        className="connection-status-retry"
+                        style={{ backgroundColor: '#dc2626' }} // Merah untuk refresh hard
+                        onClick={() => window.location.reload()}
+                        title="Muat ulang halaman"
+                    >
+                        <IoRefresh className="refresh-icon" />
+                        <span>Refresh</span>
+                    </button>
+                </div>
             </div>
         </div>
     );
