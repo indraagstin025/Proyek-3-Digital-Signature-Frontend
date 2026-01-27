@@ -29,9 +29,10 @@ export const socketService = {
 
     socket = io(SOCKET_URL, {
       withCredentials: true,
-      // ✅ [PERBAIKAN] Coba WebSocket dulu, fallback ke polling jika gagal
-      transports: ["websocket", "polling"],
-      // ✅ [PERBAIKAN] Upgrade ke WebSocket setelah polling berhasil
+      // ✅ [FIX CRITICAL] Polling dulu untuk ensure cookies terkirim, baru upgrade ke WebSocket
+      // WebSocket-first sering gagal kirim cookies di production (browser security)
+      transports: ["polling", "websocket"],
+      // ✅ [PERBAIKAN] Auto-upgrade ke WebSocket setelah polling berhasil auth
       upgrade: true,
       // ✅ [PERBAIKAN] Unlimited reconnection attempts
       reconnection: true,
