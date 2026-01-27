@@ -15,9 +15,25 @@ import './ConnectionStatus.css';
  */
 const ConnectionStatus = () => {
     const { isConnected, forceReconnect, reason, error } = useSocketConnection();
+    const [showBanner, setShowBanner] = React.useState(false);
 
-    // Jika connected, tidak perlu tampilkan apa-apa
-    if (isConnected) {
+    React.useEffect(() => {
+        if (isConnected) {
+            setShowBanner(false);
+            return;
+        }
+
+        // Jika disconnected, tunggu 2 detik sebelum menampilkan banner
+        // Ini mencegah flashing saat refresh page atau transport upgrade (polling -> websocket)
+        const timer = setTimeout(() => {
+            setShowBanner(true);
+        }, 2000);
+
+        return () => clearTimeout(timer);
+    }, [isConnected]);
+
+    // Jika connected atau belum melewati grace period, sembunyikan
+    if (isConnected || !showBanner) {
         return null;
     }
 
