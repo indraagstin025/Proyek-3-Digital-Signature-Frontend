@@ -263,7 +263,14 @@ export const useUploadGroupDocument = () => {
     },
 
     onError: (error) => {
-      const message = error?.response?.data?.message || "Gagal mengupload dokumen.";
+      // Fix: Support both generic Axios error and unwrapped error
+      const errorCode = error?.code || error?.response?.data?.code;
+      const message = error?.message || error?.response?.data?.message || "Gagal mengupload dokumen.";
+
+      if (errorCode === "DUPLICATE_FILE" || errorCode === "DUPLICATE_TITLE") {
+        return; // Handled by component
+      }
+
       toast.error(message, { id: "upload-doc-error" });
     },
   });

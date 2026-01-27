@@ -68,11 +68,16 @@ export const GroupDocuments = ({ documents, groupId, groupData, members, current
   const usagePercentage = Math.min((currentDocCount / MAX_DOCS) * 100, 100);
 
   // --- SOFT LOCK DETECTION ---
-  const { canPerform: canCreateDoc, reason: createDocReason, isAtLimit: isDocLimitAtLimit } = useCanPerformAction("create_document", currentDocCount);
+  const { canPerform: canCreateDoc, reason: createDocReason, isAtLimit: isDocLimitAtLimit, loading: quotaLoading } = useCanPerformAction("create_document", currentDocCount);
 
   // --- HANDLERS ---
 
   const handleUploadClick = () => {
+    if (quotaLoading) {
+      toast.loading("Memuat data kuota...", { id: "quota-load" });
+      return;
+    }
+
     // Check soft lock
     if (!canCreateDoc) {
       setSoftLockError({

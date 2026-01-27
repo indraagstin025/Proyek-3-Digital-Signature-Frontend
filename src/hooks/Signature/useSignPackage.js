@@ -25,7 +25,7 @@ export const useSignPackage = () => {
 
   // --- State: Signatures ---
   // Map untuk menyimpan signature per dokumen: Map<DocId, Array<Signature>>
-  const [allSignatures, setAllSignatures] = useState(new Map()); 
+  const [allSignatures, setAllSignatures] = useState(new Map());
   const [currentSignatures, setCurrentSignatures] = useState([]);
   const [savedSignatureUrl, setSavedSignatureUrl] = useState(null);
   const [includeQrCode, setIncludeQrCode] = useState(true);
@@ -90,7 +90,7 @@ export const useSignPackage = () => {
       try {
         setIsLoading(true);
         const details = await packageService.getPackageDetails(packageId);
-        
+
         if (!details || !details.documents || details.documents.length === 0) {
           throw new Error("Paket ini tidak valid atau tidak berisi dokumen.");
         }
@@ -135,8 +135,8 @@ export const useSignPackage = () => {
         if (isMounted) {
           // Jika sudah ada blob sebelumnya, revoke dulu (opsional, tapi bagus untuk memory)
           setCurrentPdfBlobUrl((prev) => {
-             if (prev) URL.revokeObjectURL(prev);
-             return blobUrl;
+            if (prev) URL.revokeObjectURL(prev);
+            return blobUrl;
           });
           blobUrlToRevoke = blobUrl;
         } else {
@@ -145,10 +145,10 @@ export const useSignPackage = () => {
         }
       } catch (err) {
         if (err.name === 'AbortError') {
-            console.log("Fetch PDF dibatalkan (Navigation change).");
-            return;
+          console.log("Fetch PDF dibatalkan (Navigation change).");
+          return;
         }
-        
+
         if (isMounted) {
           console.error("PDF Load Error:", err);
           setError(`Gagal memuat ${currentDocumentTitle}`);
@@ -170,7 +170,7 @@ export const useSignPackage = () => {
         setTimeout(() => URL.revokeObjectURL(blobUrlToRevoke), 5000);
       }
     };
-  }, [currentPackageDocument, currentDocumentTitle]); 
+  }, [currentPackageDocument, currentDocumentTitle]);
   // Dependency cukup currentPackageDocument saja sebenarnya, tapi title ok untuk memastikan update
 
   // --- Effect: Handle Offline Event (Visual Only) ---
@@ -244,7 +244,7 @@ export const useSignPackage = () => {
     const toastId = toast.loading("🤖 AI sedang membaca...");
     try {
       const result = await signatureService.autoTagDocument(docId);
-      
+
       if (result.data && result.data.length > 0) {
         const aiSignatures = result.data.map((sig) => ({
           id: sig.id,
@@ -287,27 +287,27 @@ export const useSignPackage = () => {
       // 1. Simpan tanda tangan halaman saat ini ke Map 'allSignatures'
       if (currentPackageDocument) {
         setAllSignatures((prev) => {
-            const newMap = new Map(prev);
-            newMap.set(currentPackageDocument.id, currentSignatures);
-            return newMap;
+          const newMap = new Map(prev);
+          newMap.set(currentPackageDocument.id, currentSignatures);
+          return newMap;
         });
       }
 
       // 2. Reset State UI untuk halaman baru
       setAiAnalysisData(null);
       setIsAiModalOpen(false);
-      
+
       // 3. Pindah Index
       setCurrentIndex(nextIndex);
 
       // 4. Muat tanda tangan untuk halaman baru dari Map
       const nextDocId = packageDetails.documents[nextIndex].id;
-      
+
       // Menggunakan functional update untuk memastikan kita mengambil data terbaru dari Map
       setAllSignatures((prevMap) => {
-          const existingSignatures = prevMap.get(nextDocId) || [];
-          setCurrentSignatures(existingSignatures);
-          return prevMap; // Kembalikan map yang sama (karena kita hanya ingin baca, bukan ubah map di sini)
+        const existingSignatures = prevMap.get(nextDocId) || [];
+        setCurrentSignatures(existingSignatures);
+        return prevMap; // Kembalikan map yang sama (karena kita hanya ingin baca, bukan ubah map di sini)
       });
 
       toast.success(`Memuat: ${packageDetails.documents[nextIndex].docVersion?.document?.title}`);
@@ -343,7 +343,7 @@ export const useSignPackage = () => {
     }
 
     // --- PROSES SUBMIT (Dokumen Terakhir) ---
-    
+
     // 1. Susun Payload
     const finalSignaturesPayload = [];
     newAllSignatures.forEach((signatures, packageDocId) => {
@@ -365,8 +365,8 @@ export const useSignPackage = () => {
     });
 
     if (finalSignaturesPayload.length === 0) {
-        toast.error("Tidak ada tanda tangan valid yang ditemukan di seluruh dokumen.");
-        return;
+      toast.error("Tidak ada tanda tangan valid yang ditemukan di seluruh dokumen.");
+      return;
     }
 
     if (isSubmitting) return; // Prevent double click
@@ -398,7 +398,7 @@ export const useSignPackage = () => {
       // Beri sedikit delay agar user melihat progress bar penuh
       setTimeout(() => {
         if (isForceCancelledRef.current) return;
-        
+
         setIsProcessingModalOpen(false);
         setIsSubmitting(false);
         toast.success("Berhasil tersimpan!");
@@ -417,28 +417,35 @@ export const useSignPackage = () => {
 
       // LOGGING DETAIL untuk debugging
       console.error("❌ Submit Failed Detailed:", {
-          status: err.response?.status,
-          backendMessage,
-          errorMessage,
-          payload: finalSignaturesPayload
+        status: err.response?.status,
+        backendMessage,
+        errorMessage,
+        payload: finalSignaturesPayload
       });
 
-      // Handling khusus status 400 (Bad Request)
-      if (err.response?.status === 400) {
-          toast.error(`Gagal Validasi: ${backendMessage || "Periksa posisi tanda tangan Anda."}`);
-          return;
-      }
+      // Handling khusus status 400/409 (Conflict/Bad Request)
+      if (err.response?.status === 400 || err.response?.status === 409) {
+        // Cek jika pesan error mengindikasikan sudah ditandatangani
+        const isAlreadySigned = backendMessage && (
+          backendMessage.toLowerCase().includes("selesai") ||
+          backendMessage.toLowerCase().includes("completed") ||
+          backendMessage.toLowerCase().includes("already signed") ||
+          backendMessage.toLowerCase().includes("sudah ditandatangani")
+        );
 
-      // Handling logic sukses tapi message aneh
-      if (backendMessage && (backendMessage.includes("selesai") || backendMessage.includes("completed") || backendMessage.includes("already signed"))) {
-        toast.success("Dokumen sebenarnya sudah tersimpan!");
-        navigate("/dashboard/packages");
+        if (isAlreadySigned) {
+          toast.success("Dokumen sudah berhasil ditandatangani!", { icon: "✅" });
+          navigate("/dashboard/packages");
+          return;
+        }
+
+        toast.error(`Gagal Validasi: ${backendMessage || "Periksa posisi tanda tangan Anda."}`);
         return;
       }
 
       // Handling Offline khusus
-      if (errorMessage === "Offline-Detected") {
-        toast.error("Koneksi terputus. Gagal menyimpan data.", { id: "save-offline-err" });
+      if (errorMessage === "Offline-Detected" || errorMessage === "Network Error") {
+        toast.error("Koneksi terputus. Mohon periksa internet Anda dan coba lagi.", { id: "save-package-offline-err", duration: 5000 });
         return;
       }
 
@@ -470,6 +477,7 @@ export const useSignPackage = () => {
     isLandscape,
     isSignatureModalOpen,
     isProcessingModalOpen,
+    isSaving: isProcessingModalOpen,
     progressIndex,
     isAiModalOpen,
     isAiLoading,

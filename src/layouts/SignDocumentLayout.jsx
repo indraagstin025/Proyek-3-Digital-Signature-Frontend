@@ -10,7 +10,7 @@ import SignatureModal from "../components/SignatureModal/SignatureModal";
 import PDFViewer from "../components/PDFViewer/PDFViewer";
 import AiAnalysisModal from "../components/AiAnalysisModal/AiAnalysisModal";
 import MobileFloatingActions from "../components/Signature/MobileFloatingActions";
-import ProcessingModal from "../components/ProcessingModal/ProcessingModal";
+import ProcessStatus from "../components/ProcessStatus/ProcessStatus";
 import ConnectionStatus from "../components/ConnectionStatus"; // ✅ [BARU] Status koneksi socket
 
 const SignDocumentLayout = ({
@@ -192,7 +192,7 @@ const SignDocumentLayout = ({
         <SignatureModal onSave={onSaveFromModal} onClose={() => setIsSignatureModalOpen(false)} />
       )}
 
-      <ProcessingModal isOpen={isSaving} />
+      <ProcessStatus isOpen={isSaving} />
     </div>
   );
 };

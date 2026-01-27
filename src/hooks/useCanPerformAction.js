@@ -21,7 +21,7 @@ import { useQuota } from "../context/QuotaContext";
  * }
  */
 export const useCanPerformAction = (actionType, currentValue) => {
-  const { quota } = useQuota();
+  const { quota, loading } = useQuota();
 
   if (!quota) {
     return {
@@ -30,6 +30,7 @@ export const useCanPerformAction = (actionType, currentValue) => {
       isAtLimit: false,
       currentUsage: currentValue,
       limit: null,
+      loading: loading || false, // Ensure value
     };
   }
 
@@ -83,10 +84,11 @@ export const useCanPerformAction = (actionType, currentValue) => {
       isAtLimit: false,
       currentUsage: currentValue,
       limit: null,
+      loading: loading || false,
     };
   }
 
-  const isAtLimit = config.currentUsage >= config.limit;
+  const isAtLimit = config.currentUsage > config.limit;
   const canPerform = !isAtLimit;
 
   return {
@@ -96,7 +98,8 @@ export const useCanPerformAction = (actionType, currentValue) => {
     isAtLimit,
     currentUsage: config.currentUsage,
     limit: config.limit,
-    isPremium: quota.isPremiumActive,
+    isPremium: quota?.isPremiumActive || false,
+    loading: loading || false,
   };
 };
 

@@ -1,5 +1,6 @@
 /* eslint-disable no-irregular-whitespace */
 import apiClient from "./apiClient";
+import { handleError } from "./errorHandler";
 
 export const signatureService = {
   /**
@@ -15,14 +16,7 @@ export const signatureService = {
       return response.data;
     } catch (error) {
       console.error("❌ Error addPersonalSignature:", error);
-
-      // Pastikan response server dilempar ulang
-      if (error.response) {
-        throw error;
-      }
-
-      // Lempar error offline standar
-      throw new Error(error.message || "Gagal menandatangani dokumen.");
+      handleError(error, "Gagal menandatangani dokumen.");
     }
   },
 
@@ -90,7 +84,7 @@ export const signatureService = {
       return response.data.data;
     } catch (error) {
       console.error("❌ Error analyzeDocument:", error);
-      throw new Error(error.response?.data?.message || "Gagal menganalisis dokumen.");
+      handleError(error, "Gagal menganalisis dokumen.");
     }
   },
 

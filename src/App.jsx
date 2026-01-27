@@ -293,7 +293,7 @@ const AppWrapper = () => {
       />
 
       {/* Tampilkan banner HANYA jika sudah login (dan belum consent) */}
-      {showBanner && isLoggedIn && <CookieBanner onAccept={handleAcceptCookie} onDecline={handleDeclineCookie} />}
+      {showBanner && <CookieBanner onAccept={handleAcceptCookie} onDecline={handleDeclineCookie} />}
     </div>
   );
 };

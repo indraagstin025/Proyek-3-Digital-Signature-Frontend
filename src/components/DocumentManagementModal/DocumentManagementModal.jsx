@@ -144,7 +144,7 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
 
     setIsUploading(true);
     try {
-      await documentService.createDocument(file, selectedType);
+      await documentService.createDocument(file, documentTitle, selectedType);
 
       toast.success("Dokumen berhasil diunggah!");
       onSuccess();
@@ -152,7 +152,8 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
     } catch (err) {
       console.error("Upload failed:", err);
 
-      const errorMessage = err.response?.data?.message || "Gagal mengunggah dokumen. Silakan coba lagi.";
+      // NOTE: documentService throws 'error.response.data' directly via handleError
+      const errorMessage = err.message || err.response?.data?.message || "Gagal mengunggah dokumen. Silakan coba lagi.";
 
       toast.error(errorMessage);
     } finally {
@@ -170,7 +171,8 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
       onSuccess();
       onClose();
     } catch (err) {
-      toast.dismiss(toastId);
+      const errorMessage = err.message || err.response?.data?.message || "Gagal memperbarui info dokumen.";
+      toast.error(errorMessage, { id: toastId });
     }
   };
 
@@ -194,7 +196,9 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
       const sorted = Array.isArray(updatedHistory) ? updatedHistory.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) : [];
       setVersions(sorted);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Gagal restore versi.", { id: toastId });
+      // Fix: documentService throws the data object directly via handleError
+      const message = err.message || err.response?.data?.message || "Gagal restore versi.";
+      toast.error(message, { id: toastId });
     }
   };
 
@@ -285,9 +289,8 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
           <div className="flex border-b border-slate-200 dark:border-slate-700 px-6 gap-6 bg-white dark:bg-slate-900">
             <button
               onClick={() => setActiveTab("info")}
-              className={`py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "info" ? "border-blue-500 text-blue-600 dark:text-blue-400" : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-              }`}
+              className={`py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === "info" ? "border-blue-500 text-blue-600 dark:text-blue-400" : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                }`}
             >
               <div className="flex items-center gap-2">
                 <FaInfoCircle /> Informasi
@@ -295,9 +298,8 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
             </button>
             <button
               onClick={() => setActiveTab("history")}
-              className={`py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "history" ? "border-blue-500 text-blue-600 dark:text-blue-400" : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-              }`}
+              className={`py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === "history" ? "border-blue-500 text-blue-600 dark:text-blue-400" : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                }`}
             >
               <div className="flex items-center gap-2">
                 <FaHistory /> Riwayat Versi
@@ -312,9 +314,8 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
           {activeTab === "upload" && (
             <div className="space-y-6">
               <div
-                className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all ${
-                  file ? "border-blue-500 bg-blue-50 dark:bg-blue-900/10" : "border-slate-300 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500"
-                }`}
+                className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all ${file ? "border-blue-500 bg-blue-50 dark:bg-blue-900/10" : "border-slate-300 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500"
+                  }`}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleFileDrop}
               >
@@ -535,17 +536,15 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
                       <li key={version.id} className="relative pl-10 group">
                         {/* Dot Indicator */}
                         <div
-                          className={`absolute left-[13px] top-6 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 transition-all ${
-                            isCurrent ? "bg-blue-500 scale-125 ring-4 ring-blue-100 dark:ring-blue-900/30" : "bg-slate-400"
-                          }`}
+                          className={`absolute left-[13px] top-6 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 transition-all ${isCurrent ? "bg-blue-500 scale-125 ring-4 ring-blue-100 dark:ring-blue-900/30" : "bg-slate-400"
+                            }`}
                         />
 
                         <div
-                          className={`p-4 rounded-xl border transition-all ${
-                            isCurrent
-                              ? "bg-blue-50/50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-800 shadow-sm"
-                              : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600"
-                          }`}
+                          className={`p-4 rounded-xl border transition-all ${isCurrent
+                            ? "bg-blue-50/50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-800 shadow-sm"
+                            : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600"
+                            }`}
                         >
                           <div className="flex justify-between items-start">
                             <div>

@@ -22,13 +22,27 @@ export const QuotaProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    // Only fetch quota if user is authenticated (has authUser in localStorage)
-    const authUser = localStorage.getItem("authUser");
-    if (authUser) {
-      fetchQuota();
-    } else {
-      setLoading(false);
-    }
+    const checkAuthAndFetch = () => {
+      const authUser = localStorage.getItem("authUser");
+      if (authUser) {
+        fetchQuota();
+      } else {
+        setQuota(null);
+        setLoading(false);
+      }
+    };
+
+    // Initial check
+    checkAuthAndFetch();
+
+    // Listen for auth changes
+    window.addEventListener("storage", checkAuthAndFetch);
+    window.addEventListener("auth-update", checkAuthAndFetch);
+
+    return () => {
+      window.removeEventListener("storage", checkAuthAndFetch);
+      window.removeEventListener("auth-update", checkAuthAndFetch);
+    };
   }, []);
 
   // Refetch quota setelah aksi yang mengubah usage

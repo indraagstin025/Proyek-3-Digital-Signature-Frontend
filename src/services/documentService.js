@@ -8,12 +8,12 @@ export const documentService = {
   /**
    * Mengunggah dokumen baru.
    */
-createDocument: async (file, type = "General") => { 
+  createDocument: async (file, title, type = "General") => {
     const formData = new FormData();
-    formData.append("title", file.name);
+    formData.append("title", title || file.name);
     formData.append("type", type);
     formData.append("documentFile", file);
-    
+
     try {
       const response = await apiClient.post("/documents", formData, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -33,15 +33,15 @@ createDocument: async (file, type = "General") => {
         params: { search: search },
         ...config // 🔥 PENTING: Ini agar 'signal' dari hook bisa masuk ke Axios
       });
-      
+
       return response.data.data;
     } catch (error) {
       // Jangan handle error jika itu adalah 'CanceledError' (pembatalan manual)
       // Biarkan error dilempar agar bisa ditangkap di hook
       if (error.name === "CanceledError" || error.code === "ERR_CANCELED") {
-          throw error; 
+        throw error;
       }
-      
+
       handleError(error, "Gagal mengambil daftar dokumen.");
     }
   },
@@ -124,7 +124,7 @@ createDocument: async (file, type = "General") => {
    * @param {string} documentId - ID dokumen.
    * @param {object} options - { signal, purpose: 'view' | 'download' }
    */
-getDocumentFileUrl: async (documentId, options = {}) => {
+  getDocumentFileUrl: async (documentId, options = {}) => {
     const purpose = options.purpose || "view";
     const urlPath = `/documents/${documentId}/file?purpose=${purpose}`;
 
@@ -146,13 +146,13 @@ getDocumentFileUrl: async (documentId, options = {}) => {
       // Jika request dibatalkan oleh Hook (karena ganti dokumen/unmount),
       // kita lempar error ini agar Hook bisa mengabaikannya (return).
       if (
-        error.isCanceled || 
-        error.name === "CanceledError" || 
+        error.isCanceled ||
+        error.name === "CanceledError" ||
         error.code === "ERR_CANCELED" ||
-        error.message === "canceled" || 
+        error.message === "canceled" ||
         error.message === "Request canceled"
       ) {
-        throw error; 
+        throw error;
       }
 
       // --- REAL ERROR ---

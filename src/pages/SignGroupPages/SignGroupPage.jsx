@@ -112,7 +112,14 @@ const SignGroupPage = ({ theme, toggleTheme }) => {
       setIsSignedSuccess(true);
       handleRefreshRequest();
     } catch (error) {
-      toast.error(error.message || "Gagal menyimpan.");
+      // ✅ [FIX] 401 Handled by Global Listener (App.jsx)
+      if (error.response?.status === 401) return;
+
+      if (error.message === "Offline-Detected" || error.message === "Network Error") {
+        toast.error("Koneksi terputus. Gagal menyimpan data.", { id: "save-grouperror-offline" });
+      } else {
+        toast.error(error.message || error.response?.data?.message || "Gagal menyimpan.");
+      }
     }
   };
 

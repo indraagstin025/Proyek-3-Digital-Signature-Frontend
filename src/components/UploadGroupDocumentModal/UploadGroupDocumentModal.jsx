@@ -4,7 +4,7 @@ import { useUploadGroupDocument } from "../../hooks/Group/useGroups";
 import { useFileUpload } from "../../hooks/useFileUpload";
 import { useCanPerformAction } from "../../hooks/useCanPerformAction";
 // 1. Tambahkan FaWhatsapp
-import { HiOutlineUpload, HiX, HiUserGroup } from "react-icons/hi"; 
+import { HiOutlineUpload, HiX, HiUserGroup } from "react-icons/hi";
 import { FaWhatsapp } from "react-icons/fa";
 import { ImSpinner9 } from "react-icons/im";
 import { toast } from "react-hot-toast";
@@ -78,8 +78,29 @@ export const UploadGroupDocumentModal = ({ isOpen, onClose, groupId, members = [
       },
       {
         onSuccess: () => {
-          onClose();
+          onClose(); // Toast sukses sudah ada di hook
         },
+        onError: (error) => {
+          // Fix: Handle both generic Axios error and unwrapped error
+          const errorCode = error?.code || error?.response?.data?.code;
+          const errorMessage = error?.message || error?.response?.data?.message || "Gagal mengupload dokumen.";
+
+          if (errorCode === "DUPLICATE_FILE") {
+            toast.error("File ini sudah ada di grup! Mohon cek kembali daftar dokumen.", {
+              duration: 5000,
+              icon: "⚠️"
+            });
+          } else if (errorCode === "DUPLICATE_TITLE") {
+            toast.error("Judul dokumen sudah dipakai. Gunakan judul lain.", {
+              duration: 5000,
+              icon: "📝"
+            });
+          } else if (errorCode === "LIMIT_FILE_SIZE") {
+            toast.error(errorMessage, { duration: 5000, icon: "🗂️" });
+          } else {
+            toast.error(errorMessage);
+          }
+        }
       }
     );
   };
@@ -109,7 +130,7 @@ export const UploadGroupDocumentModal = ({ isOpen, onClose, groupId, members = [
         {/* Body (Scrollable) */}
         <div className="p-6 overflow-y-auto custom-scrollbar">
           <form id="upload-form" onSubmit={handleSubmit} className="space-y-5">
-            
+
             {/* Input Judul */}
             <div>
               <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Judul Dokumen</label>
@@ -131,9 +152,8 @@ export const UploadGroupDocumentModal = ({ isOpen, onClose, groupId, members = [
                 <span className="text-xs text-slate-500 ml-1">({maxFileSizeLabel} maksimal)</span>
               </label>
               <div
-                className={`relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer group transition-colors ${
-                  file ? "border-blue-300 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-800" : "border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/30"
-                }`}
+                className={`relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer group transition-colors ${file ? "border-blue-300 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-800" : "border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/30"
+                  }`}
               >
                 <input
                   type="file"
@@ -166,12 +186,12 @@ export const UploadGroupDocumentModal = ({ isOpen, onClose, groupId, members = [
                   <HiUserGroup /> Siapa yang harus tanda tangan?
                 </label>
                 <div className="flex items-center gap-2">
-                    <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <FaWhatsapp className="w-3 h-3" /> Notifikasi WA
-                    </span>
-                    <button type="button" onClick={handleSelectAll} disabled={isPending} className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 disabled:opacity-50 ml-2">
-                        {selectedSigners.length === members.length && members.length > 0 ? "Batal Semua" : "Pilih Semua"}
-                    </button>
+                  <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <FaWhatsapp className="w-3 h-3" /> Notifikasi WA
+                  </span>
+                  <button type="button" onClick={handleSelectAll} disabled={isPending} className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 disabled:opacity-50 ml-2">
+                    {selectedSigners.length === members.length && members.length > 0 ? "Batal Semua" : "Pilih Semua"}
+                  </button>
                 </div>
               </div>
 
@@ -180,42 +200,41 @@ export const UploadGroupDocumentModal = ({ isOpen, onClose, groupId, members = [
                   members.map((member) => {
                     const isSelected = selectedSigners.includes(member.userId);
                     return (
-                        <label
-                            key={member.userId}
-                            className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-all border ${
-                                isSelected 
-                                ? "bg-white dark:bg-slate-800 border-green-400 shadow-sm" 
-                                : "border-transparent hover:bg-slate-200/50 dark:hover:bg-slate-800"
-                            } ${isPending ? "opacity-60 cursor-not-allowed" : ""}`}
-                        >
-                            <div className="relative flex items-center">
-                                <input
-                                    type="checkbox"
-                                    value={member.userId}
-                                    checked={isSelected}
-                                    onChange={() => !isPending && handleToggleSigner(member.userId)}
-                                    disabled={isPending}
-                                    className="peer w-5 h-5 border-2 border-slate-300 rounded text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
-                                />
-                            </div>
-                            
-                            <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600 uppercase">
-                                        {member.user?.name?.charAt(0) || "?"}
-                                    </div>
-                                    <span className={`text-sm font-semibold ${isSelected ? 'text-slate-800 dark:text-white' : 'text-slate-600 dark:text-slate-300'}`}>
-                                        {member.user?.name}
-                                    </span>
-                                    {isSelected && (
-                                        <FaWhatsapp className="text-green-500 w-4 h-4 animate-in fade-in zoom-in duration-200" title="Akan dikirim notifikasi WA" />
-                                    )}
-                                </div>
-                            </div>
+                      <label
+                        key={member.userId}
+                        className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-all border ${isSelected
+                            ? "bg-white dark:bg-slate-800 border-green-400 shadow-sm"
+                            : "border-transparent hover:bg-slate-200/50 dark:hover:bg-slate-800"
+                          } ${isPending ? "opacity-60 cursor-not-allowed" : ""}`}
+                      >
+                        <div className="relative flex items-center">
+                          <input
+                            type="checkbox"
+                            value={member.userId}
+                            checked={isSelected}
+                            onChange={() => !isPending && handleToggleSigner(member.userId)}
+                            disabled={isPending}
+                            className="peer w-5 h-5 border-2 border-slate-300 rounded text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                          />
+                        </div>
 
-                            {/* Status Label Kecil */}
-                            {isSelected && <span className="text-[10px] text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded whitespace-nowrap">Akan dinotifikasi</span>}
-                        </label>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600 uppercase">
+                              {member.user?.name?.charAt(0) || "?"}
+                            </div>
+                            <span className={`text-sm font-semibold ${isSelected ? 'text-slate-800 dark:text-white' : 'text-slate-600 dark:text-slate-300'}`}>
+                              {member.user?.name}
+                            </span>
+                            {isSelected && (
+                              <FaWhatsapp className="text-green-500 w-4 h-4 animate-in fade-in zoom-in duration-200" title="Akan dikirim notifikasi WA" />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Status Label Kecil */}
+                        {isSelected && <span className="text-[10px] text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded whitespace-nowrap">Akan dinotifikasi</span>}
+                      </label>
                     );
                   })
                 ) : (

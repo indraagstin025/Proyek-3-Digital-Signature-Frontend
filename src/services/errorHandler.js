@@ -16,6 +16,13 @@ import toast from "react-hot-toast";
  * @returns {never} Fungsi ini selalu melempar error.
  */
 export const handleError = (error, defaultMessage = "Terjadi kesalahan", showToast = false) => {
+  // 0. Handle Network Errors
+  if (error.code === "ERR_NETWORK" || error.message === "Network Error" || error.message === "Offline-Detected") {
+    const netMessage = "Koneksi terputus. Gagal menghubungi server. Periksa internet Anda.";
+    if (showToast) toast.error(netMessage, { icon: "📡" });
+    throw new Error(netMessage);
+  }
+
   // 1. Lempar objek error terstruktur dari backend (misal: 400, 403, 404, 409)
   // Ini juga akan menangkap error 401 dan error jaringan dari interceptor Anda
   if (error.response?.data?.message) {

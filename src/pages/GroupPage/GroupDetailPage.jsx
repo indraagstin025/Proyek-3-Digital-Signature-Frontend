@@ -105,6 +105,12 @@ const GroupDetailPage = () => {
           id: `finalize-${docId}`,
           icon: "✅",
         });
+      } else if (data.action === "rollback_version" && !isActor) {
+        const docTitle = data.document?.title || "Dokumen";
+        toast.success(`Dokumen "${docTitle}" dikembalikan ke versi sebelumnya oleh ${actorName}.`, {
+          id: `rollback-${data.documentId}`,
+          icon: "↺",
+        });
       }
     };
     const handleInfoUpdate = (data) => {

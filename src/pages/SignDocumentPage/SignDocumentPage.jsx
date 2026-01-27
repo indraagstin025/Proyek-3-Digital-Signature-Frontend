@@ -23,7 +23,7 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [savedSignatureUrl, setSavedSignatureUrl] = useState(null);
   const [includeQrCode, setIncludeQrCode] = useState(true);
-  
+
   // 🔥 State untuk Visual Hint (Tekan & Tarik)
   const [showDragHint, setShowDragHint] = useState(false);
 
@@ -61,7 +61,7 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
     currentUser,
     isGroupDoc: false,
     refreshKey,
-    documentData, 
+    documentData,
     onRefreshRequest: () => setRefreshKey((prev) => prev + 1),
   });
 
@@ -75,14 +75,14 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
   const onSaveFromModal = useCallback((dataUrl) => {
     setSavedSignatureUrl(dataUrl);
     setIsSignatureModalOpen(false);
-    
+
     // 1. Buka Sidebar agar user melihat tanda tangannya (Desktop Only)
     // Di Mobile, sidebar mungkin menutupi layar, jadi biarkan tertutup atau sesuai preferensi
     if (!isMobileTour) {
-        setIsSidebarOpen(true);
+      setIsSidebarOpen(true);
     } else {
-        // Opsional: Buka sidebar di mobile juga jika ingin user langsung melihat hasil
-        setIsSidebarOpen(true); 
+      // Opsional: Buka sidebar di mobile juga jika ingin user langsung melihat hasil
+      setIsSidebarOpen(true);
     }
 
     // 2. Nyalakan Hint Visual (Hanya jika dokumen sudah siap)
@@ -110,8 +110,8 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
       setIsSignedSuccess(true);
       setRefreshKey((prev) => prev + 1);
     } catch (error) {
-      const backendMessage = error.response?.data?.message || "";
-      toast.error(backendMessage || "Gagal menyimpan.");
+      const backendMessage = error.message || error.response?.data?.message || "Gagal menyimpan.";
+      toast.error(backendMessage);
     }
   };
 
@@ -121,10 +121,10 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
     <>
       {/* 🔥 TOUR GUIDE: HANYA MUNCUL SETELAH LOADING SELESAI */}
       {!isLoadingDoc && pdfFile && (
-        <OnboardingTour 
-          tourKey="signing_intro" 
+        <OnboardingTour
+          tourKey="signing_intro"
           // Pilih steps berdasarkan ukuran layar
-          steps={isMobileTour ? SIGNING_STEPS_MOBILE : SIGNING_STEPS_DESKTOP} 
+          steps={isMobileTour ? SIGNING_STEPS_MOBILE : SIGNING_STEPS_DESKTOP}
           // Hanya buka sidebar otomatis jika di Desktop (karena targetnya ada di dalam sidebar)
           onOpenSidebar={isMobileTour ? undefined : () => setIsSidebarOpen(true)}
         />
@@ -163,7 +163,7 @@ const SignDocumentPage = ({ theme, toggleTheme }) => {
         handleAutoTag={handleAutoTag}
         handleAnalyzeDocument={handleAnalyzeDocument}
         handleNavigateToView={handleNavigateToView}
-        
+
         // 🔥 PROP HINT DIKIRIM KE LAYOUT
         showDragHint={showDragHint}
       />

@@ -8,7 +8,7 @@ import SignatureHeaderCommon from "../components/SigningHeader/SignatureHeaderCo
 import PDFViewer from "../components/PDFViewer/PDFViewer";
 import SignatureSidebar from "../components/SignatureSidebar/SignatureSidebar";
 import SignatureModal from "../components/SignatureModal/SignatureModal";
-import ProcessingPackageModal from "../components/ProcessingModal/ProcessingPackageModal";
+import ProcessStatus from "../components/ProcessStatus/ProcessStatus";
 import AiAnalysisModal from "../components/AiAnalysisModal/AiAnalysisModal";
 
 const SignPackageLayout = ({
@@ -30,7 +30,7 @@ const SignPackageLayout = ({
   isSidebarOpen,
   isLandscape,
   isSignatureModalOpen,
-  isProcessingModalOpen,
+  isSaving,
   progressIndex, // Ini dikirim ke modal sebagai currentDocIndex
   isAiModalOpen,
   isAiLoading,
@@ -74,13 +74,13 @@ const SignPackageLayout = ({
         <SignatureModal onClose={() => setIsSignatureModalOpen(false)} onSave={handleSignatureSave} />
       )}
 
-      {/* INTEGRASI MODAL BARU */}
-      <ProcessingPackageModal
-        isOpen={isProcessingModalOpen}
-        totalDocs={totalDocs}
-        currentDocIndex={progressIndex}
-        currentDocTitle={processingTitle}
-        onCancel={handleManualCancel}
+      <ProcessStatus
+        isOpen={isSaving}
+        customMessage={
+          processingTitle
+            ? `Memproses: ${processingTitle}`
+            : "Menyimpan paket dokumen..."
+        }
       />
 
       <AiAnalysisModal
