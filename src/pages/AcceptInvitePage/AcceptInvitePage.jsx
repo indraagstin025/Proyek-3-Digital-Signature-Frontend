@@ -13,7 +13,10 @@ const AcceptInvitePage = () => {
     if (token) {
       // 1. Simpan token di localStorage agar 'DashboardPage' bisa membacanya
       localStorage.setItem('pendingInviteToken', token);
-      
+
+      // ✅ [FIX MOBILE] Dispatch custom event untuk trigger real-time detection di DashboardPage
+      window.dispatchEvent(new Event('pendingInviteUpdate'));
+
       // 2. Arahkan user ke dashboard.
       // Jika user belum login, 'authMiddleware' Anda akan
       // secara otomatis mengarahkan mereka ke /login.
@@ -27,7 +30,7 @@ const AcceptInvitePage = () => {
 
   // Halaman ini tidak perlu menampilkan apa-apa,
   // hanya 'loading' singkat selagi mengarahkan.
-  return null; 
+  return null;
 };
 
 export default AcceptInvitePage;

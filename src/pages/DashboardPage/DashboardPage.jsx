@@ -43,11 +43,43 @@ const DashboardPage = ({ theme, toggleTheme }) => {
     }
   }, [location, navigate]);
 
-  // 2. Cek Token Undangan Pending
+  // 2. Cek Token Undangan Pending (Real-time detection)
   useEffect(() => {
-    const token = localStorage.getItem("pendingInviteToken");
-    if (token) setPendingToken(token);
-  }, []);
+    // Initial check
+    const checkPendingToken = () => {
+      const token = localStorage.getItem("pendingInviteToken");
+      if (token && token !== pendingToken) {
+        setPendingToken(token);
+      }
+    };
+
+    checkPendingToken(); // Check on mount
+
+    // ✅ [FIX MOBILE] Listen untuk perubahan localStorage (antar-tab & same-tab via custom event)
+    const handleStorageChange = (e) => {
+      if (e.key === "pendingInviteToken" || !e.key) {
+        // e.key null berarti clear() dipanggil, re-check semua
+        checkPendingToken();
+      }
+    };
+
+    // Custom event untuk same-tab detection
+    const handlePendingInviteUpdate = () => {
+      checkPendingToken();
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("pendingInviteUpdate", handlePendingInviteUpdate);
+
+    // ✅ [CRITICAL] Polling sebagai fallback untuk mobile (beberapa browser mobile tidak trigger storage event dengan benar)
+    const interval = setInterval(checkPendingToken, 1000); // Check every second
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("pendingInviteUpdate", handlePendingInviteUpdate);
+      clearInterval(interval);
+    };
+  }, [pendingToken]); // ✅ Re-run kalau pendingToken berubah
 
   // 3. Sinkronisasi Data User (PENTING)
   useEffect(() => {

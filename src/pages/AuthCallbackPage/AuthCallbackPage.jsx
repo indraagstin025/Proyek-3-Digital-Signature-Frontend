@@ -55,9 +55,23 @@ const AuthCallbackPage = () => {
                 // 3. Kirim token ke backend
                 const { user } = await authService.googleCallback(finalAccessToken, finalRefreshToken);
 
-                // 4. Success - check if there's a pending plan (from PricingPage)
+                // 4. Success - check if there's a pending plan OR pending invite
                 const pendingPlan = sessionStorage.getItem("pendingPlan");
-                const pendingRedirect = pendingPlan ? "/pricing" : "/dashboard/shortcuts";
+                const pendingInvite = localStorage.getItem("pendingInviteToken");
+
+                // ✅ [FIX MOBILE] Prioritas redirect:
+                // - Jika ada invite, redirect ke /dashboard (bukan shortcuts) agar modal muncul
+                // - Jika ada plan, redirect ke /pricing
+                // - Default: redirect ke /dashboard/shortcuts
+                let pendingRedirect = "/dashboard/shortcuts";
+
+                if (pendingInvite) {
+                    pendingRedirect = "/dashboard";
+                    // Dispatch event untuk trigger modal detection
+                    window.dispatchEvent(new Event('pendingInviteUpdate'));
+                } else if (pendingPlan) {
+                    pendingRedirect = "/pricing";
+                }
 
                 toast.success(`Selamat datang, ${user.name}!`);
 
