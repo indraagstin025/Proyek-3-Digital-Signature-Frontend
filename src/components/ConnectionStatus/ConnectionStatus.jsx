@@ -1,3 +1,4 @@
+import React from 'react';
 import { useSocketConnection } from '../../hooks/useSocketConnection';
 import { IoWifi, IoWifiOutline, IoRefresh } from 'react-icons/io5';
 import './ConnectionStatus.css';
