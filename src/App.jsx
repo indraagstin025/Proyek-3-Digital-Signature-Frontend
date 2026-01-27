@@ -195,13 +195,24 @@ const AppWrapper = () => {
     if (!isCheckingSession && !initError && isOnline) {
       try {
         socketService.connect();
+
+        // ✅ [CRITICAL] Listen untuk session expired dari socket
+        const handleSocketSessionExpired = (data) => {
+          console.warn("🔐 Socket session expired:", data?.message);
+          // Dispatch custom event yang sudah di-handle oleh useEffect di atas
+          window.dispatchEvent(new CustomEvent("sessionExpired"));
+        };
+
+        socketService.on("session_expired", handleSocketSessionExpired);
+
+        // Cleanup listener saat unmount
+        return () => {
+          socketService.off("session_expired", handleSocketSessionExpired);
+        };
       } catch (error) {
         console.error("Socket init failed", error);
       }
     }
-    return () => {
-      // socketService.disconnect() if needed
-    };
   }, [isCheckingSession, initError, isOnline]);
 
   // Helpers
