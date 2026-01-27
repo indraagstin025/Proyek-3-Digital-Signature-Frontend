@@ -127,8 +127,8 @@ const AppWrapper = () => {
     const minLoadingTime = new Promise((resolve) => setTimeout(resolve, delayDuration));
     const sessionCheckPromise = authService.getMe();
 
-    // Timeout 10 Detik
-    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), 10000));
+    // Timeout 20 Detik (Diperpanjang untuk mobile/network lambat)
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), 20000));
 
     try {
       await Promise.all([Promise.race([sessionCheckPromise, timeoutPromise]), minLoadingTime]);
