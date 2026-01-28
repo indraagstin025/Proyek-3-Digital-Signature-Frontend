@@ -16,7 +16,7 @@ export const useAuthSync = () => {
             if (type === 'LOGIN_SUCCESS' || type === 'LOGOUT_SUCCESS') {
                 console.log(`[AuthSync] Received ${type} from another tab. Reloading...`);
                 // Force reload untuk memastikan state bersih dan cookie terbaru terbaca
-                window.location.reload();
+                // window.location.reload(); // ⚠️ DISABLED: Causing login loop
             }
 
             if (type === 'SESSION_EXPIRED') {
