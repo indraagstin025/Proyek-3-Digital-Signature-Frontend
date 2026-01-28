@@ -2,7 +2,7 @@ import apiClient from "./apiClient";
 
 const notifyTabs = (type) => {
   const channel = new BroadcastChannel('auth_channel');
-  channel.postMessage({ type });
+  channel.postMessage({ type, timestamp: Date.now() });
   channel.close();
 };
 
