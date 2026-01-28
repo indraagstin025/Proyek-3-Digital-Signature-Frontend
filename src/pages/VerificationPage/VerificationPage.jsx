@@ -402,14 +402,14 @@ const VerificationPage = () => {
           {/* ========================================= */}
           {!isLockedByPin && (
             <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 relative ${isLockedByUpload ? 'blur-[2px] select-none opacity-60' : ''}`}>
-              {/* Detail Kiri */}
+              {/* Detail Kiri - Document Owner Info */}
               <div className="bg-slate-50 dark:bg-white/5 p-5 rounded-2xl border border-slate-100 dark:border-white/10">
                 <h3 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-2">
-                  <FaUserCheck /> Informasi Penanda Tangan
+                  <FaUserCheck /> {isGroup ? 'Informasi Dokumen' : 'Informasi Penanda Tangan'}
                 </h3>
                 <div className="space-y-3">
                   <div>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">Nama Lengkap</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">{isGroup ? 'Pemilik Dokumen' : 'Nama Lengkap'}</p>
                     <p className="font-bold text-slate-800 dark:text-slate-200 text-lg">
                       {isLockedByUpload ? "••••••••••" : verificationData.signerName}
                     </p>
@@ -420,17 +420,25 @@ const VerificationPage = () => {
                       {isLockedByUpload ? "••••@••••.•••" : verificationData.signerEmail}
                     </p>
                   </div>
+                  {isGroup && (
+                    <div>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">Status Dokumen</p>
+                      <span className="inline-flex items-center gap-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-3 py-1 rounded-full text-xs font-semibold">
+                        <FaCheckCircle /> Finalized
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Detail Kanan */}
+              {/* Detail Kanan - Metadata */}
               <div className="bg-slate-50 dark:bg-white/5 p-5 rounded-2xl border border-slate-100 dark:border-white/10">
                 <h3 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-2">
                   <FaFileContract /> Metadata Forensik
                 </h3>
                 <div className="space-y-3">
                   <div>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">Waktu Penandatanganan</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">{isGroup ? 'Waktu Dibuat' : 'Waktu Penandatanganan'}</p>
                     <p className="font-medium text-slate-700 dark:text-slate-300">
                       {isLockedByUpload ? (
                         <span className="tracking-widest text-slate-400 select-none">••••/••/•• ••:••</span>
@@ -441,48 +449,79 @@ const VerificationPage = () => {
                       )}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">IP Address</p>
-                    {isLockedByUpload ? (
-                      <span className="inline-block bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded text-xs font-mono text-slate-400 select-none">
-                        •••.•••.•••.•••
-                      </span>
-                    ) : (
-                      <span className="inline-block bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded text-xs font-mono text-slate-700 dark:text-slate-300">
-                        {verificationData.ipAddress || verificationData.signerIpAddress || "127.0.0.1"}
-                      </span>
-                    )}
-                  </div>
+                  {!isGroup && (
+                    <div>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">IP Address</p>
+                      {isLockedByUpload ? (
+                        <span className="inline-block bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded text-xs font-mono text-slate-400 select-none">
+                          •••.•••.•••.•••
+                        </span>
+                      ) : (
+                        <span className="inline-block bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded text-xs font-mono text-slate-700 dark:text-slate-300">
+                          {verificationData.ipAddress || verificationData.signerIpAddress || "127.0.0.1"}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Group Info (Full Width) */}
+              {/* Group Signers (Full Width) */}
               {isGroup && (
-                <div className="md:col-span-2 bg-blue-50 dark:bg-blue-900/20 p-5 rounded-2xl border border-blue-100 dark:border-blue-800">
-                  <h3 className="text-xs font-bold text-blue-500 uppercase mb-3 flex items-center gap-2">
-                    <FaUsers /> Kolaborasi Grup
-                  </h3>
+                <div className="md:col-span-2 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-2xl border-2 border-blue-200 dark:border-blue-700/50 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-bold text-blue-700 dark:text-blue-400 uppercase flex items-center gap-2">
+                      <FaUsers className="text-lg" /> Riwayat Tanda Tangan
+                    </h3>
+                    {verificationData.groupSigners && Array.isArray(verificationData.groupSigners) && !isLockedByUpload && (
+                      <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold">
+                        {verificationData.groupSigners.length} Signer{verificationData.groupSigners.length > 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
                   {isLockedByUpload ? (
                     <p className="text-sm text-slate-500 dark:text-slate-400 italic">Detail kolaborator disembunyikan hingga verifikasi file...</p>
                   ) : verificationData.groupSigners && Array.isArray(verificationData.groupSigners) ? (
                     <div className="space-y-3">
                       {verificationData.groupSigners.map((signer, idx) => (
-                        <div key={idx} className="flex items-start gap-3 p-3 bg-white dark:bg-slate-800 rounded-lg border border-blue-100 dark:border-blue-700/30">
-                          <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                        <div
+                          key={idx}
+                          className="group flex items-start gap-4 p-4 bg-white dark:bg-slate-800/80 rounded-xl border-l-4 border-blue-500 shadow-sm hover:shadow-md transition-all duration-200 hover:scale-[1.01]"
+                        >
+                          {/* Number Badge */}
+                          <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-base shadow-md">
                             {idx + 1}
                           </div>
+
+                          {/* Content */}
                           <div className="flex-1 min-w-0">
-                            <p className="font-bold text-slate-800 dark:text-white truncate">{signer.name}</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 font-mono truncate">{signer.email}</p>
-                            <div className="flex flex-wrap gap-3 mt-2 text-xs text-slate-600 dark:text-slate-400">
-                              <span className="flex items-center gap-1">
-                                <span>📅</span>
-                                <span>{signer.signedAt ? new Date(signer.signedAt).toLocaleString("id-ID", { dateStyle: 'medium', timeStyle: 'short' }) : "-"}</span>
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <span>🌐</span>
-                                <span className="font-mono">{signer.ipAddress}</span>
-                              </span>
+                            <p className="font-bold text-slate-800 dark:text-white text-base mb-0.5 truncate">
+                              {signer.name}
+                            </p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mb-3 truncate">
+                              {signer.email}
+                            </p>
+
+                            {/* Metadata Row */}
+                            <div className="flex flex-wrap gap-4 text-xs">
+                              <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                                <span className="text-sm">📅</span>
+                                <span className="font-medium">
+                                  {signer.signedAt ? new Date(signer.signedAt).toLocaleString("id-ID", {
+                                    day: '2-digit',
+                                    month: 'short',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  }) : "-"}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                                <span className="text-sm">🌐</span>
+                                <span className="font-mono bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded">
+                                  {signer.ipAddress}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -539,8 +578,8 @@ const VerificationPage = () => {
               {/* Hasil Validasi Manual */}
               {manualVerificationResult && !isVerifyingFile && (
                 <div className={`mt-6 p-4 rounded-xl flex items-start gap-4 animate-in slide-in-from-top-2 ${(manualVerificationResult.isValid || manualVerificationResult.verificationStatus === "VALID")
-                    ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-200"
-                    : "bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200"
+                  ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-200"
+                  : "bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200"
                   }`}>
                   <div className="mt-1 text-xl">
                     {(manualVerificationResult.isValid || manualVerificationResult.verificationStatus === "VALID") ? <FaCheckCircle /> : <FaTimesCircle />}
