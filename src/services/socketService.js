@@ -74,9 +74,16 @@ export const socketService = {
         console.log("📡 [SocketService] Current transport:", socket.io.engine.transport?.name);
       }
 
-      // ✅ [FIX] Auto Refresh Token jika Socket Auth Gagal
+      // ✅ [FIX] Auto Refresh Token jika Socket Auth Gagal (Throttled)
       if (err.message.includes("Authentication error") || err.message.includes("Invalid or expired") || err.message.includes("Access token missing")) {
+
+        if (socket.isRefreshingToken) {
+          console.log("🔒 [SocketService] Refresh already in progress. Skipping duplicate request.");
+          return;
+        }
+
         console.warn("🔐 [SocketService] Auth error detected. Attempting to refresh token...");
+        socket.isRefreshingToken = true;
 
         // Panggil getMe() untuk memicu axios interceptor refresh token
         authService.getMe()
@@ -88,8 +95,14 @@ export const socketService = {
           })
           .catch((refreshErr) => {
             console.error("❌ [SocketService] Token refresh failed:", refreshErr);
-            // Jika refresh gagal (misal session habis total), user mungkin perlu login ulang
-            // Event 'auth-update' dari authService akan menangani logout UI jika 401
+            // Jika refresh gagal, kemungkinan session benar-benar habis.
+            // Biarkan Socket.io menunggu sebelum retry berikutnya (backoff alami).
+          })
+          .finally(() => {
+            // Reset flag setelah 5 detik agar tidak spam request jika error berlanjut
+            setTimeout(() => {
+              socket.isRefreshingToken = false;
+            }, 5000);
           });
       }
 

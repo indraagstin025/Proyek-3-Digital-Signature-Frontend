@@ -31,6 +31,7 @@ import { ImSpinner9, ImWarning } from "react-icons/im";
 import { MdWifiOff, MdRefresh } from "react-icons/md";
 import authService from "./services/authService.js";
 import { socketService } from "./services/socketService.js";
+import { useAuthSync } from "./hooks/useAuthSync.js"; // ✅ Import custom hook
 import { pdfjs } from "react-pdf";
 
 // Components Global (Modal, Banner, dll)
@@ -59,8 +60,10 @@ const AppWrapper = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [initError, setInitError] = useState(null);
 
-  // 7. Event Listener untuk perubahan Auth (Reactive isLoggedIn) - Ditaruh Di Atas agar tidak melanggar Rules of Hooks
+  // 7. Hook Sync Auth antar Tab
   const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem("authUser"));
+  useAuthSync(); // ✅ Enable Cross-Tab Auth Sync
+
 
   useEffect(() => {
     const handleAuthChange = () => {

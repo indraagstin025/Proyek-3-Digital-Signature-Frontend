@@ -1,12 +1,19 @@
 import apiClient from "./apiClient";
 
+const notifyTabs = (type) => {
+  const channel = new BroadcastChannel('auth_channel');
+  channel.postMessage({ type });
+  channel.close();
+};
+
 const login = async (email, password) => {
   const response = await apiClient.post("/auth/login", { email, password });
   const user = response.data?.data?.user;
 
   if (user) {
     localStorage.setItem("authUser", JSON.stringify(user));
-    window.dispatchEvent(new Event("auth-update")); // Notify UI
+    window.dispatchEvent(new Event("auth-update")); // Notify UI (Same Tab)
+    notifyTabs('LOGIN_SUCCESS'); // Notify Other Tabs
   }
   return { user };
 };
@@ -33,7 +40,8 @@ const logout = async () => {
     console.error("Gagal logout di server.", err);
   } finally {
     localStorage.removeItem("authUser");
-    window.dispatchEvent(new Event("auth-update")); // Notify UI
+    window.dispatchEvent(new Event("auth-update")); // Notify UI (Same Tab)
+    notifyTabs('LOGOUT_SUCCESS'); // Notify Other Tabs
   }
 };
 
@@ -89,9 +97,12 @@ const getMe = async () => {
     }
     return user;
   } catch (err) {
-    // Jika error 401 (Belum login), bersihkan localStorage
-    localStorage.removeItem("authUser");
-    window.dispatchEvent(new Event("auth-update")); // Notify UI
+    // Jika error 401 (Belum login), dan sebelumnya ada sesi, bersihkan & notify
+    if (localStorage.getItem("authUser")) {
+      localStorage.removeItem("authUser");
+      window.dispatchEvent(new Event("auth-update")); // Notify UI
+      notifyTabs('SESSION_EXPIRED'); // Notify Other Tabs
+    }
     throw err;
   }
 };
