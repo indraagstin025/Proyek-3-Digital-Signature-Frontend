@@ -32,6 +32,7 @@ const PlacedSignatureGroup = ({
   isSelected = false, // ✅ Marquee selection state
   onSelect = () => { }, // ✅ Marquee selection callback
   totalPages = 1, // ✅ Untuk modal pindah halaman
+  onScrollToPage = () => { }, // ✅ Callback untuk auto-scroll ke halaman
 }) => {
   const elementRef = useRef(null);
 
@@ -67,6 +68,9 @@ const PlacedSignatureGroup = ({
 
     // Update local state
     onUpdate({ ...signature, pageNumber: newPage });
+
+    // ✅ [AUTO-SCROLL] Scroll to new page so user can see the signature
+    onScrollToPage(newPage);
 
     // ✅ [REALTIME] Emit socket event to notify other users about page change
     if (documentId) {

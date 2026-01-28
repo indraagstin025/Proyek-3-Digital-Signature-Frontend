@@ -513,6 +513,7 @@ const PDFViewerGroup = ({
                       isSelected={selectedIds.includes(sig.id)}
                       onSelect={handleSelectSignature}
                       totalPages={numPages || 1}
+                      onScrollToPage={scrollToPage}
                     />
                   ))}
               </div>
