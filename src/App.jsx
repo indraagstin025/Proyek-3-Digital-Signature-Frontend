@@ -194,8 +194,12 @@ const AppWrapper = () => {
   }, [initError, initSession]);
 
   // 4. Socket Connection Logic
+  // 4. Socket Connection Logic
   useEffect(() => {
-    if (!isCheckingSession && !initError && isOnline) {
+    // ⛔ Jangan connect socket di halaman auth callback agar tidak conflict dengan proses login
+    const isAuthCallback = location.pathname.startsWith("/auth/callback");
+
+    if (!isCheckingSession && !initError && isOnline && !isAuthCallback) {
       try {
         socketService.connect();
 
@@ -216,7 +220,7 @@ const AppWrapper = () => {
         console.error("Socket init failed", error);
       }
     }
-  }, [isCheckingSession, initError, isOnline]);
+  }, [isCheckingSession, initError, isOnline, location.pathname]);
 
   // Helpers
   const handleAcceptCookie = () => {
