@@ -64,7 +64,22 @@ const PlacedSignatureGroup = ({
   // Handler pindah halaman
   const handlePageChange = (newPage) => {
     if (newPage < 1 || newPage > totalPages) return;
+
+    // Update local state
     onUpdate({ ...signature, pageNumber: newPage });
+
+    // ✅ [REALTIME] Emit socket event to notify other users about page change
+    if (documentId) {
+      socketService.emitDrag({
+        documentId,
+        signatureId: signature.id,
+        positionX: signature.positionX,
+        positionY: signature.positionY,
+        width: signature.width,
+        height: signature.height,
+        pageNumber: newPage, // Include new page number in socket event
+      });
+    }
   };
 
   // 3. SOCKET EMITTER
@@ -391,8 +406,8 @@ const PlacedSignatureGroup = ({
                       setShowPageModal(false);
                     }}
                     className={`p-2 rounded-lg text-sm font-medium transition-all ${signature.pageNumber === num
-                        ? "bg-blue-500 text-white shadow-md"
-                        : "bg-slate-100 text-slate-700 hover:bg-blue-100 hover:text-blue-600"
+                      ? "bg-blue-500 text-white shadow-md"
+                      : "bg-slate-100 text-slate-700 hover:bg-blue-100 hover:text-blue-600"
                       }`}
                   >
                     {num}
