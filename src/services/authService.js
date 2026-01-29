@@ -129,6 +129,7 @@ const googleCallback = async (accessToken, refreshToken) => {
   if (user) {
     localStorage.setItem("authUser", JSON.stringify(user));
     window.dispatchEvent(new Event("auth-update")); // Notify UI
+    notifyTabs('LOGIN_SUCCESS'); // Notify Other Tabs
   }
   return { user };
 };
