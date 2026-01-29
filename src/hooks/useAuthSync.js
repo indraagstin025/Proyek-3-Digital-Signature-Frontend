@@ -41,6 +41,16 @@ export const useAuthSync = () => {
                     setTimeout(() => window.location.reload(), 2000);
                 }
             } else if (type === 'LOGOUT_SUCCESS') {
+                // [FIX] Cek apakah user masih login di tab ini
+                // Jika sudah logout (localStorage kosong), skip toast (ini adalah tab yang logout sendiri)
+                const currentUser = localStorage.getItem("authUser");
+
+                if (!currentUser) {
+                    console.log("[AuthSync] Already logged out in this tab. Skipping toast.");
+                    return; // Skip, karena ini tab yang logout sendiri
+                }
+
+                // Jika masih ada user (tab lain), tampilkan toast dan reload
                 if (document.visibilityState === 'hidden') {
                     window.location.reload();
                 } else {
