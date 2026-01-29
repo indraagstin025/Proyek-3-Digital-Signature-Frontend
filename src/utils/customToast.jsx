@@ -115,7 +115,7 @@ export const showLoginSuccess = (userName, options = {}) => {
         (t) => (
             <div
                 className={`
-          bg-gradient-to-r from-emerald-500 to-lime-500
+          bg-gradient-to-r from-blue-700 to-indigo-900
           text-white font-semibold
           px-6 py-4 rounded-xl shadow-lg
           flex items-center gap-3
