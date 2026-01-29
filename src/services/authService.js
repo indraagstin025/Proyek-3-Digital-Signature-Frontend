@@ -1,8 +1,8 @@
 import apiClient from "./apiClient";
 
-const notifyTabs = (type) => {
+const notifyTabs = (type, payload = {}) => {
   const channel = new BroadcastChannel('auth_channel');
-  channel.postMessage({ type, timestamp: Date.now() });
+  channel.postMessage({ type, timestamp: Date.now(), ...payload });
   channel.close();
 };
 
@@ -13,7 +13,8 @@ const login = async (email, password) => {
   if (user) {
     localStorage.setItem("authUser", JSON.stringify(user));
     window.dispatchEvent(new Event("auth-update")); // Notify UI (Same Tab)
-    notifyTabs('LOGIN_SUCCESS'); // Notify Other Tabs
+    window.dispatchEvent(new Event("auth-update")); // Notify UI (Same Tab)
+    notifyTabs('LOGIN_SUCCESS', { userId: user.id, email: user.email }); // Notify Other Tabs
   }
   return { user };
 };
@@ -129,7 +130,8 @@ const googleCallback = async (accessToken, refreshToken) => {
   if (user) {
     localStorage.setItem("authUser", JSON.stringify(user));
     window.dispatchEvent(new Event("auth-update")); // Notify UI
-    notifyTabs('LOGIN_SUCCESS'); // Notify Other Tabs
+    window.dispatchEvent(new Event("auth-update")); // Notify UI (Same Tab)
+    notifyTabs('LOGIN_SUCCESS', { userId: user.id, email: user.email }); // Notify Other Tabs
   }
   return { user };
 };

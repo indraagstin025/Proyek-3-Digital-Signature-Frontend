@@ -16,19 +16,7 @@ export const apiFileClient = axios.create({
   timeout: 30000,
 });
 
-let isRefreshing = false;
-let refreshSubscribers = [];
-
-const subscribeToRefresh = (callback) => {
-  refreshSubscribers.push(callback);
-};
-
-const onRefreshComplete = (success) => {
-  refreshSubscribers.forEach((callback) => callback(success));
-  refreshSubscribers = [];
-};
-
-// Helper: Cek apakah path adalah halaman publik (termasuk dynamic routes)
+// Helper: Cek apakah path adalah halaman publik logic
 const isPublicPath = (path) => {
   const publicPages = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/join", "/verify-email", "/tour", "/demo", "/features", "/privacy-policy", "/terms-and-conditions", "/auth/callback"];
   const publicPrefixes = ["/verify/"];
@@ -36,17 +24,16 @@ const isPublicPath = (path) => {
 };
 
 apiClient.interceptors.request.use(
-  (config) => {
-    return config;
-  },
+  (config) => config,
   (error) => Promise.reject(error)
 );
 
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const { code, message, response, config } = error;
+    const { code, message, response } = error;
 
+    // 1. Handle Network/Offline Errors
     if (code === "ECONNABORTED" || code === "ERR_NETWORK" || message?.includes("timeout") || (typeof navigator !== "undefined" && !navigator.onLine)) {
       return Promise.reject(new Error("Offline-Detected"));
     }
@@ -55,72 +42,16 @@ apiClient.interceptors.response.use(
       return Promise.reject({ isCanceled: true, message: "Request canceled" });
     }
 
-    if (response) {
-      const status = response.status;
-      const data = response.data;
+    // 2. Handle Auth Handling (401)
+    if (response && response.status === 401) {
+      // Backend auto-refresh gagal atau token invalid -> Logout
+      const currentPath = window.location.pathname;
 
-      if (status === 401) {
-        if (config._retry) {
-          const currentPath = window.location.pathname;
-
-          if (!isPublicPath(currentPath)) {
-            window.dispatchEvent(new CustomEvent("sessionExpired"));
-          }
-          return Promise.reject(error);
-        }
-
-        const errorCode = data?.code || "";
-
-        if (errorCode === "SESSION_EXPIRED") {
-
-
-          const currentPath = window.location.pathname;
-          if (!isPublicPath(currentPath)) {
-            window.dispatchEvent(new CustomEvent("sessionExpired"));
-          }
-          return Promise.reject(error);
-        }
-
-        config._retry = true;
-
-        if (isRefreshing) {
-          return new Promise((resolve, reject) => {
-            subscribeToRefresh((success) => {
-              if (success) {
-                resolve(apiClient(config));
-              } else {
-                reject(error);
-              }
-            });
-          });
-        }
-
-        isRefreshing = true;
-
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-        try {
-          const retryResponse = await apiClient(config);
-
-          onRefreshComplete(true);
-          return retryResponse;
-        } catch (retryError) {
-          onRefreshComplete(false);
-
-          if (retryError.response?.status === 401) {
-            const currentPath = window.location.pathname;
-
-            if (!isPublicPath(currentPath)) {
-              window.dispatchEvent(new CustomEvent("sessionExpired"));
-            }
-          }
-          return Promise.reject(retryError);
-        } finally {
-          isRefreshing = false;
-        }
+      // Jika bukan halaman public, trigger event session expired agar UI (App.jsx) handle logout
+      if (!isPublicPath(currentPath)) {
+        console.warn("[ApiClient] 401 Unauthorized detected on private route. Triggering session cleanup.");
+        window.dispatchEvent(new CustomEvent("sessionExpired"));
       }
-
-      return Promise.reject(error);
     }
 
     return Promise.reject(error);
