@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import authService from "../../services/authService";
-import toast from "react-hot-toast";
+import { showLoginSuccess, showError } from "../../utils/customToast";
 import { HiOutlineMail, HiOutlineLockClosed, HiExclamationCircle } from "react-icons/hi"; // Tambah Icon Error
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 import { ImSpinner9 } from "react-icons/im";
@@ -77,6 +77,9 @@ const LoginPage = () => {
       const fullUser = await authService.getMe();
       // --- [FIX END] ---
 
+      // Show custom success toast
+      showLoginSuccess(user.name);
+
       const redirectParam = searchParams.get("redirect");
 
       // 2. Ambil dari Location State (Biasanya dari ProtectedRoute) -> Prioritas Kedua
@@ -94,14 +97,8 @@ const LoginPage = () => {
       if (fullUser?.isSuperAdmin && (!redirectParam && stateFrom?.startsWith('/dashboard'))) {
         finalDestination = "/admin/dashboard";
       }
-      const welcomeMessage = `Login berhasil, selamat datang ${user.name}!`;
 
-      navigate(finalDestination, {
-        replace: true,
-        state: {
-          message: welcomeMessage,
-        },
-      });
+      navigate(finalDestination, { replace: true });
     } catch (err) {
       let specificErrorMessage = "Terjadi kesalahan yang tidak terduga.";
 
@@ -120,7 +117,7 @@ const LoginPage = () => {
         }
       }
 
-      toast.error(specificErrorMessage);
+      showError(specificErrorMessage);
       setApiError(specificErrorMessage);
       setLoading(false);
     }
