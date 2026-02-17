@@ -572,8 +572,8 @@ const DocumentManagementModal = ({ mode = "view", initialDocument = null, curren
                                 </button>
                               )}
 
-                              {/* Tombol Delete Version - HANYA untuk pemilik dokumen atau admin grup */}
-                              {!isCurrent && canManageVersions && (
+                              {/* Tombol Delete Version - HANYA untuk pemilik dokumen atau admin grup, dan BUKAN Versi 1 */}
+                              {!isCurrent && canManageVersions && (versions.length - index) !== 1 && (
                                 <button onClick={() => handleDeleteVersion(version.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Hapus Versi Permanen">
                                   <FaTrash />
                                 </button>

@@ -135,9 +135,20 @@ export const GroupDocuments = ({ documents, groupId, groupData, members, current
     setIsManageSignersOpen(true);
   };
 
+  /* --- NEW STATE FOR FINALIZATION --- */
+  const [isFinalizeConfirmOpen, setIsFinalizeConfirmOpen] = useState(false);
+  const [docToFinalize, setDocToFinalize] = useState(null);
+
   const handleFinalize = (docId, docTitle) => {
-    if (confirm(`Apakah Anda yakin ingin finalisasi dokumen "${docTitle}"?`)) {
-      finalizeDoc({ groupId, documentId: docId });
+    setDocToFinalize({ id: docId, title: docTitle });
+    setIsFinalizeConfirmOpen(true);
+  };
+
+  const onConfirmFinalize = () => {
+    if (docToFinalize) {
+      finalizeDoc({ groupId, documentId: docToFinalize.id });
+      setIsFinalizeConfirmOpen(false);
+      setDocToFinalize(null);
     }
   };
 
@@ -176,8 +187,19 @@ export const GroupDocuments = ({ documents, groupId, groupData, members, current
         onConfirm={onConfirmDelete}
         title="Hapus Dokumen"
         message={`Hapus "${docToDelete?.title}"?`}
-        confirmButtonColor="bg-red-600"
+        confirmButtonColor="bg-red-600 hover:bg-red-700"
         confirmText={isDeleting ? "Menghapus..." : "Hapus"}
+      />
+
+      {/* --- CONFIRMATION MODAL FOR FINALIZATION --- */}
+      <ConfirmationModal
+        isOpen={isFinalizeConfirmOpen}
+        onClose={() => setIsFinalizeConfirmOpen(false)}
+        onConfirm={onConfirmFinalize}
+        title="Finalisasi Dokumen"
+        message={`Apakah Anda yakin ingin finalisasi dokumen "${docToFinalize?.title}"? Dokumen yang sudah difinalisasi tidak dapat diubah lagi.`}
+        confirmButtonColor="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600"
+        confirmText={isFinalizing ? "Memproses..." : "Ya, Finalisasi"}
       />
 
       <div className="flex flex-col h-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">

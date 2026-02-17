@@ -14,27 +14,6 @@ import foto4 from "../../assets/images/Foto4.jpeg";
 import foto5 from "../../assets/images/Foto5.jpeg";
 import foto6 from "../../assets/images/Foto6.jpeg";
 
-import fotopkt1 from "../../assets/images/FotoPkt1.png";
-import fotopkt2 from "../../assets/images/FotoPkt2.png";
-import fotopkt3 from "../../assets/images/FotoPkt3.png";
-import fotopkt4 from "../../assets/images/FotoPkt4.png";
-
-import fotogroup1 from "../../assets/images/FotoGroup1.png";
-import fotogroup2 from "../../assets/images/FotoGroup2.png";
-import fotogroup3 from "../../assets/images/FotoGroup3.png";
-import fotogroup4 from "../../assets/images/FotoGroup4.png";
-
-import Notification1 from "../../assets/images/Notification1.png";
-import Notification2 from "../../assets/images/Notification2.png";
-import Notification3 from "../../assets/images/Notification3.png";
-
-import ProsesTTD1 from "../../assets/images/ProsesTTD1.png";
-import ProsesTTD2 from "../../assets/images/ProsesTTD2.png";
-import ProsesTTD3 from "../../assets/images/ProsesTTD3.png";
-
-
-
-
 const FeatureRow = ({
   title, description, badge, badgeColor, icon: Icon, featuresList, slides = [], isReversed
 }) => {
@@ -211,10 +190,10 @@ const FeaturesPage = () => {
             "Simpan semua dokumen yang sudah ditandatangani secara langsung."
           ]}
           slides={[
-            { src: fotopkt1, title: "Upload Dokumen", subtitle: "Upload 2 atau lebih dokumen PDF sekaligus.", icon: FaLayerGroup },
-            { src: fotopkt2, title: "Pilih Dokumen", subtitle: "Centang dokumen yang ingin ditandatangani.", icon: FaCheckCircle },
-            { src: fotopkt3, title: "Tanda Tangan", subtitle: "Drag & drop tanda tangan ke setiap dokumen.", icon: FaPenNib },
-            { src: fotopkt4, title: "Simpan Langsung", subtitle: "Klik simpan untuk menyimpan semua dokumen.", icon: FaBolt }
+            { title: "Upload Dokumen", subtitle: "Upload 2 atau lebih dokumen PDF sekaligus.", icon: FaLayerGroup },
+            { title: "Pilih Dokumen", subtitle: "Centang dokumen yang ingin ditandatangani.", icon: FaCheckCircle },
+            { title: "Tanda Tangan", subtitle: "Drag & drop tanda tangan ke setiap dokumen.", icon: FaPenNib },
+            { title: "Simpan Langsung", subtitle: "Klik simpan untuk menyimpan semua dokumen.", icon: FaBolt }
           ]}
         />
 
@@ -240,10 +219,10 @@ const FeaturesPage = () => {
             "Berbagi dokumen dengan seluruh anggota grup."
           ]}
           slides={[
-            { src: fotogroup1, title: "Buat Grup", subtitle: "Buat room kolaborasi baru.", icon: FaUsers },
-            { src: fotogroup2, title: "Invite Anggota", subtitle: "Bagikan link undangan ke tim.", icon: FaPenNib },
-            { src: fotogroup3, title: "Upload Dokumen", subtitle: "Upload dokumen yang akan ditandatangani.", icon: FaLayerGroup },
-            { src: fotogroup4, title: "Atur Signer", subtitle: "Pilih dan atur anggota sebagai penandatangan.", icon: FaCheckCircle }
+            { title: "Buat Grup", subtitle: "Buat room kolaborasi baru.", icon: FaUsers },
+            { title: "Invite Anggota", subtitle: "Bagikan link undangan ke tim.", icon: FaPenNib },
+            { title: "Upload Dokumen", subtitle: "Upload dokumen yang akan ditandatangani.", icon: FaLayerGroup },
+            { title: "Atur Signer", subtitle: "Pilih dan atur anggota sebagai penandatangan.", icon: FaCheckCircle }
           ]}
         />
 
@@ -258,11 +237,13 @@ const FeaturesPage = () => {
           featuresList={[
             "Notifikasi otomatis terkirim saat signer diatur.",
             "Pesan berisi link langsung ke dokumen yang perlu ditandatangani.",
+            "Akses aman tanpa perlu login berulang.",
+            "Reminder otomatis untuk signer yang belum menandatangani."
           ]}
           slides={[
-            { src: Notification1, title: "Pengaturan Signer", subtitle: "Atur dan simpan daftar penandatangan.", icon: FaUsers },
-            { src: Notification2, title: "Kirim Otomatis", subtitle: "Notifikasi WhatsApp terkirim otomatis.", icon: FaWhatsapp },
-            { src: Notification3, title: "Akses Dokumen", subtitle: "Signer klik link untuk akses langsung.", icon: FaBolt }
+            { title: "Pengaturan Signer", subtitle: "Atur dan simpan daftar penandatangan.", icon: FaUsers },
+            { title: "Kirim Otomatis", subtitle: "Notifikasi WhatsApp terkirim otomatis.", icon: FaWhatsapp },
+            { title: "Akses Dokumen", subtitle: "Signer klik link untuk akses langsung.", icon: FaBolt }
           ]}
         />
 
@@ -279,11 +260,13 @@ const FeaturesPage = () => {
             "Lihat aktivitas penandatangan lain secara langsung.",
             "Sinkronisasi posisi tanda tangan dengan WebSocket.",
             "Finalisasi dokumen oleh pengupload setelah semua selesai.",
+            "Dokumen final siap diunduh atau dibagikan."
           ]}
           slides={[
-            {src: ProsesTTD1, title: "Live Signing", subtitle: "Tanda tangan bersama secara realtime.", icon: FaBolt },
-            {src: ProsesTTD2, title: "Lihat Progres", subtitle: "Pantau status setiap penandatangan.", icon: FaUsers },
-            {src: ProsesTTD3, title: "Finalisasi", subtitle: "Pengupload memfinalisasi dokumen.", icon: FaCheckCircle },
+            { title: "Live Signing", subtitle: "Tanda tangan bersama secara realtime.", icon: FaBolt },
+            { title: "Lihat Progres", subtitle: "Pantau status setiap penandatangan.", icon: FaUsers },
+            { title: "Finalisasi", subtitle: "Pengupload memfinalisasi dokumen.", icon: FaCheckCircle },
+            { title: "Dokumen Selesai", subtitle: "Download atau bagikan dokumen final.", icon: FaLayerGroup }
           ]}
         />
 
