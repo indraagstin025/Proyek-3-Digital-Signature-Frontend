@@ -18,7 +18,7 @@ export const apiFileClient = axios.create({
 
 // Helper: Cek apakah path adalah halaman publik logic
 const isPublicPath = (path) => {
-  const publicPages = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/join", "/verify-email", "/tour", "/demo", "/features", "/privacy-policy", "/terms-and-conditions", "/auth/callback"];
+  const publicPages = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/join", "/verify-email", "/tour", "/demo", "/features", "/privacy-policy", "/terms-and-conditions", "/auth/callback", "/pricing"];
   const publicPrefixes = ["/verify/"];
   return publicPages.includes(path) || publicPrefixes.some(prefix => path.startsWith(prefix));
 };

@@ -42,6 +42,13 @@ const ShortcutsPage = () => {
         setUserName(parsed.name ? parsed.name.split(" ")[0] : "User");
       }
     } catch (e) { console.error(e); }
+
+    // [FIX] Bersihkan error OAuth dari URL jika ada (khusus di halaman ini)
+    // Mencegah loop error saat switch mode browser (Mobile <-> Desktop)
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("error") || params.get("error_description")) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
   }, []);
 
   const handleUploadClick = () => navigate("/dashboard/documents?openUpload=true");
@@ -50,7 +57,7 @@ const ShortcutsPage = () => {
   // 🔥 LOGIKA SMART SCROLL
   const responsiveSteps = useMemo(() => {
     const isDesktop = window.innerWidth >= 1024;
-    
+
     return SHORTCUTS_STEPS.map((step) => {
       // 1. MOBILE: SELALU ALLOW SCROLL
       if (!isDesktop) return { ...step, disableScroll: false, placement: 'bottom' };
@@ -64,8 +71,8 @@ const ShortcutsPage = () => {
         ...step,
         // Jika kartu bawah, AKTIFKAN SCROLL (disableScroll: false)
         // Jika kartu atas/banner, MATIKAN SCROLL (disableScroll: true)
-        disableScroll: !isBottomCard, 
-        
+        disableScroll: !isBottomCard,
+
         // Placement: Top untuk kartu bawah, Bottom/Center untuk sisanya
         placement: isBottomCard ? 'top' : (step.target === 'body' ? 'center' : 'bottom')
       };
@@ -83,9 +90,9 @@ const ShortcutsPage = () => {
   return (
     // ✅ KEMBALIKAN overflow-y-auto (Jangan di-hidden, agar bisa scroll)
     <div className="h-full w-full p-6 sm:p-8 fade-in bg-slate-50/50 dark:bg-[#0f172a] custom-scrollbar overflow-y-auto">
-      
-      <OnboardingTour 
-        tourKey="shortcuts_intro" 
+
+      <OnboardingTour
+        tourKey="shortcuts_intro"
         steps={responsiveSteps}
       />
 
@@ -101,7 +108,7 @@ const ShortcutsPage = () => {
           {shortcuts.map((item) => (
             <div
               key={item.id}
-              id={`shortcut-card-${item.id}`} 
+              id={`shortcut-card-${item.id}`}
               onClick={() => navigate(item.path)}
               className="group relative cursor-pointer overflow-hidden rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 transform hover:-translate-y-1"
             >

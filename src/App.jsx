@@ -114,7 +114,7 @@ const AppWrapper = () => {
     const delayDuration = shouldShowSplash ? 2000 : 0;
 
     // Jika di halaman publik (/, /login, /register), jangan cek session
-    const publicOnlyPaths = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/join", "/verify-email", "/tour", "/demo", "/features", "/privacy-policy", "/terms-and-conditions", "/auth/callback", "/forgot-password", "/reset-password"];
+    const publicOnlyPaths = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/join", "/verify-email", "/tour", "/demo", "/features", "/privacy-policy", "/terms-and-conditions", "/auth/callback", "/forgot-password", "/reset-password", "/pricing"];
 
     // Dynamic public paths (untuk route dengan parameter seperti /verify/:signatureId)
     const publicPathPrefixes = ["/verify/"];
